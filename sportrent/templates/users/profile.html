@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    {% if user.avatar_url %}
+                        <img src="{{ user.avatar_url.url }}" alt="Аватар" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                    {% else %}
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 150px; height: 150px; font-size: 3rem;">
+                            {{ user.email.0|upper }}
+                        </div>
+                    {% endif %}
+                    
+                    <h4 class="mb-1">{{ user.get_full_name }}</h4>
+                    <p class="text-muted mb-3">
+                        <span class="badge bg-primary">{{ user.get_role_display }}</span>
+                    </p>
+                    
+                    <p class="text-muted small mb-1">
+                        <i class="bi bi-envelope"></i> {{ user.email }}
+                    </p>
+                    
+                    {% if user.phone %}
+                        <p class="text-muted small mb-3">
+                            <i class="bi bi-telephone"></i> {{ user.phone }}
+                        </p>
+                    {% endif %}
+                    
+                    {% if user.avg_rating %}
+                        <div class="mb-3">
+                            <span class="text-warning">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= user.avg_rating %}
+                                        <i class="bi bi-star-fill"></i>
+                                    {% else %}
+                                        <i class="bi bi-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
+                            <span class="ms-2">{{ user.avg_rating }}/5</span>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2">
+                        <a href="#editProfile" class="btn btn-primary" data-bs-toggle="collapse">
+                            <i class="bi bi-pencil"></i> Редактировать профиль
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            {% if user.role == 'client' or user.role == 'owner' %}
+                <div class="card shadow-sm mt-3">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Статистика</h5>
+                        
+                        {% if user.role == 'client' %}
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Всего аренд:</span>
+                                <strong>{{ total_rentals|default:0 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Активных:</span>
+                                <strong class="text-primary">{{ active_rentals|default:0 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Баллы лояльности:</span>
+                                <strong class="text-success">{{ user.loyalty_points }}</strong>
+                            </div>
+                        {% elif user.role == 'owner' %}
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Всего предметов:</span>
+                                <strong>{{ total_items|default:0 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Доступно:</span>
+                                <strong class="text-primary">{{ active_items|default:0 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Заработок:</span>
+                                <strong class="text-success">{{ user.owner_profile.total_earnings|default:0 }} руб.</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-8">
+            <div class="collapse mb-4" id="editProfile">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Редактирование профиля</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            
+                            <h6 class="mb-3">Основная информация</h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ user_form.email.id_for_label }}" class="form-label">
+                                        {{ user_form.email.label }}
+                                    </label>
+                                    {{ user_form.email }}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ user_form.phone.id_for_label }}" class="form-label">
+                                        {{ user_form.phone.label }}
+                                    </label>
+                                    {{ user_form.phone }}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ user_form.avatar_url.id_for_label }}" class="form-label">
+                                    {{ user_form.avatar_url.label }}
+                                </label>
+                                {{ user_form.avatar_url }}
+                            </div>
+                            
+                            {% if profile_form %}
+                                <hr class="my-4">
+                                <h6 class="mb-3">Дополнительная информация</h6>
+                                
+                                {% for field in profile_form %}
+                                    <div class="mb-3">
+                                        <label for="{{ field.id_for_label }}" class="form-label">
+                                            {{ field.label }}
+                                        </label>
+                                        {{ field }}
+                                        {% if field.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {{ field.errors.0 }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg"></i> Сохранить изменения
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#editProfile">
+                                    Отмена
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Последняя активность</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.role == 'client' %}
+                        <p class="text-muted">
+                            Здесь будет отображаться история ваших аренд
+                        </p>
+                        <a href="{% url 'rentals:list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-list-ul"></i> Мои аренды
+                        </a>
+                    {% elif user.role == 'owner' %}
+                        <p class="text-muted">
+                            Здесь будет отображаться информация о вашем инвентаре
+                        </p>
+                        <a href="{% url 'inventory:list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-box"></i> Мой инвентарь
+                        </a>
+                    {% else %}
+                        <p class="text-muted">
+                            Информация о профиле доступна после авторизации
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

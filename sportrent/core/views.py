@@ -7,7 +7,6 @@ from django.db import models
 from inventory.models import Inventory, SportCategory
 from django.db.models import Count
 
-
 def home(request):
     """
     Главная страница с каталогом доступного инвентаря.
