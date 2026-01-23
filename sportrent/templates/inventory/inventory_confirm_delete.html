@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+
+    Подтвердите удаление
+    Вы уверены, что хотите удалить "{{ inventory.name }}"?
+    
+        {% csrf_token %}
+        Удалить
+        Отмена
+    
+
+{% endblock %}

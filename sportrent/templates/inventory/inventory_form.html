@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+
+    {% if is_create %}Добавить{% else %}Редактировать{% endif %} инвентарь
+    
+        {% csrf_token %}
+        {{ form.as_p }}
+        Сохранить
+        Отмена
+    
+
+{% endblock %}
