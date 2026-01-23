@@ -1,22 +1,27 @@
 """
-URL configuration for config project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Главный URL конфигуратор для проекта SportRent.
 """
+
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # Стандартная админка Django (временно, потом заменим на кастомную)
+    path('django-admin/', admin.site.urls),
+
+    # Основные разделы приложения
+    path('', include('core.urls')),
+    path('users/', include('users.urls')),
+    path('inventory/', include('inventory.urls')),
+    path('rentals/', include('rentals.urls')),
+    path('reviews/', include('reviews.urls')),
+    path('chat/', include('chat.urls')),
+    path('admin/', include('custom_admin.urls')),
 ]
+
+# Медиа файлы в режиме разработки
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
