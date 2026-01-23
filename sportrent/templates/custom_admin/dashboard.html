@@ -1,7 +1,36 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="container py-5">
-    <h2>Панель администратора</h2>
-    <p>Функционал в разработке</p>
-</div>
+
+    Панель администратора
+    Функционал в разработке
+
+    {% if user.role == 'manager' or user.role == 'administrator' %}
+
+
+
+
+                        {{ total_users|default:0 }}
+                        Пользователей
+
+
+
+
+
+
+                        {{ total_inventory|default:0 }}
+                        Инвентаря
+
+
+
+
+
+
+                        {{ total_rentals|default:0 }}
+                        Аренд
+
+
+
+
+    {% endif %}
+
 {% endblock %}

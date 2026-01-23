@@ -1,12 +1,49 @@
 {% extends 'base.html' %}
+
+{% block title %}Удалить инвентарь - SportRent{% endblock %}
+
 {% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Подтверждение удаления
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle"></i> Это действие необратимо!
+                    </div>
 
-    Подтвердите удаление
-    Вы уверены, что хотите удалить "{{ inventory.name }}"?
-    
-        {% csrf_token %}
-        Удалить
-        Отмена
-    
+                    <p class="mb-3">Вы уверены, что хотите удалить следующий инвентарь?</p>
 
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ inventory.name }}</h5>
+                            <p class="card-text text-muted">{{ inventory.description|truncatewords:20 }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-primary">{{ inventory.category.name }}</span>
+                                <strong class="text-primary">{{ inventory.price_per_day }} ₽/день</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="bi bi-trash"></i> Да, удалить
+                            </button>
+                            <a href="{% url 'inventory:detail' inventory.inventory_id %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

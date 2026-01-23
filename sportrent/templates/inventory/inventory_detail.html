@@ -1,9 +1,216 @@
 {% extends 'base.html' %}
+
+{% block title %}{{ inventory.name }} - SportRent{% endblock %}
+
 {% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'inventory:list' %}">Каталог</a></li>
+            <li class="breadcrumb-item active">{{ inventory.name }}</li>
+        </ol>
+    </nav>
 
-    {{ inventory.name }}
-    {{ inventory.description }}
-    Цена: {{ inventory.price_per_day }} ₽/день
-    Назад
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            {% if inventory.photos.all %}
+                <div id="inventoryCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        {% for photo in inventory.photos.all %}
+                            <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                <img src="{{ photo.photo_url.url }}" class="d-block w-100 rounded" alt="{{ photo.description }}" style="height: 400px; object-fit: cover;">
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if inventory.photos.count > 1 %}
+                        <button class="carousel-control-prev" type="button" data-bs-target="#inventoryCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#inventoryCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                        </button>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 400px;">
+                    <i class="bi bi-image text-muted" style="font-size: 5rem;"></i>
+                </div>
+            {% endif %}
+        </div>
 
+        <div class="col-lg-6">
+            <div class="mb-3">
+                <span class="badge bg-primary">{{ inventory.category.name }}</span>
+                <span class="badge bg-success">{{ inventory.get_condition_display }}</span>
+                <span class="badge bg-info">{{ inventory.get_status_display }}</span>
+            </div>
+
+            <h1 class="mb-3">{{ inventory.name }}</h1>
+
+            {% if inventory.avg_rating %}
+                <div class="mb-3">
+                    <span class="text-warning">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= inventory.avg_rating %}
+                                <i class="bi bi-star-fill"></i>
+                            {% else %}
+                                <i class="bi bi-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                    <span class="ms-2">{{ inventory.avg_rating }}/5</span>
+                    <span class="text-muted">({{ inventory.total_rentals }} аренд)</span>
+                </div>
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Бренд</p>
+                            <p class="mb-0"><strong>{{ inventory.brand|default:"Не указан" }}</strong></p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Модель</p>
+                            <p class="mb-0"><strong>{{ inventory.model|default:"Не указана" }}</strong></p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Срок аренды</p>
+                            <p class="mb-0"><strong>{{ inventory.min_rental_days }}-{{ inventory.max_rental_days }} дней</strong></p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Залог</p>
+                            <p class="mb-0"><strong>{{ inventory.deposit_amount }} ₽</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-between mb-4 p-3 bg-light rounded">
+                <div>
+                    <h3 class="mb-0 text-primary">{{ inventory.price_per_day }} ₽</h3>
+                    <small class="text-muted">за день</small>
+                </div>
+                {% if inventory.status == 'available' and user.is_authenticated and user.role == 'client' %}
+                    <a href="#" class="btn btn-primary btn-lg">
+                        <i class="bi bi-calendar-check"></i> Забронировать
+                    </a>
+                {% elif not user.is_authenticated %}
+                    <a href="{% url 'users:login' %}" class="btn btn-outline-primary btn-lg">
+                        Войти для бронирования
+                    </a>
+                {% endif %}
+            </div>
+
+            {% if user.is_authenticated %}
+                {% if user.role == 'owner' and user.owner_profile == inventory.owner %}
+                    <div class="d-grid gap-2 d-md-flex">
+                        <a href="{% url 'inventory:update' inventory.inventory_id %}" class="btn btn-warning flex-fill">
+                            <i class="bi bi-pencil"></i> Редактировать
+                        </a>
+                        <a href="{% url 'inventory:delete' inventory.inventory_id %}" class="btn btn-danger flex-fill">
+                            <i class="bi bi-trash"></i> Удалить
+                        </a>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Описание</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ inventory.description }}</p>
+                </div>
+            </div>
+
+            {% if reviews %}
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Отзывы ({{ reviews.count }})</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for review in reviews %}
+                            <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <strong>{{ review.reviewer.get_full_name }}</strong>
+                                        <div class="text-warning">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= review.rating %}
+                                                    <i class="bi bi-star-fill small"></i>
+                                                {% else %}
+                                                    <i class="bi bi-star small"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ review.review_date|date:"d.m.Y" }}</small>
+                                </div>
+                                <p class="mb-0">{{ review.comment }}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Владелец</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if inventory.owner.user.avatar_url %}
+                        <img src="{{ inventory.owner.user.avatar_url.url }}" alt="Владелец" class="rounded-circle mb-3" style="width: 80px; height: 80px; object-fit: cover;">
+                    {% else %}
+                        <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                            {{ inventory.owner.full_name.0|upper }}
+                        </div>
+                    {% endif %}
+                    <h6>{{ inventory.owner.full_name }}</h6>
+                    {% if inventory.owner.verified %}
+                        <p class="text-success small mb-2">
+                            <i class="bi bi-patch-check-fill"></i> Верифицирован
+                        </p>
+                    {% endif %}
+                    {% if inventory.owner.user.avg_rating %}
+                        <div class="text-warning mb-2">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= inventory.owner.user.avg_rating %}
+                                    <i class="bi bi-star-fill small"></i>
+                                {% else %}
+                                    <i class="bi bi-star small"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="text-muted small mb-0">{{ inventory.owner.active_items }} активных предметов</p>
+                </div>
+            </div>
+
+            {% if inventory.manager %}
+                <div class="card mt-3">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Контакт</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>{{ inventory.manager.full_name }}</strong></p>
+                        <p class="text-muted small mb-2">Менеджер магазина</p>
+                        {% if user.is_authenticated and user.role == 'client' %}
+                            <a href="#" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="bi bi-chat-dots"></i> Написать
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}
