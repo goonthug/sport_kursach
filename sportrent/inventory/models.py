@@ -47,31 +47,28 @@ class Inventory(models.Model):
 
     inventory_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name='inventory_items', verbose_name='Владелец')
-    manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_items',
-                                verbose_name='Менеджер')
-    category = models.ForeignKey(SportCategory, on_delete=models.PROTECT, related_name='items',
-                                 verbose_name='Категория')
+    manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_items', verbose_name='Менеджер')
+    category = models.ForeignKey(SportCategory, on_delete=models.PROTECT, related_name='items', verbose_name='Категория')
 
     name = models.CharField(max_length=200, verbose_name='Название')
     description = models.TextField(verbose_name='Описание')
     brand = models.CharField(max_length=100, blank=True, verbose_name='Бренд')
     model = models.CharField(max_length=100, blank=True, verbose_name='Модель')
 
-    price_per_day = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)],
-                                        verbose_name='Цена за день')
+    price_per_day = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='Цена за день')
     condition = models.CharField(max_length=50, choices=CONDITION_CHOICES, default='good', verbose_name='Состояние')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Статус')
 
     added_date = models.DateTimeField(default=timezone.now, verbose_name='Дата добавления')
-    avg_rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True,
-                                     verbose_name='Средний рейтинг')
+    avg_rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True, verbose_name='Средний рейтинг')
     total_rentals = models.IntegerField(default=0, verbose_name='Всего аренд')
 
+    # Кэшированное количество отзывов
+    reviews_count = models.IntegerField(default=0, verbose_name='Количество отзывов')
+
     # Дополнительные поля для условий аренды
-    min_rental_days = models.IntegerField(default=1, validators=[MinValueValidator(1)],
-                                          verbose_name='Минимум дней аренды')
-    max_rental_days = models.IntegerField(default=30, validators=[MinValueValidator(1)],
-                                          verbose_name='Максимум дней аренды')
+    min_rental_days = models.IntegerField(default=1, validators=[MinValueValidator(1)], verbose_name='Минимум дней аренды')
+    max_rental_days = models.IntegerField(default=30, validators=[MinValueValidator(1)], verbose_name='Максимум дней аренды')
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Сумма залога')
 
     # Поле для причины отклонения

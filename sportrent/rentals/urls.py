@@ -5,4 +5,10 @@ app_name = 'rentals'
 
 urlpatterns = [
     path('', views.rental_list, name='list'),
+    path('<uuid:pk>/', views.rental_detail, name='detail'),
+    path('create/<uuid:inventory_id>/', views.rental_create, name='create'),
+    path('<uuid:pk>/confirm/', views.rental_confirm, name='confirm'),
+    path('<uuid:pk>/reject/', views.rental_reject, name='reject'),
+    path('<uuid:pk>/complete/', views.rental_complete, name='complete'),
+    path('<uuid:pk>/cancel/', views.rental_cancel, name='cancel'),
 ]

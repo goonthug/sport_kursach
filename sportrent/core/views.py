@@ -3,9 +3,9 @@ Views для core приложения (главная страница и об�
 """
 
 from django.shortcuts import render
-from django.db import models
+from django.db.models import Count, Q
 from inventory.models import Inventory, SportCategory
-from django.db.models import Count
+
 
 def home(request):
     """
@@ -18,7 +18,7 @@ def home(request):
 
     # Получаем категории с количеством доступных предметов
     categories = SportCategory.objects.annotate(
-        item_count=Count('items', filter=models.Q(items__status='available'))
+        item_count=Count('items', filter=Q(items__status='available'))
     )
 
     context = {

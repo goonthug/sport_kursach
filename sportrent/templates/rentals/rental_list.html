@@ -1,7 +1,158 @@
 {% extends 'base.html' %}
+
+{% block title %}Мои аренды - SportRent{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-    <h2>Мои аренды</h2>
-    <p>Функционал в разработке</p>
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                {% if user.role == 'client' %}
+                    Мои аренды
+                {% elif user.role == 'manager' %}
+                    Управление арендой
+                {% elif user.role == 'owner' %}
+                    Аренды моего инвентаря
+                {% else %}
+                    Все аренды
+                {% endif %}
+            </h2>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel"></i> Применить фильтр
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Список аренд -->
+    {% if page_obj %}
+        <div class="row g-4">
+            {% for rental in page_obj %}
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    {% if rental.inventory.photos.all %}
+                                        <img src="{{ rental.inventory.photos.first.photo_url.url }}"
+                                             class="img-fluid rounded"
+                                             alt="{{ rental.inventory.name }}"
+                                             style="height: 100px; width: 100%; object-fit: cover;">
+                                    {% else %}
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 100px;">
+                                            <i class="bi bi-image text-muted"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-md-6">
+                                    <h5 class="mb-2">{{ rental.inventory.name }}</h5>
+                                    <p class="text-muted small mb-2">
+                                        <i class="bi bi-calendar"></i>
+                                        {{ rental.start_date|date:"d.m.Y" }} - {{ rental.end_date|date:"d.m.Y" }}
+                                        <span class="ms-2">({{ rental.rental_days }} дней)</span>
+                                    </p>
+
+                                    {% if user.role == 'manager' or user.role == 'owner' or user.role == 'administrator' %}
+                                        <p class="text-muted small mb-0">
+                                            <i class="bi bi-person"></i> Клиент: {{ rental.client.full_name }}
+                                        </p>
+                                    {% endif %}
+
+                                    {% if user.role == 'client' and rental.manager %}
+                                        <p class="text-muted small mb-0">
+                                            <i class="bi bi-headset"></i> Менеджер: {{ rental.manager.full_name }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-md-2 text-center">
+                                    <div class="mb-2">
+                                        {% if rental.status == 'pending' %}
+                                            <span class="badge bg-warning">{{ rental.get_status_display }}</span>
+                                        {% elif rental.status == 'confirmed' %}
+                                            <span class="badge bg-info">{{ rental.get_status_display }}</span>
+                                        {% elif rental.status == 'active' %}
+                                            <span class="badge bg-primary">{{ rental.get_status_display }}</span>
+                                        {% elif rental.status == 'completed' %}
+                                            <span class="badge bg-success">{{ rental.get_status_display }}</span>
+                                        {% elif rental.status == 'cancelled' %}
+                                            <span class="badge bg-secondary">{{ rental.get_status_display }}</span>
+                                        {% elif rental.status == 'rejected' %}
+                                            <span class="badge bg-danger">{{ rental.get_status_display }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="h5 text-primary mb-0">{{ rental.total_price }} ₽</p>
+                                    <small class="text-muted">{{ rental.get_payment_status_display }}</small>
+                                </div>
+
+                                <div class="col-md-2 text-end">
+                                    <a href="{% url 'rentals:detail' rental.rental_id %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-eye"></i> Подробнее
+                                    </a>
+
+                                    {% if user.role == 'client' and rental.status == 'pending' %}
+                                        <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}" class="mt-2">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm w-100"
+                                                    onclick="return confirm('Отменить аренду?')">
+                                                <i class="bi bi-x-circle"></i> Отменить
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Пагинация -->
+        {% if page_obj.has_other_pages %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Назад</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Вперед</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> У вас пока нет аренд
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

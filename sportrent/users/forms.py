@@ -2,17 +2,20 @@
 Формы для регистрации и управления пользователями.
 """
 
+import re
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.core.exceptions import ValidationError
+from django.core.validators import EmailValidator
 from .models import User, Client, Owner, Manager
 
 
 class UserRegistrationForm(UserCreationForm):
-    """Форма регистрации нового пользователя."""
+    """Форма регистрации нового пользователя с полной валидацией."""
 
     email = forms.EmailField(
         label='Email',
+        validators=[EmailValidator(message='Введите корректный email адрес')],
         widget=forms.EmailInput(attrs={
             'class': 'form-control',
             'placeholder': 'example@mail.com'
@@ -48,7 +51,8 @@ class UserRegistrationForm(UserCreationForm):
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
             'placeholder': 'Минимум 8 символов'
-        })
+        }),
+        help_text='Пароль должен содержать минимум 8 символов, включая заглавную букву, цифру и спецсимвол'
     )
 
     password2 = forms.CharField(
@@ -64,11 +68,72 @@ class UserRegistrationForm(UserCreationForm):
         fields = ('email', 'phone', 'role', 'password1', 'password2')
 
     def clean_email(self):
-        """Проверка уникальности email."""
-        email = self.cleaned_data.get('email')
+        """Проверка уникальности и корректности email."""
+        email = self.cleaned_data.get('email', '').strip().lower()
+
+        # Проверка формата email
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+            raise ValidationError('Введите корректный email адрес (example@mail.com)')
+
+        # Проверка уникальности
         if User.objects.filter(email=email).exists():
             raise ValidationError('Пользователь с таким email уже существует.')
+
         return email
+
+    def clean_phone(self):
+        """Валидация телефона."""
+        phone = self.cleaned_data.get('phone', '').strip()
+
+        if phone:
+            # Убираем все символы кроме цифр и +
+            cleaned_phone = re.sub(r'[^\d+]', '', phone)
+
+            # Проверка формата (должно быть 11-12 цифр)
+            if not re.match(r'^\+?[0-9]{10,12}$', cleaned_phone):
+                raise ValidationError('Введите корректный номер телефона (например, +79991234567)')
+
+            return cleaned_phone
+
+        return phone
+
+    def clean_full_name(self):
+        """Валидация полного имени."""
+        full_name = self.cleaned_data.get('full_name', '').strip()
+
+        if len(full_name) < 3:
+            raise ValidationError('Имя должно содержать минимум 3 символа')
+
+        # Проверка что имя содержит только буквы, пробелы и дефисы
+        if not re.match(r'^[а-яёА-ЯЁa-zA-Z\s\-]+$', full_name):
+            raise ValidationError('Имя должно содержать только буквы')
+
+        return full_name
+
+    def clean_password1(self):
+        """Усиленная валидация пароля."""
+        password = self.cleaned_data.get('password1')
+
+        if len(password) < 8:
+            raise ValidationError('Пароль должен содержать минимум 8 символов')
+
+        # Проверка наличия заглавной буквы
+        if not re.search(r'[A-ZА-Я]', password):
+            raise ValidationError('Пароль должен содержать хотя бы одну заглавную букву')
+
+        # Проверка наличия строчной буквы
+        if not re.search(r'[a-zа-я]', password):
+            raise ValidationError('Пароль должен содержать хотя бы одну строчную букву')
+
+        # Проверка наличия цифры
+        if not re.search(r'\d', password):
+            raise ValidationError('Пароль должен содержать хотя бы одну цифру')
+
+        # Проверка наличия спецсимвола
+        if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]', password):
+            raise ValidationError('Пароль должен содержать хотя бы один спецсимвол (!@#$%^&* и т.д.)')
+
+        return password
 
     def save(self, commit=True):
         """Сохранение пользователя и создание профиля."""

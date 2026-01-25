@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Создать заявку на аренду - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h3 class="mb-0"><i class="bi bi-calendar-plus"></i> Заявка на аренду</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            {% if inventory.photos.all %}
+                                <img src="{{ inventory.photos.first.photo_url.url }}" class="img-fluid rounded" alt="{{ inventory.name }}">
+                            {% else %}
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                                    <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <h4>{{ inventory.name }}</h4>
+                            <p class="text-muted">{{ inventory.brand }} {{ inventory.model }}</p>
+                            <div class="row">
+                                <div class="col-6">
+                                    <p class="mb-1"><strong>Цена:</strong> {{ inventory.price_per_day }} ₽/день</p>
+                                    <p class="mb-1"><strong>Залог:</strong> {{ inventory.deposit_amount }} ₽</p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1"><strong>Мин. срок:</strong> {{ inventory.min_rental_days }} дней</p>
+                                    <p class="mb-1"><strong>Макс. срок:</strong> {{ inventory.max_rental_days }} дней</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                    {{ form.start_date.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.start_date }}
+                                {% if form.start_date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.start_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.end_date.id_for_label }}" class="form-label">
+                                    {{ form.end_date.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.end_date }}
+                                {% if form.end_date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.end_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                {{ form.notes.label }}
+                            </label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger small mt-1">{{ form.notes.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> 
+                            После отправки заявки менеджер рассмотрит её и свяжется с вами для подтверждения деталей.
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'inventory:detail' inventory.inventory_id %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i> Отправить заявку
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Автоматический расчет стоимости
+document.addEventListener('DOMContentLoaded', function() {
+    const startDate = document.getElementById('{{ form.start_date.id_for_label }}');
+    const endDate = document.getElementById('{{ form.end_date.id_for_label }}');
+    const pricePerDay = {{ inventory.price_per_day }};
+    
+    function calculateTotal() {
+        if (startDate.value && endDate.value) {
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+            
+            if (days > 0) {
+                const total = days * pricePerDay;
+                console.log(`Дней: ${days}, Стоимость: ${total} ₽`);
+            }
+        }
+    }
+    
+    startDate.addEventListener('change', calculateTotal);
+    endDate.addEventListener('change', calculateTotal);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block title %}Аренда #{{ rental.rental_id|slice:":8" }} - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'rentals:list' %}">Мои аренды</a></li>
+            <li class="breadcrumb-item active">Аренда #{{ rental.rental_id|slice:":8" }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Информация об аренде</h4>
+                    {% if rental.status == 'pending' %}
+                        <span class="badge bg-warning">{{ rental.get_status_display }}</span>
+                    {% elif rental.status == 'confirmed' %}
+                        <span class="badge bg-info">{{ rental.get_status_display }}</span>
+                    {% elif rental.status == 'active' %}
+                        <span class="badge bg-primary">{{ rental.get_status_display }}</span>
+                    {% elif rental.status == 'completed' %}
+                        <span class="badge bg-success">{{ rental.get_status_display }}</span>
+                    {% elif rental.status == 'cancelled' %}
+                        <span class="badge bg-secondary">{{ rental.get_status_display }}</span>
+                    {% elif rental.status == 'rejected' %}
+                        <span class="badge bg-danger">{{ rental.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Инвентарь</p>
+                            <p><strong>{{ rental.inventory.name }}</strong></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Категория</p>
+                            <p>{{ rental.inventory.category.name }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Дата начала</p>
+                            <p><i class="bi bi-calendar"></i> {{ rental.start_date|date:"d.m.Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Дата окончания</p>
+                            <p><i class="bi bi-calendar"></i> {{ rental.end_date|date:"d.m.Y H:i" }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if rental.actual_return_date %}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="text-muted small mb-1">Фактическая дата возврата</p>
+                                <p><i class="bi bi-calendar-check"></i> {{ rental.actual_return_date|date:"d.m.Y H:i" }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Стоимость аренды</p>
+                            <p class="h5 text-primary">{{ rental.total_price }} ₽</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Залог</p>
+                            <p class="h5">{{ rental.deposit_paid }} ₽</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Статус оплаты</p>
+                            <p>
+                                {% if rental.payment_status == 'paid' %}
+                                    <span class="badge bg-success">{{ rental.get_payment_status_display }}</span>
+                                {% elif rental.payment_status == 'pending' %}
+                                    <span class="badge bg-warning">{{ rental.get_payment_status_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ rental.get_payment_status_display }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Продолжительность</p>
+                            <p>{{ rental.rental_days }} дней</p>
+                        </div>
+                    </div>
+                    
+                    {% if rental.notes %}
+                        <hr>
+                        <p class="text-muted small mb-1">Примечания</p>
+                        <p>{{ rental.notes }}</p>
+                    {% endif %}
+                    
+                    {% if rental.rejection_reason %}
+                        <div class="alert alert-danger mt-3">
+                            <strong>Причина отклонения:</strong> {{ rental.rejection_reason }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if user.role == 'manager' and rental.status == 'pending' %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Действия менеджера</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <form method="post" action="{% url 'rentals:confirm' rental.rental_id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-check-circle"></i> Подтвердить аренду
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                                    <i class="bi bi-x-circle"></i> Отклонить аренду
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if user.role == 'manager' and rental.status in 'confirmed,active' %}
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <form method="post" action="{% url 'rentals:complete' rental.rental_id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Завершить аренду?')">
+                                <i class="bi bi-check-lg"></i> Завершить аренду
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if user.role == 'client' and rental.status == 'pending' %}
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger w-100" onclick="return confirm('Отменить аренду?')">
+                                <i class="bi bi-x-circle"></i> Отменить аренду
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Клиент</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>{{ rental.client.full_name }}</strong></p>
+                    <p class="text-muted small">{{ rental.client.user.email }}</p>
+                    {% if rental.client.verified %}
+                        <p class="text-success small"><i class="bi bi-patch-check-fill"></i> Верифицирован</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if rental.manager %}
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Менеджер</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>{{ rental.manager.full_name }}</strong></p>
+                        <p class="text-muted small">{{ rental.manager.email_work }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal для отклонения -->
+{% if user.role == 'manager' %}
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'rentals:reject' rental.rental_id %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Отклонить аренду</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Причина отклонения</label>
+                            <textarea name="reason" id="reason" class="form-control" rows="3" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger">Отклонить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
