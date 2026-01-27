@@ -182,6 +182,12 @@
                     <div class="card-body">
                         <p><strong>{{ rental.manager.full_name }}</strong></p>
                         <p class="text-muted small">{{ rental.manager.email_work }}</p>
+
+                        <div class="d-grid">
+                            <a href="{% url 'chat:detail' rental.rental_id %}" class="btn btn-primary">
+                                <i class="bi bi-chat-dots"></i> Открыть чат
+                            </a>
+                        </div>
                     </div>
                 </div>
             {% endif %}

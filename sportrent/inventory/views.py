@@ -97,15 +97,17 @@ def inventory_detail(request, pk):
     Детальная страница инвентаря с отзывами.
     """
     inventory = get_object_or_404(
-        Inventory.objects.select_related('category', 'owner', 'owner__user', 'manager')
-        .prefetch_related('photos', 'reviews'),
+        Inventory.objects.select_related('category', 'owner', 'owner__user', 'manager'),
         pk=pk
     )
 
-    # Получаем отзывы
-    reviews = inventory.reviews.filter(
-        status='published', target_type='inventory', reviewed_id=inventory.inventory_id
-    ).select_related('reviewer', 'rental')[:10]
+    # Получаем отзывы напрямую через Review модель
+    from reviews.models import Review
+    reviews = Review.objects.filter(
+        reviewed_id=inventory.inventory_id,
+        target_type='inventory',
+        status='published'
+    ).select_related('reviewer', 'rental').order_by('-review_date')[:10]
 
     context = {
         'inventory': inventory,
@@ -251,3 +253,42 @@ def inventory_delete(request, pk):
         return redirect('inventory:list')
 
     return render(request, 'inventory/inventory_confirm_delete.html', {'inventory': inventory})
+
+
+@login_required
+def my_inventory(request):
+    """
+    Мой инвентарь (для владельцев).
+    """
+    if request.user.role != 'owner':
+        messages.error(request, 'Эта страница доступна только владельцам инвентаря')
+        return redirect('inventory:list')
+
+    if not hasattr(request.user, 'owner_profile'):
+        messages.error(request, 'Профиль владельца не найден')
+        return redirect('users:profile')
+
+    owner = request.user.owner_profile
+
+    # Фильтрация по статусу
+    status = request.GET.get('status')
+
+    inventory_qs = Inventory.objects.filter(
+        owner=owner
+    ).select_related('category', 'manager').prefetch_related('photos').order_by('-added_date')
+
+    if status:
+        inventory_qs = inventory_qs.filter(status=status)
+
+    # Пагинация
+    paginator = Paginator(inventory_qs, 12)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'selected_status': status,
+        'is_my_inventory': True,
+    }
+
+    return render(request, 'inventory/my_inventory.html', context)

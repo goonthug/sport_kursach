@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Модерация инвентаря - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Модерация инвентаря</h2>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="search" class="form-control" placeholder="Поиск" value="{{ search_query }}">
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Ожидает проверки</option>
+                        <option value="available" {% if selected_status == 'available' %}selected{% endif %}>Доступен</option>
+                        <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Отклонен</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="category" class="form-select">
+                        <option value="">Все категории</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.category_id }}" {% if selected_category == cat.category_id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">Применить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if page_obj %}
+        <div class="row g-4">
+            {% for item in page_obj %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        {% if item.photos.all %}
+                            <img src="{{ item.photos.first.photo_url.url }}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text small">{{ item.description|truncatewords:15 }}</p>
+                            <p class="mb-1"><strong>Владелец:</strong> {{ item.owner.full_name }}</p>
+                            <p class="mb-1"><strong>Цена:</strong> {{ item.price_per_day }} ₽/день</p>
+                            <p class="mb-2">
+                                {% if item.status == 'pending' %}
+                                    <span class="badge bg-warning">Ожидает</span>
+                                {% elif item.status == 'available' %}
+                                    <span class="badge bg-success">Одобрен</span>
+                                {% elif item.status == 'rejected' %}
+                                    <span class="badge bg-danger">Отклонен</span>
+                                {% endif %}
+                            </p>
+                            
+                            {% if item.status == 'pending' %}
+                                <div class="d-grid gap-2">
+                                    <form method="post" action="{% url 'custom_admin:inventory_approve' item.inventory_id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success btn-sm w-100">Одобрить</button>
+                                    </form>
+                                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal{{ item.inventory_id }}">Отклонить</button>
+                                </div>
+                                
+                                <!-- Modal для отклонения -->
+                                <div class="modal fade" id="rejectModal{{ item.inventory_id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form method="post" action="{% url 'custom_admin:inventory_reject' item.inventory_id %}">
+                                                {% csrf_token %}
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Отклонить инвентарь</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <label for="reason" class="form-label">Причина отклонения</label>
+                                                    <textarea name="reason" class="form-control" rows="3" required></textarea>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                                    <button type="submit" class="btn btn-danger">Отклонить</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <a href="{% url 'inventory:detail' item.inventory_id %}" class="btn btn-outline-primary btn-sm w-100">Подробнее</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        {% if page_obj.has_other_pages %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a></li>
+                    {% endif %}
+                    <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Вперед</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-info">Нет инвентаря для модерации</div>
+    {% endif %}
+</div>
+{% endblock %}

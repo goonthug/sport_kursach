@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Управление пользователями - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Управление пользователями</h2>
+        </div>
+    </div>
+    
+    <!-- Фильтры -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="search" class="form-control" placeholder="Поиск по email/телефону" value="{{ search_query }}">
+                </div>
+                <div class="col-md-3">
+                    <select name="role" class="form-select">
+                        <option value="">Все роли</option>
+                        {% for value, label in role_choices %}
+                            <option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">Применить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Таблица пользователей -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Роль</th>
+                            <th>Статус</th>
+                            <th>Дата регистрации</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in page_obj %}
+                            <tr>
+                                <td>{{ user.email }}</td>
+                                <td><span class="badge bg-primary">{{ user.get_role_display }}</span></td>
+                                <td>
+                                    {% if user.status == 'active' %}
+                                        <span class="badge bg-success">{{ user.get_status_display }}</span>
+                                    {% elif user.status == 'blocked' %}
+                                        <span class="badge bg-danger">{{ user.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ user.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.registration_date|date:"d.m.Y" }}</td>
+                                <td>
+                                    {% if user.role != 'administrator' %}
+                                        {% if user.status != 'blocked' %}
+                                            <form method="post" action="{% url 'custom_admin:user_block' user.user_id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Заблокировать пользователя?')">Блокировать</button>
+                                            </form>
+                                        {% else %}
+                                            <form method="post" action="{% url 'custom_admin:user_unblock' user.user_id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-success">Разблокировать</button>
+                                            </form>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Пагинация -->
+            {% if page_obj.has_other_pages %}
+                <nav class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a></li>
+                        {% endif %}
+                        <li class="page-item active"><span class="page-link">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span></li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Вперед</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

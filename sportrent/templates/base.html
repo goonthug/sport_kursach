@@ -173,6 +173,22 @@
                             </a>
                         </li>
 
+                        {% if user.role == 'owner' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'inventory:my_inventory' %}">
+                                    <i class="bi bi-box"></i> Мой инвентарь
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        {% if user.role == 'client' or user.role == 'owner' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'rentals:list' %}">
+                                    <i class="bi bi-calendar-check"></i> Аренды
+                                </a>
+                            </li>
+                        {% endif %}
+
                         {% if user.role == 'manager' or user.role == 'administrator' %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'custom_admin:dashboard' %}">

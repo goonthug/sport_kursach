@@ -1,7 +1,47 @@
 {% extends 'base.html' %}
+
+{% block title %}Мои чаты - SportRent{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-    <h2>Чаты</h2>
-    <p>Функционал в разработке</p>
+<div class="container py-4">
+    <h2 class="mb-4">Мои чаты</h2>
+
+    {% if chat_groups %}
+        <div class="row g-3">
+            {% for chat in chat_groups %}
+                <div class="col-12">
+                    <a href="{% url 'chat:detail' chat.rental.rental_id %}" class="text-decoration-none">
+                        <div class="card shadow-sm {% if chat.unread_count > 0 %}border-primary{% endif %}">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h5 class="card-title mb-1">{{ chat.rental.inventory.name }}</h5>
+                                        <p class="text-muted small mb-2">
+                                            Собеседник: {{ chat.other_user.get_full_name }}
+                                        </p>
+                                        <p class="card-text mb-0">
+                                            <strong>{{ chat.last_message.sender.get_full_name }}:</strong>
+                                            {{ chat.last_message.message_text|truncatewords:10 }}
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-md-end">
+                                        <p class="text-muted small mb-1">{{ chat.last_message.sent_date|timesince }} назад</p>
+                                        {% if chat.unread_count > 0 %}
+                                            <span class="badge bg-primary">{{ chat.unread_count }} новых</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-chat-dots"></i> У вас пока нет активных чатов.
+            Чаты создаются автоматически при создании заявки на аренду.
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
