@@ -222,7 +222,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const scrollKey = `scroll:${window.location.pathname}${window.location.search}`;
+        const scrollKey = `scroll:${window.location.pathname}`;
         const savedScroll = sessionStorage.getItem(scrollKey);
         if (savedScroll) {
             sessionStorage.removeItem(scrollKey);
@@ -231,6 +231,12 @@
 
         document.querySelectorAll('form[data-preserve-scroll="true"]').forEach((form) => {
             form.addEventListener('submit', () => {
+                sessionStorage.setItem(scrollKey, window.scrollY.toString());
+            });
+        });
+
+        document.querySelectorAll('a[data-preserve-scroll="true"]').forEach((link) => {
+            link.addEventListener('click', () => {
                 sessionStorage.setItem(scrollKey, window.scrollY.toString());
             });
         });
