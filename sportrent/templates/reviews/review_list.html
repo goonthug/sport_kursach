@@ -21,7 +21,7 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
+            <form method="get" class="row g-3" data-preserve-scroll="true">
                 <div class="col-md-6">
                     <select name="status" class="form-select">
                         <option value="">Все статусы</option>
@@ -88,7 +88,7 @@
                                         </td>
                                         <td class="text-end">
                                             {% if review.status == 'pending' %}
-                                                <form method="post" action="{% url 'reviews:approve' review.review_id %}" class="d-inline">
+                                                <form method="post" action="{% url 'reviews:approve' review.review_id %}" class="d-inline" data-preserve-scroll="true">
                                                     {% csrf_token %}
                                                     <button type="submit" class="btn btn-sm btn-success">Одобрить</button>
                                                 </form>
@@ -125,7 +125,7 @@
                 <div class="modal fade" id="rejectReviewModal{{ review.review_id }}" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
-                            <form method="post" action="{% url 'reviews:reject' review.review_id %}">
+                            <form method="post" action="{% url 'reviews:reject' review.review_id %}" data-preserve-scroll="true">
                                 {% csrf_token %}
                                 <div class="modal-header">
                                     <h5 class="modal-title">Отклонить отзыв</h5>

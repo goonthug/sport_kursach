@@ -27,7 +27,7 @@
                         Условная оплата. Нажмите кнопку ниже для подтверждения оплаты. В реальном проекте здесь был бы подключен платежный шлюз.
                     </p>
 
-                    <form method="post">
+    <form method="post" data-preserve-scroll="true">
                         {% csrf_token %}
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary btn-lg">

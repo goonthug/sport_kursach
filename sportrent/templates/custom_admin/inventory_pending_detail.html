@@ -95,7 +95,7 @@
                     <h5 class="mb-0">Решение по заявке</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% url 'custom_admin:inventory_approve' inventory.inventory_id %}" class="mb-3">
+                    <form method="post" action="{% url 'custom_admin:inventory_approve' inventory.inventory_id %}" class="mb-3" data-preserve-scroll="true">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="deposit_amount" class="form-label">Залог (руб.)</label>
@@ -119,7 +119,7 @@
 <div class="modal fade" id="rejectModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" action="{% url 'custom_admin:inventory_reject' inventory.inventory_id %}">
+            <form method="post" action="{% url 'custom_admin:inventory_reject' inventory.inventory_id %}" data-preserve-scroll="true">
                 {% csrf_token %}
                 <div class="modal-header">
                     <h5 class="modal-title">Отклонить заявку</h5>

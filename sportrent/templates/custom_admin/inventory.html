@@ -8,7 +8,7 @@
     
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
+            <form method="get" class="row g-3" data-preserve-scroll="true">
                 <div class="col-md-3">
                     <input type="text" name="search" class="form-control" placeholder="Поиск" value="{{ search_query }}">
                 </div>
@@ -65,7 +65,7 @@
                             {% if item.status == 'pending' %}
                                 <div class="d-grid gap-2">
                                     <a href="{% url 'custom_admin:inventory_pending_detail' item.inventory_id %}" class="btn btn-outline-primary btn-sm w-100">Просмотреть заявку</a>
-                                    <form method="post" action="{% url 'custom_admin:inventory_approve' item.inventory_id %}">
+                                    <form method="post" action="{% url 'custom_admin:inventory_approve' item.inventory_id %}" data-preserve-scroll="true">
                                         {% csrf_token %}
                                         <input type="hidden" name="deposit_amount" value="0">
                                         <button type="submit" class="btn btn-success btn-sm w-100">Одобрить</button>
@@ -100,7 +100,7 @@
                 <div class="modal fade" id="rejectModal{{ item.inventory_id }}" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
-                            <form method="post" action="{% url 'custom_admin:inventory_reject' item.inventory_id %}">
+                            <form method="post" action="{% url 'custom_admin:inventory_reject' item.inventory_id %}" data-preserve-scroll="true">
                                 {% csrf_token %}
                                 <div class="modal-header">
                                     <h5 class="modal-title">Отклонить инвентарь</h5>

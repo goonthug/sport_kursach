@@ -21,7 +21,7 @@
                 <div class="card-body">
                     <p class="text-muted mb-4">Аренда: <strong>{{ rental.inventory.name }}</strong>. Ваш отзыв будет опубликован после проверки модератором.</p>
 
-                    <form method="post">
+                    <form method="post" data-preserve-scroll="true">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="{{ form.rating.id_for_label }}" class="form-label">{{ form.rating.label }}</label>

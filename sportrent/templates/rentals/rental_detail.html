@@ -136,7 +136,7 @@
                         {% endif %}
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <form method="post" action="{% url 'rentals:confirm' rental.rental_id %}">
+                                <form method="post" action="{% url 'rentals:confirm' rental.rental_id %}" data-preserve-scroll="true">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-success w-100" {% if rental.payment_status != 'paid' %}disabled{% endif %}>
                                         <i class="bi bi-check-circle"></i> Подтвердить аренду
@@ -214,7 +214,7 @@
     <div class="modal fade" id="rejectModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="post" action="{% url 'rentals:reject' rental.rental_id %}">
+                <form method="post" action="{% url 'rentals:reject' rental.rental_id %}" data-preserve-scroll="true">
                     {% csrf_token %}
                     <div class="modal-header">
                         <h5 class="modal-title">Отклонить аренду</h5>
@@ -238,7 +238,7 @@
     <div class="modal fade" id="completeRentalModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="post" action="{% url 'rentals:complete' rental.rental_id %}">
+                <form method="post" action="{% url 'rentals:complete' rental.rental_id %}" data-preserve-scroll="true">
                     {% csrf_token %}
                     <div class="modal-header">
                         <h5 class="modal-title">Завершить аренду</h5>
@@ -261,7 +261,7 @@
     <div class="modal fade" id="cancelRentalModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}">
+                <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}" data-preserve-scroll="true">
                     {% csrf_token %}
                     <div class="modal-header">
                         <h5 class="modal-title">Отменить аренду</h5>

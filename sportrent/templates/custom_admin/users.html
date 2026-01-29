@@ -13,7 +13,7 @@
     <!-- Фильтры -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
+            <form method="get" class="row g-3" data-preserve-scroll="true">
                 <div class="col-md-3">
                     <input type="text" name="search" class="form-control" placeholder="Поиск по email/телефону" value="{{ search_query }}">
                 </div>
@@ -74,7 +74,7 @@
                                         {% if user.status != 'blocked' %}
                                             <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#blockModal{{ user.user_id }}">Блокировать</button>
                                         {% else %}
-                                            <form method="post" action="{% url 'custom_admin:user_unblock' user.user_id %}" class="d-inline">
+                                            <form method="post" action="{% url 'custom_admin:user_unblock' user.user_id %}" class="d-inline" data-preserve-scroll="true">
                                                 {% csrf_token %}
                                                 <button type="submit" class="btn btn-sm btn-success">Разблокировать</button>
                                             </form>
@@ -109,7 +109,7 @@
             <div class="modal fade" id="blockModal{{ user.user_id }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <form method="post" action="{% url 'custom_admin:user_block' user.user_id %}">
+                        <form method="post" action="{% url 'custom_admin:user_block' user.user_id %}" data-preserve-scroll="true">
                             {% csrf_token %}
                             <div class="modal-header">
                                 <h5 class="modal-title">Блокировка пользователя</h5>
