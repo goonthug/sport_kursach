@@ -31,6 +31,7 @@ body {
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body::before {
@@ -124,15 +125,15 @@ a:hover {
 
 .navbar .btn-primary,
 .navbar .btn-outline-primary {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--pure-white);
-  border: none;
+  background: var(--pure-white);
+  color: var(--deep-frost);
+  border: 1px solid var(--pure-white);
 }
 
 .navbar .btn-primary:hover,
 .navbar .btn-outline-primary:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--pure-white);
+  background: var(--light-arctic);
+  color: var(--deep-frost);
 }
 
 /* Buttons */
@@ -147,6 +148,10 @@ a:hover {
 .btn:focus,
 .btn:focus-visible,
 .btn:active,
+.btn.active,
+.btn-check:focus + .btn,
+.btn-check:checked + .btn,
+.show > .btn.dropdown-toggle,
 .page-link:focus,
 .page-link:focus-visible,
 .form-control:focus,
@@ -158,22 +163,38 @@ a:focus-visible {
 }
 
 .btn-primary {
-  background: var(--pure-white);
-  color: var(--deep-frost);
-  border: none;
+  background: var(--pure-white) !important;
+  color: var(--deep-frost) !important;
+  border: none !important;
 }
 
 .btn-primary:hover {
-  background: var(--light-arctic);
-  color: var(--deep-frost);
+  background: var(--light-arctic) !important;
+  color: var(--deep-frost) !important;
   transform: translateY(-2px);
   box-shadow: var(--shadow-soft);
 }
 
+.btn-primary:active,
+.btn-primary:focus,
+.btn-primary:focus-visible {
+  background: var(--light-arctic) !important;
+  color: var(--deep-frost) !important;
+  transform: none;
+}
+
+.btn-primary:active,
+.btn-primary.active,
+.show > .btn-primary.dropdown-toggle {
+  background: var(--light-arctic) !important;
+  color: var(--deep-frost) !important;
+  border-color: var(--light-arctic) !important;
+}
+
 .btn-outline-primary {
-  border: 2px solid var(--pure-white);
-  color: var(--pure-white);
-  background: transparent;
+  border: 2px solid var(--pure-white) !important;
+  color: var(--pure-white) !important;
+  background: transparent !important;
 }
 .btn-success,
 .btn-warning,
@@ -183,9 +204,9 @@ a:focus-visible {
 .btn-outline-warning,
 .btn-outline-danger,
 .btn-outline-info {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--pure-white);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: var(--pure-white) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
 .btn-success:hover,
@@ -196,16 +217,52 @@ a:focus-visible {
 .btn-outline-warning:hover,
 .btn-outline-danger:hover,
 .btn-outline-info:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--pure-white);
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: var(--pure-white) !important;
+}
+
+.btn-success:active,
+.btn-warning:active,
+.btn-danger:active,
+.btn-info:active,
+.btn-outline-success:active,
+.btn-outline-warning:active,
+.btn-outline-danger:active,
+.btn-outline-info:active {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: var(--pure-white) !important;
+}
+
+.btn-outline-danger:focus,
+.btn-outline-danger:focus-visible,
+.btn-outline-danger:hover {
+  border-color: rgba(255, 255, 255, 0.45) !important;
 }
 
 
 .btn-outline-primary:hover {
-  background: var(--pure-white);
-  color: var(--deep-frost);
+  background: var(--pure-white) !important;
+  color: var(--deep-frost) !important;
 }
 
+.btn-outline-primary:active,
+.btn-outline-primary:focus,
+.btn-outline-primary:focus-visible {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: var(--deep-frost) !important;
+}
+
+.btn-outline-primary:active,
+.btn-outline-primary.active,
+.show > .btn-outline-primary.dropdown-toggle {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: var(--deep-frost) !important;
+  border-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.btn.btn-outline-danger {
+  border-color: rgba(255, 255, 255, 0.45) !important;
+}
 .btn-outline-secondary {
   border: 2px solid rgba(255, 255, 255, 0.5);
   color: rgba(255, 255, 255, 0.85);
@@ -246,7 +303,7 @@ a:focus-visible {
 .text-danger,
 .text-info,
 .text-secondary {
-  color: var(--ice-white) !important;
+  color: var(--warm-metal) !important;
 }
 
 .bg-light {
@@ -269,6 +326,21 @@ a:focus-visible {
   box-shadow: none;
 }
 
+.form-control:focus,
+.form-select:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.form-select {
+  color-scheme: dark;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23F5F5F5' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px;
+  padding-right: 36px;
+}
+
 .form-control::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
@@ -276,6 +348,13 @@ a:focus-visible {
 .form-select option {
   background: #455A64;
   color: #F5F5F5;
+}
+
+.form-select option:hover,
+.form-select option:focus,
+.form-select option:checked {
+  background: #607D8B;
+  color: #FFFFFF;
 }
 
 .form-label,
@@ -316,6 +395,15 @@ a:focus-visible {
   background: rgba(255, 255, 255, 0.12) !important;
 }
 
+.border-warning,
+.border-danger,
+.border-success,
+.border-info,
+.border-primary,
+.border-secondary {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
 /* Alerts */
 .alert {
   background: rgba(69, 90, 100, 0.7);
@@ -336,6 +424,9 @@ a:focus-visible {
 /* Tables */
 .table {
   color: var(--ice-white);
+  --bs-table-bg: rgba(69, 90, 100, 0.55);
+  --bs-table-striped-bg: rgba(69, 90, 100, 0.65);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.08);
 }
 
 .table thead th {
@@ -345,6 +436,18 @@ a:focus-visible {
 
 .table tbody td {
   border-color: rgba(255, 255, 255, 0.06);
+}
+
+.table a {
+  color: var(--ice-white);
+}
+
+.table tbody tr {
+  background: var(--bs-table-bg);
+}
+
+.table-hover tbody tr:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* Pagination */
@@ -365,6 +468,12 @@ a:focus-visible {
   color: var(--pure-white);
 }
 
+.page-link:active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--pure-white);
+}
+
 /* Breadcrumb */
 .breadcrumb {
   background: transparent;
@@ -376,6 +485,36 @@ a:focus-visible {
 
 .breadcrumb-item.active {
   color: var(--pure-white);
+}
+
+.list-group-item {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--ice-white);
+}
+
+.list-group-item-action:hover,
+.list-group-item-action:focus {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ice-white);
+}
+
+.toast {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(69, 90, 100, 0.9);
+}
+
+.toast a {
+  color: var(--pure-white);
+}
+
+.toast a:hover {
+  color: var(--ice-white);
+}
+
+.text-bg-dark {
+  background: rgba(69, 90, 100, 0.9) !important;
+  color: var(--ice-white) !important;
 }
 
 /* Footer */
@@ -455,6 +594,22 @@ a:focus-visible {
 .frzn-section--tight .frzn-section-header {
   margin-bottom: 32px;
 }
+
+.hero-feature-card {
+  background: rgba(69, 90, 100, 0.85);
+}
+
+.hero-feature-card .product-info,
+.hero-feature-card .product-name,
+.hero-feature-card .product-meta,
+.hero-feature-card .product-price,
+.hero-feature-card .text-muted {
+  color: var(--pure-white) !important;
+}
+
+.hero-feature-card .product-image img {
+  filter: contrast(1.05) saturate(0.95) brightness(0.9);
+}
 .frzn-section-header {
   margin-bottom: 64px;
 }
@@ -512,6 +667,20 @@ a:focus-visible {
   color: var(--warm-metal) !important;
 }
 
+.product-card .btn-outline-danger {
+  background: var(--deep-frost) !important;
+  color: var(--pure-white) !important;
+  border-color: var(--deep-frost) !important;
+}
+
+.product-card .btn-outline-danger:hover,
+.product-card .btn-outline-danger:active,
+.product-card .btn-outline-danger:focus {
+  background: rgba(55, 71, 79, 0.9) !important;
+  color: var(--pure-white) !important;
+  border-color: rgba(55, 71, 79, 0.9) !important;
+}
+
 .product-info {
   display: flex;
   flex-direction: column;
@@ -529,6 +698,8 @@ a:focus-visible {
 
 .product-info .d-flex {
   margin-top: auto;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .product-price {
@@ -536,6 +707,7 @@ a:focus-visible {
   font-size: 20px;
   font-weight: 700;
   color: var(--deep-frost);
+  line-height: 1.1;
 }
 
 .product-favorite {
