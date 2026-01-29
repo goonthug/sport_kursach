@@ -9,6 +9,7 @@ urlpatterns = [
     path('users/<uuid:user_id>/block/', views.admin_user_block, name='user_block'),
     path('users/<uuid:user_id>/unblock/', views.admin_user_unblock, name='user_unblock'),
     path('inventory/', views.admin_inventory, name='inventory'),
+    path('inventory/<uuid:pk>/view/', views.admin_inventory_pending_detail, name='inventory_pending_detail'),
     path('inventory/<uuid:pk>/approve/', views.admin_inventory_approve, name='inventory_approve'),
     path('inventory/<uuid:pk>/reject/', views.admin_inventory_reject, name='inventory_reject'),
 

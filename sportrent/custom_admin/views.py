@@ -228,8 +228,30 @@ def admin_inventory(request):
 
 @login_required
 @user_passes_test(is_staff)
+def admin_inventory_pending_detail(request, pk):
+    """
+    Просмотр заявки на инвентарь (полная карточка как в каталоге).
+    Только для менеджера, только для статуса pending.
+    """
+    if request.user.role != 'manager':
+        messages.error(request, 'Недостаточно прав')
+        return redirect('custom_admin:inventory')
+
+    inventory = get_object_or_404(
+        Inventory.objects.select_related('category', 'owner', 'owner__user').prefetch_related('photos'),
+        pk=pk
+    )
+    if inventory.status != 'pending':
+        messages.warning(request, 'Эта заявка уже обработана')
+        return redirect('custom_admin:inventory')
+
+    return render(request, 'custom_admin/inventory_pending_detail.html', {'inventory': inventory})
+
+
+@login_required
+@user_passes_test(is_staff)
 def admin_inventory_approve(request, pk):
-    """Одобрение инвентаря менеджером."""
+    """Одобрение инвентаря менеджером с указанием залога."""
 
     if request.user.role != 'manager':
         messages.error(request, 'Недостаточно прав')
@@ -242,11 +264,21 @@ def admin_inventory_approve(request, pk):
         return redirect('custom_admin:inventory')
 
     if request.method == 'POST':
+        from decimal import Decimal
+        deposit_amount = request.POST.get('deposit_amount', 0)
+        try:
+            deposit_amount = Decimal(str(deposit_amount)) if deposit_amount else Decimal('0')
+            if deposit_amount < 0:
+                deposit_amount = Decimal('0')
+        except Exception:
+            deposit_amount = Decimal('0')
+
         inventory.status = 'available'
         inventory.manager = request.user.manager_profile
+        inventory.deposit_amount = deposit_amount
         inventory.save()
 
-        logger.info(f'Инвентарь одобрен: {inventory.name} менеджером {request.user.email}')
+        logger.info(f'Инвентарь одобрен: {inventory.name}, залог {deposit_amount} менеджером {request.user.email}')
         messages.success(request, 'Инвентарь одобрен и добавлен в каталог')
 
     return redirect('custom_admin:inventory')

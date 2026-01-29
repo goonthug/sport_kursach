@@ -184,20 +184,18 @@ class UserLoginForm(AuthenticationForm):
 
 
 class ClientProfileForm(forms.ModelForm):
-    """Форма редактирования профиля клиента."""
+    """Форма редактирования профиля клиента. На сайте только онлайн-оплата."""
 
     class Meta:
         model = Client
-        fields = ['full_name', 'passport_data', 'preferred_payment']
+        fields = ['full_name', 'passport_data']
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control'}),
             'passport_data': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'preferred_payment': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'full_name': 'Полное имя',
             'passport_data': 'Паспортные данные',
-            'preferred_payment': 'Предпочитаемый способ оплаты',
         }
 
 

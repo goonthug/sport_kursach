@@ -1,7 +1,149 @@
 {% extends 'base.html' %}
+
+{% block title %}Отзывы - SportRent{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-    <h2>Отзывы</h2>
-    <p>Функционал в разработке</p>
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Отзывы</h2>
+            {% if user.role == 'administrator' %}
+                <p class="text-muted">Модерация отзывов. Одобренные отзывы видны всем в каталоге.</p>
+            {% elif user.role == 'client' %}
+                <p class="text-muted">Отзывы, которые вы оставили</p>
+            {% elif user.role == 'owner' %}
+                <p class="text-muted">Отзывы на ваш инвентарь</p>
+            {% else %}
+                <p class="text-muted">Список отзывов</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <button type="submit" class="btn btn-primary w-100">Применить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if page_obj %}
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Инвентарь / Аренда</th>
+                                <th>Автор</th>
+                                <th class="text-center">Оценка</th>
+                                <th>Комментарий</th>
+                                {% if user.role == 'administrator' %}
+                                    <th>Статус</th>
+                                    <th class="text-end">Действия</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for review in page_obj %}
+                                <tr>
+                                    <td>{{ review.review_date|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        {% if review.rental %}
+                                            <a href="{% url 'inventory:detail' review.rental.inventory_id %}">{{ review.rental.inventory.name|truncatewords:4 }}</a>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ review.reviewer.get_full_name }}</td>
+                                    <td class="text-center">
+                                        <span class="text-warning">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= review.rating %}<i class="bi bi-star-fill small"></i>{% else %}<i class="bi bi-star small"></i>{% endif %}
+                                            {% endfor %}
+                                        </span>
+                                        {{ review.rating }}/5
+                                    </td>
+                                    <td><span class="small">{{ review.comment|truncatewords:15 }}</span></td>
+                                    {% if user.role == 'administrator' %}
+                                        <td>
+                                            {% if review.status == 'pending' %}
+                                                <span class="badge bg-warning">{{ review.get_status_display }}</span>
+                                            {% elif review.status == 'published' %}
+                                                <span class="badge bg-success">{{ review.get_status_display }}</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">{{ review.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if review.status == 'pending' %}
+                                                <form method="post" action="{% url 'reviews:approve' review.review_id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-success">Одобрить</button>
+                                                </form>
+                                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectReviewModal{{ review.review_id }}">Отклонить</button>
+                                                <div class="modal fade" id="rejectReviewModal{{ review.review_id }}" tabindex="-1">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <form method="post" action="{% url 'reviews:reject' review.review_id %}">
+                                                                {% csrf_token %}
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title">Отклонить отзыв</h5>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <label for="reason{{ review.review_id }}" class="form-label">Причина отклонения</label>
+                                                                    <textarea name="reason" id="reason{{ review.review_id }}" class="form-control" rows="3"></textarea>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                                                    <button type="submit" class="btn btn-danger">Отклонить</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted small">Обработан</span>
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if page_obj.has_other_pages %}
+                    <nav class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Назад</a></li>
+                            {% endif %}
+                            <li class="page-item active"><span class="page-link">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span></li>
+                            {% if page_obj.has_next %}
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Вперед</a></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            Нет отзывов по выбранным критериям.
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

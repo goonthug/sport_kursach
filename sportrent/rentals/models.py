@@ -14,6 +14,7 @@ class Rental(models.Model):
     """Аренда инвентаря."""
 
     STATUS_CHOICES = [
+        ('inquiry', 'Вопрос по инвентарю'),
         ('pending', 'Ожидает подтверждения'),
         ('confirmed', 'Подтверждена'),
         ('active', 'Активна'),

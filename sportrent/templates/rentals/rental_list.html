@@ -87,7 +87,9 @@
 
                                 <div class="col-md-2 text-center">
                                     <div class="mb-2">
-                                        {% if rental.status == 'pending' %}
+                                        {% if rental.status == 'inquiry' %}
+                                            <span class="badge bg-secondary">{{ rental.get_status_display }}</span>
+                                        {% elif rental.status == 'pending' %}
                                             <span class="badge bg-warning">{{ rental.get_status_display }}</span>
                                         {% elif rental.status == 'confirmed' %}
                                             <span class="badge bg-info">{{ rental.get_status_display }}</span>
@@ -111,13 +113,30 @@
                                     </a>
 
                                     {% if user.role == 'client' and rental.status == 'pending' %}
-                                        <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}" class="mt-2">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-outline-danger btn-sm w-100"
-                                                    onclick="return confirm('Отменить аренду?')">
-                                                <i class="bi bi-x-circle"></i> Отменить
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2"
+                                                data-bs-toggle="modal" data-bs-target="#cancelModal{{ rental.rental_id }}">
+                                            <i class="bi bi-x-circle"></i> Отменить
+                                        </button>
+                                        <div class="modal fade" id="cancelModal{{ rental.rental_id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}">
+                                                        {% csrf_token %}
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Отменить аренду</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <p class="mb-0">Отменить заявку на аренду «{{ rental.inventory.name }}»?</p>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                                                            <button type="submit" class="btn btn-danger">Да, отменить</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
                                     {% endif %}
                                 </div>
                             </div>

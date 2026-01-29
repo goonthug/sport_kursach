@@ -8,14 +8,17 @@ from .models import Inventory, InventoryPhoto, SportCategory
 
 
 class InventoryForm(forms.ModelForm):
-    """Форма создания/редактирования инвентаря."""
+    """
+    Форма создания/редактирования инвентаря владельцем.
+    Залог не указывается владельцем, его задает менеджер при одобрении заявки.
+    """
 
     class Meta:
         model = Inventory
         fields = [
             'category', 'name', 'description', 'brand', 'model',
             'price_per_day', 'condition', 'min_rental_days',
-            'max_rental_days', 'deposit_amount'
+            'max_rental_days',
         ]
         widgets = {
             'category': forms.Select(attrs={'class': 'form-select'}),
@@ -28,7 +31,6 @@ class InventoryForm(forms.ModelForm):
             'condition': forms.Select(attrs={'class': 'form-select'}),
             'min_rental_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'max_rental_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-            'deposit_amount': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
         }
         labels = {
             'category': 'Категория',
@@ -40,7 +42,6 @@ class InventoryForm(forms.ModelForm):
             'condition': 'Состояние',
             'min_rental_days': 'Минимум дней аренды',
             'max_rental_days': 'Максимум дней аренды',
-            'deposit_amount': 'Залог (руб.)',
         }
 
     def clean(self):

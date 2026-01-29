@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}Заявка: {{ inventory.name }} - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'custom_admin:dashboard' %}">Админ</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'custom_admin:inventory' %}">Инвентарь</a></li>
+            <li class="breadcrumb-item active">Заявка: {{ inventory.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            {% if inventory.photos.all %}
+                <div id="inventoryCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        {% for photo in inventory.photos.all %}
+                            <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                <img src="{{ photo.photo_url.url }}" class="d-block w-100 rounded" alt="{{ photo.description }}" style="height: 400px; object-fit: cover;">
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if inventory.photos.count > 1 %}
+                        <button class="carousel-control-prev" type="button" data-bs-target="#inventoryCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#inventoryCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                        </button>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 400px;">
+                    <i class="bi bi-image text-muted" style="font-size: 5rem;"></i>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-6">
+            <div class="mb-3">
+                <span class="badge bg-warning">Ожидает проверки</span>
+                <span class="badge bg-primary">{{ inventory.category.name }}</span>
+                <span class="badge bg-success">{{ inventory.get_condition_display }}</span>
+            </div>
+
+            <h1 class="mb-3">{{ inventory.name }}</h1>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Бренд</p>
+                            <p class="mb-0"><strong>{{ inventory.brand|default:"Не указан" }}</strong></p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Модель</p>
+                            <p class="mb-0"><strong>{{ inventory.model|default:"Не указана" }}</strong></p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Срок аренды</p>
+                            <p class="mb-0"><strong>{{ inventory.min_rental_days }}-{{ inventory.max_rental_days }} дней</strong></p>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <p class="text-muted small mb-1">Цена за день</p>
+                            <p class="mb-0"><strong>{{ inventory.price_per_day }} ₽</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Описание</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ inventory.description }}</p>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Владелец</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0"><strong>{{ inventory.owner.full_name }}</strong></p>
+                    <p class="text-muted small mb-0">{{ inventory.owner.user.email }}</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Решение по заявке</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'custom_admin:inventory_approve' inventory.inventory_id %}" class="mb-3">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="deposit_amount" class="form-label">Залог (руб.)</label>
+                            <input type="number" name="deposit_amount" id="deposit_amount" class="form-control" min="0" step="0.01" value="0">
+                            <small class="text-muted">Укажите сумму залога при одобрении</small>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-check-circle"></i> Одобрить и опубликовать в каталоге
+                        </button>
+                    </form>
+                    <hr>
+                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                        <i class="bi bi-x-circle"></i> Отклонить заявку
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'custom_admin:inventory_reject' inventory.inventory_id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Отклонить заявку</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="reason" class="form-label">Причина отклонения</label>
+                    <textarea name="reason" id="reason" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-danger">Отклонить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

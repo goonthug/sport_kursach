@@ -114,10 +114,23 @@ def rental_detail(request, pk):
     payments = rental.payments.all().order_by('-payment_date')
     contract = getattr(rental, 'contract', None)
 
+    # Может ли клиент оставить отзыв (аренда завершена и отзыв еще не оставлен)
+    can_leave_review = False
+    if user.role == 'client' and hasattr(user, 'client_profile') and rental.client == user.client_profile:
+        if rental.status == 'completed' and rental.total_price > 0:
+            from reviews.models import Review
+            has_review = Review.objects.filter(
+                rental=rental,
+                reviewer=user,
+                target_type='inventory'
+            ).exists()
+            can_leave_review = not has_review
+
     context = {
         'rental': rental,
         'payments': payments,
         'contract': contract,
+        'can_leave_review': can_leave_review,
     }
 
     return render(request, 'rentals/rental_detail.html', context)
@@ -177,8 +190,8 @@ def rental_create(request, inventory_id):
                     )
 
                     logger.info(f'Создана заявка на аренду: {rental.rental_id} для {client.full_name}')
-                    messages.success(request, 'Заявка на аренду успешно создана. Ожидайте подтверждения менеджера.')
-                    return redirect('rentals:detail', pk=rental.rental_id)
+                    messages.success(request, 'Заявка создана. Перейдите к оплате.')
+                    return redirect('rentals:pay', pk=rental.rental_id)
 
             except Exception as e:
                 logger.error(f'Ошибка при создании аренды: {str(e)}')
@@ -202,11 +215,10 @@ def rental_create(request, inventory_id):
 @login_required
 def rental_confirm(request, pk):
     """
-    Подтверждение аренды менеджером.
+    Подтверждение аренды менеджером. Доступно только после оплаты клиентом.
     """
     rental = get_object_or_404(Rental, pk=pk)
 
-    # Только менеджер может подтверждать
     if request.user.role != 'manager':
         messages.error(request, 'Недостаточно прав')
         return redirect('rentals:detail', pk=pk)
@@ -219,6 +231,10 @@ def rental_confirm(request, pk):
         messages.warning(request, 'Эта аренда уже обработана')
         return redirect('rentals:detail', pk=pk)
 
+    if rental.payment_status != 'paid':
+        messages.warning(request, 'Подтверждение возможно только после оплаты заявки клиентом.')
+        return redirect('rentals:detail', pk=pk)
+
     if request.method == 'POST':
         try:
             with transaction.atomic():
@@ -226,7 +242,6 @@ def rental_confirm(request, pk):
                 rental.manager = request.user.manager_profile
                 rental.save()
 
-                # Обновляем статус инвентаря
                 inventory = rental.inventory
                 inventory.status = 'rented'
                 inventory.save()
@@ -239,6 +254,59 @@ def rental_confirm(request, pk):
             messages.error(request, 'Ошибка при подтверждении')
 
     return redirect('rentals:detail', pk=pk)
+
+
+@login_required
+def rental_pay(request, pk):
+    """
+    Условная оплата аренды (имитация онлайн-оплаты).
+    После подтверждения оплаты статус платежа и аренды обновляется.
+    """
+    rental = get_object_or_404(
+        Rental.objects.select_related('inventory', 'client', 'client__user'),
+        pk=pk
+    )
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Оплата доступна только клиенту')
+        return redirect('rentals:detail', pk=pk)
+
+    if rental.client != request.user.client_profile:
+        messages.error(request, 'У вас нет доступа к этой аренде')
+        return redirect('rentals:list')
+
+    if rental.payment_status == 'paid':
+        messages.info(request, 'Оплата уже произведена')
+        return redirect('rentals:detail', pk=pk)
+
+    if rental.status != 'pending':
+        messages.warning(request, 'Оплата недоступна для этой аренды')
+        return redirect('rentals:detail', pk=pk)
+
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                payment = rental.payments.filter(status='pending').first()
+                if payment:
+                    payment.status = 'completed'
+                    payment.payment_date = timezone.now()
+                    payment.save()
+                rental.payment_status = 'paid'
+                rental.save()
+
+                logger.info(f'Оплата произведена: аренда {rental.rental_id}, клиент {request.user.email}')
+                messages.success(request, 'Оплата прошла успешно. Ожидайте подтверждения менеджером.')
+                return redirect('rentals:detail', pk=pk)
+        except Exception as e:
+            logger.error(f'Ошибка при оплате: {str(e)}')
+            messages.error(request, 'Ошибка при проведении оплаты')
+
+    total = rental.total_price + (rental.deposit_paid or 0)
+    context = {
+        'rental': rental,
+        'total': total,
+    }
+    return render(request, 'rentals/rental_pay.html', context)
 
 
 @login_required

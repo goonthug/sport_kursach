@@ -188,6 +188,13 @@
                                 </a>
                             </li>
                         {% endif %}
+                        {% if user.role == 'client' or user.role == 'manager' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'chat:list' %}">
+                                    <i class="bi bi-chat-dots"></i> Чаты
+                                </a>
+                            </li>
+                        {% endif %}
 
                         {% if user.role == 'manager' or user.role == 'administrator' %}
                             <li class="nav-item">

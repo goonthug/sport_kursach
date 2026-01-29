@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Оплата аренды - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'rentals:list' %}">Мои аренды</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'rentals:detail' rental.rental_id %}">Аренда</a></li>
+            <li class="breadcrumb-item active">Оплата</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0">Онлайн-оплата</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Аренда: <strong>{{ rental.inventory.name }}</strong></p>
+                    <p class="mb-2">Период: {{ rental.start_date|date:"d.m.Y" }} – {{ rental.end_date|date:"d.m.Y" }}</p>
+                    <p class="mb-4">К оплате: <strong class="text-primary fs-4">{{ total }} ₽</strong></p>
+
+                    <p class="small text-muted mb-4">
+                        Условная оплата. Нажмите кнопку ниже для подтверждения оплаты. В реальном проекте здесь был бы подключен платежный шлюз.
+                    </p>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Подтвердить оплату
+                            </button>
+                            <a href="{% url 'rentals:detail' rental.rental_id %}" class="btn btn-outline-secondary">
+                                Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

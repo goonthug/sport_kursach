@@ -94,6 +94,14 @@
                         </div>
                     </div>
                     
+                    {% if user.role == 'client' and rental.status == 'pending' and rental.payment_status == 'pending' and rental.total_price > 0 %}
+                        <div class="alert alert-info mt-3 mb-0">
+                            <a href="{% url 'rentals:pay' rental.rental_id %}" class="btn btn-primary">
+                                Перейти к оплате
+                            </a>
+                        </div>
+                    {% endif %}
+                    
                     {% if rental.notes %}
                         <hr>
                         <p class="text-muted small mb-1">Примечания</p>
@@ -105,6 +113,15 @@
                             <strong>Причина отклонения:</strong> {{ rental.rejection_reason }}
                         </div>
                     {% endif %}
+
+                    {% if user.role == 'client' and rental.status == 'completed' and can_leave_review %}
+                        <div class="alert alert-success mt-3 mb-0">
+                            <p class="mb-2">Аренда завершена. Поделитесь впечатлениями.</p>
+                            <a href="{% url 'reviews:create' rental.rental_id %}" class="btn btn-success">
+                                Оставить отзыв
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
             
@@ -114,11 +131,14 @@
                         <h5 class="mb-0">Действия менеджера</h5>
                     </div>
                     <div class="card-body">
+                        {% if rental.payment_status != 'paid' %}
+                            <p class="text-warning mb-3">Ожидается оплата клиентом. Подтверждение аренды доступно после оплаты.</p>
+                        {% endif %}
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <form method="post" action="{% url 'rentals:confirm' rental.rental_id %}">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-success w-100">
+                                    <button type="submit" class="btn btn-success w-100" {% if rental.payment_status != 'paid' %}disabled{% endif %}>
                                         <i class="bi bi-check-circle"></i> Подтвердить аренду
                                     </button>
                                 </form>
@@ -136,12 +156,9 @@
             {% if user.role == 'manager' and rental.status in 'confirmed,active' %}
                 <div class="card shadow-sm">
                     <div class="card-body">
-                        <form method="post" action="{% url 'rentals:complete' rental.rental_id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Завершить аренду?')">
-                                <i class="bi bi-check-lg"></i> Завершить аренду
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#completeRentalModal">
+                            <i class="bi bi-check-lg"></i> Завершить аренду
+                        </button>
                     </div>
                 </div>
             {% endif %}
@@ -149,12 +166,9 @@
             {% if user.role == 'client' and rental.status == 'pending' %}
                 <div class="card shadow-sm">
                     <div class="card-body">
-                        <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-danger w-100" onclick="return confirm('Отменить аренду?')">
-                                <i class="bi bi-x-circle"></i> Отменить аренду
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#cancelRentalModal">
+                            <i class="bi bi-x-circle"></i> Отменить аренду
+                        </button>
                     </div>
                 </div>
             {% endif %}
@@ -215,6 +229,50 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                         <button type="submit" class="btn btn-danger">Отклонить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="completeRentalModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'rentals:complete' rental.rental_id %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Завершить аренду</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0">Подтвердить завершение аренды и возврат инвентаря?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Завершить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if user.role == 'client' %}
+    <div class="modal fade" id="cancelRentalModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'rentals:cancel' rental.rental_id %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Отменить аренду</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0">Вы уверены, что хотите отменить заявку на аренду?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                        <button type="submit" class="btn btn-danger">Да, отменить</button>
                     </div>
                 </form>
             </div>

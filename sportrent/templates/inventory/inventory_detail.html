@@ -79,10 +79,12 @@
                             <p class="text-muted small mb-1">Срок аренды</p>
                             <p class="mb-0"><strong>{{ inventory.min_rental_days }}-{{ inventory.max_rental_days }} дней</strong></p>
                         </div>
+                        {% if inventory.status == 'available' and inventory.deposit_amount %}
                         <div class="col-6 mb-3">
                             <p class="text-muted small mb-1">Залог</p>
                             <p class="mb-0"><strong>{{ inventory.deposit_amount }} ₽</strong></p>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -113,9 +115,29 @@
                         <a href="{% url 'inventory:update' inventory.inventory_id %}" class="btn btn-warning flex-fill">
                             <i class="bi bi-pencil"></i> Редактировать
                         </a>
-                        <a href="{% url 'inventory:delete' inventory.inventory_id %}" class="btn btn-danger flex-fill">
+                        <button type="button" class="btn btn-danger flex-fill" data-bs-toggle="modal" data-bs-target="#deleteInventoryModal">
                             <i class="bi bi-trash"></i> Удалить
-                        </a>
+                        </button>
+                    </div>
+                    <div class="modal fade" id="deleteInventoryModal" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'inventory:delete' inventory.inventory_id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Удалить инвентарь</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="mb-0">Удалить «{{ inventory.name }}»? Это действие необратимо.</p>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                        <button type="submit" class="btn btn-danger">Удалить</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 {% endif %}
             {% endif %}
@@ -136,7 +158,7 @@
             {% if reviews %}
                 <div class="card">
                     <div class="card-header bg-white">
-                        <h5 class="mb-0">Отзывы ({{ reviews.count }})</h5>
+                        <h5 class="mb-0">Отзывы ({{ reviews|length }})</h5>
                     </div>
                     <div class="card-body">
                         {% for review in reviews %}
@@ -207,7 +229,7 @@
                         <p class="mb-2"><strong>{{ inventory.manager.full_name }}</strong></p>
                         <p class="text-muted small mb-2">Менеджер магазина</p>
                         {% if user.is_authenticated and user.role == 'client' %}
-                            <a href="#" class="btn btn-outline-primary btn-sm w-100">
+                            <a href="{% url 'chat:start_by_inventory' inventory.inventory_id %}" class="btn btn-outline-primary btn-sm w-100">
                                 <i class="bi bi-chat-dots"></i> Написать
                             </a>
                         {% endif %}

@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Max
+from datetime import timedelta
 from django.utils import timezone
 
 from .models import ChatMessage
@@ -149,3 +150,50 @@ def start_chat(request, rental_id):
 
     # Перенаправляем на страницу чата
     return redirect('chat:detail', rental_id=rental_id)
+
+
+@login_required
+def start_chat_by_inventory(request, inventory_id):
+    """
+    Начать чат с менеджером по инвентарю (без бронирования).
+    Создает аренду со статусом inquiry для связи чата с инвентарем.
+    """
+    from inventory.models import Inventory
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Чат доступен только клиентам')
+        return redirect('inventory:detail', pk=inventory_id)
+
+    inventory = get_object_or_404(
+        Inventory.objects.select_related('manager'),
+        pk=inventory_id,
+        status='available'
+    )
+    if not inventory.manager:
+        messages.error(request, 'По этому инвентарю пока нельзя написать. Обратитесь в поддержку.')
+        return redirect('inventory:detail', pk=inventory_id)
+
+    client = request.user.client_profile
+    rental = Rental.objects.filter(
+        inventory=inventory,
+        client=client,
+        status='inquiry'
+    ).first()
+
+    if not rental:
+        start = timezone.now()
+        end = start + timedelta(days=1)
+        rental = Rental.objects.create(
+            inventory=inventory,
+            client=client,
+            manager=inventory.manager,
+            status='inquiry',
+            start_date=start,
+            end_date=end,
+            total_price=0,
+            deposit_paid=0,
+            payment_status='pending',
+        )
+        logger.info(f'Создан чат-запрос по инвентарю {inventory.name} для клиента {client.full_name}')
+
+    return redirect('chat:detail', rental_id=rental.rental_id)
