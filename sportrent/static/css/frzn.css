@@ -209,6 +209,12 @@ a:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: var(--pure-white) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
 .btn-success:hover,
 .btn-warning:hover,
 .btn-danger:hover,
@@ -217,6 +223,14 @@ a:focus-visible {
 .btn-outline-warning:hover,
 .btn-outline-danger:hover,
 .btn-outline-info:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: var(--pure-white) !important;
+}
+
+.btn-secondary:hover,
+.btn-secondary:active,
+.btn-secondary:focus,
+.btn-secondary:focus-visible {
   background: rgba(255, 255, 255, 0.2) !important;
   color: var(--pure-white) !important;
 }
@@ -438,6 +452,11 @@ a:focus-visible {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
+.table td,
+.table th {
+  color: var(--ice-white) !important;
+}
+
 .table a {
   color: var(--ice-white);
 }
@@ -510,6 +529,26 @@ a:focus-visible {
 
 .toast a:hover {
   color: var(--ice-white);
+}
+
+/* Modals */
+.modal-content {
+  background: rgba(69, 90, 100, 0.95);
+  color: var(--ice-white);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modal-header,
+.modal-footer {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.modal-backdrop.show {
+  opacity: 0.85;
+}
+
+.btn-close {
+  filter: invert(1);
 }
 
 .text-bg-dark {
