@@ -336,6 +336,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    Chart.defaults.color = '#F5F5F5';
+    Chart.defaults.font.family = 'Inter, sans-serif';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.12)';
+
     // График популярных категорий
     const categoriesCtx = document.getElementById('categoriesChart').getContext('2d');
     new Chart(categoriesCtx, {
@@ -349,8 +353,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 data: [
                     {% for cat in popular_categories %}{{ cat.total_rentals }},{% endfor %}
                 ],
-                backgroundColor: 'rgba(44, 95, 124, 0.7)',
-                borderColor: 'rgba(44, 95, 124, 1)',
+                backgroundColor: 'rgba(176, 190, 197, 0.7)',
+                borderColor: 'rgba(245, 245, 245, 0.6)',
                 borderWidth: 1
             }]
         },
@@ -359,7 +363,15 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255,255,255,0.08)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(255,255,255,0.08)'
+                    }
                 }
             }
         }
@@ -374,14 +386,14 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 data: [{{ active_rentals }}, {{ pending_rentals }}, {{ completed_rentals }}],
                 backgroundColor: [
-                    'rgba(58, 124, 165, 0.7)',
-                    'rgba(255, 193, 7, 0.7)',
-                    'rgba(40, 167, 69, 0.7)'
+                    'rgba(176, 190, 197, 0.7)',
+                    'rgba(144, 164, 174, 0.7)',
+                    'rgba(245, 245, 245, 0.6)'
                 ],
                 borderColor: [
-                    'rgba(58, 124, 165, 1)',
-                    'rgba(255, 193, 7, 1)',
-                    'rgba(40, 167, 69, 1)'
+                    'rgba(245, 245, 245, 0.6)',
+                    'rgba(245, 245, 245, 0.6)',
+                    'rgba(245, 245, 245, 0.6)'
                 ],
                 borderWidth: 1
             }]
@@ -391,7 +403,10 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        color: '#F5F5F5'
+                    }
                 }
             }
         }
