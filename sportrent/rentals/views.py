@@ -37,6 +37,7 @@ def rental_list(request):
         rentals = Rental.objects.filter(
             client=user.client_profile
         ).select_related('inventory', 'inventory__category', 'manager').order_by('-created_date')
+        status_choices = Rental.STATUS_CHOICES
 
     elif user.role == 'manager':
         if not hasattr(user, 'manager_profile'):
@@ -46,6 +47,7 @@ def rental_list(request):
         rentals = Rental.objects.filter(
             manager=user.manager_profile
         ).select_related('inventory', 'client', 'client__user').order_by('-created_date')
+        status_choices = Rental.STATUS_CHOICES
 
     elif user.role == 'owner':
         if not hasattr(user, 'owner_profile'):
@@ -55,11 +57,14 @@ def rental_list(request):
         rentals = Rental.objects.filter(
             inventory__owner=user.owner_profile
         ).select_related('inventory', 'client', 'client__user', 'manager').order_by('-created_date')
+        rentals = rentals.exclude(status='inquiry')
+        status_choices = [choice for choice in Rental.STATUS_CHOICES if choice[0] != 'inquiry']
 
     elif user.role == 'administrator':
         rentals = Rental.objects.all().select_related(
             'inventory', 'client', 'client__user', 'manager'
         ).order_by('-created_date')
+        status_choices = Rental.STATUS_CHOICES
     else:
         messages.error(request, 'Недостаточно прав для просмотра аренд')
         return redirect('core:home')
@@ -77,7 +82,7 @@ def rental_list(request):
     context = {
         'page_obj': page_obj,
         'selected_status': status,
-        'status_choices': Rental.STATUS_CHOICES,
+        'status_choices': status_choices,
     }
 
     return render(request, 'rentals/rental_list.html', context)
@@ -108,6 +113,10 @@ def rental_detail(request, pk):
 
     if not has_access:
         messages.error(request, 'У вас нет доступа к этой аренде')
+        return redirect('rentals:list')
+
+    if user.role == 'owner' and rental.status == 'inquiry':
+        messages.info(request, 'Запросы по инвентарю отображаются только в чатах')
         return redirect('rentals:list')
 
     # Получаем связанные данные

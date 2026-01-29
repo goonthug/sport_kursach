@@ -11,7 +11,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Avg
 from django.db import transaction
 
-from .models import Inventory, SportCategory, InventoryPhoto
+from .models import Inventory, SportCategory, InventoryPhoto, Favorite
 from .forms import InventoryForm, InventoryPhotoFormSet
 from users.models import Owner
 
@@ -70,9 +70,18 @@ def inventory_list(request):
         inventory_qs = inventory_qs.order_by(valid_sorts[sort_by])
 
     # Пагинация
-    paginator = Paginator(inventory_qs, 12)  # 12 items per page
+    paginator = Paginator(inventory_qs, 9)  # 9 items per page
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
+
+    favorite_ids = set()
+    if request.user.is_authenticated and request.user.role == 'client' and hasattr(request.user, 'client_profile'):
+        favorite_ids = set(
+            Favorite.objects.filter(
+                client=request.user.client_profile,
+                inventory__in=page_obj.object_list
+            ).values_list('inventory_id', flat=True)
+        )
 
     # Получаем категории для фильтра
     categories = SportCategory.objects.all()
@@ -87,6 +96,7 @@ def inventory_list(request):
         'max_price': max_price,
         'current_sort': sort_by,
         'total_count': paginator.count,
+        'favorite_ids': favorite_ids,
     }
 
     return render(request, 'inventory/inventory_list.html', context)
@@ -109,9 +119,17 @@ def inventory_detail(request, pk):
         status='published'
     ).select_related('reviewer', 'rental').order_by('-review_date')[:10]
 
+    is_favorite = False
+    if request.user.is_authenticated and request.user.role == 'client' and hasattr(request.user, 'client_profile'):
+        is_favorite = Favorite.objects.filter(
+            client=request.user.client_profile,
+            inventory=inventory
+        ).exists()
+
     context = {
         'inventory': inventory,
         'reviews': reviews,
+        'is_favorite': is_favorite,
     }
 
     return render(request, 'inventory/inventory_detail.html', context)
@@ -183,6 +201,9 @@ def inventory_update(request, pk):
     if request.user.role == 'owner':
         if not hasattr(request.user, 'owner_profile') or inventory.owner != request.user.owner_profile:
             messages.error(request, 'У вас нет прав на редактирование этого инвентаря.')
+            return redirect('inventory:detail', pk=pk)
+        if inventory.status not in ['pending', 'rejected']:
+            messages.error(request, 'Редактирование доступно только до одобрения менеджером.')
             return redirect('inventory:detail', pk=pk)
     elif request.user.role not in ['manager', 'administrator']:
         messages.error(request, 'У вас нет прав на редактирование.')
@@ -292,3 +313,57 @@ def my_inventory(request):
     }
 
     return render(request, 'inventory/my_inventory.html', context)
+
+
+@login_required
+def favorites_list(request):
+    """
+    Избранный инвентарь клиента.
+    """
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Избранное доступно только клиентам')
+        return redirect('inventory:list')
+
+    favorites_qs = Favorite.objects.filter(
+        client=request.user.client_profile
+    ).select_related('inventory', 'inventory__category').prefetch_related('inventory__photos').order_by('-created_date')
+
+    paginator = Paginator(favorites_qs, 9)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'total_count': paginator.count,
+    }
+
+    return render(request, 'inventory/favorites.html', context)
+
+
+@login_required
+def favorite_toggle(request, pk):
+    """
+    Добавить или удалить инвентарь из избранного.
+    """
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Избранное доступно только клиентам')
+        return redirect('inventory:detail', pk=pk)
+
+    if request.method != 'POST':
+        return redirect('inventory:detail', pk=pk)
+
+    inventory = get_object_or_404(Inventory, pk=pk, status='available')
+    client = request.user.client_profile
+
+    favorite = Favorite.objects.filter(client=client, inventory=inventory).first()
+    if favorite:
+        favorite.delete()
+        messages.info(request, 'Удалено из избранного')
+    else:
+        Favorite.objects.create(client=client, inventory=inventory)
+        messages.success(request, 'Добавлено в избранное')
+
+    next_url = request.GET.get('next')
+    if next_url:
+        return redirect(next_url)
+    return redirect('inventory:detail', pk=pk)

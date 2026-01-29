@@ -93,27 +93,6 @@
                                                     <button type="submit" class="btn btn-sm btn-success">Одобрить</button>
                                                 </form>
                                                 <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectReviewModal{{ review.review_id }}">Отклонить</button>
-                                                <div class="modal fade" id="rejectReviewModal{{ review.review_id }}" tabindex="-1">
-                                                    <div class="modal-dialog">
-                                                        <div class="modal-content">
-                                                            <form method="post" action="{% url 'reviews:reject' review.review_id %}">
-                                                                {% csrf_token %}
-                                                                <div class="modal-header">
-                                                                    <h5 class="modal-title">Отклонить отзыв</h5>
-                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                    <label for="reason{{ review.review_id }}" class="form-label">Причина отклонения</label>
-                                                                    <textarea name="reason" id="reason{{ review.review_id }}" class="form-control" rows="3"></textarea>
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                                                    <button type="submit" class="btn btn-danger">Отклонить</button>
-                                                                </div>
-                                                            </form>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             {% else %}
                                                 <span class="text-muted small">Обработан</span>
                                             {% endif %}
@@ -140,6 +119,32 @@
                 {% endif %}
             </div>
         </div>
+
+        {% for review in page_obj %}
+            {% if user.role == 'administrator' and review.status == 'pending' %}
+                <div class="modal fade" id="rejectReviewModal{{ review.review_id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post" action="{% url 'reviews:reject' review.review_id %}">
+                                {% csrf_token %}
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Отклонить отзыв</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label for="reason{{ review.review_id }}" class="form-label">Причина отклонения</label>
+                                    <textarea name="reason" id="reason{{ review.review_id }}" class="form-control" rows="3"></textarea>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <button type="submit" class="btn btn-danger">Отклонить</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
     {% else %}
         <div class="alert alert-info">
             Нет отзывов по выбранным критериям.

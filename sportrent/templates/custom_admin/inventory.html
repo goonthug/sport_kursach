@@ -72,27 +72,6 @@
                                     </form>
                                     <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal{{ item.inventory_id }}">Отклонить</button>
                                 </div>
-                                <div class="modal fade" id="rejectModal{{ item.inventory_id }}" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <form method="post" action="{% url 'custom_admin:inventory_reject' item.inventory_id %}">
-                                                {% csrf_token %}
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title">Отклонить инвентарь</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <label for="reason{{ item.inventory_id }}" class="form-label">Причина отклонения</label>
-                                                    <textarea name="reason" id="reason{{ item.inventory_id }}" class="form-control" rows="3" required></textarea>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                                    <button type="submit" class="btn btn-danger">Отклонить</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
                             {% else %}
                                 <a href="{% url 'inventory:detail' item.inventory_id %}" class="btn btn-outline-primary btn-sm w-100">Подробнее</a>
                             {% endif %}
@@ -115,6 +94,32 @@
                 </ul>
             </nav>
         {% endif %}
+
+        {% for item in page_obj %}
+            {% if item.status == 'pending' %}
+                <div class="modal fade" id="rejectModal{{ item.inventory_id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post" action="{% url 'custom_admin:inventory_reject' item.inventory_id %}">
+                                {% csrf_token %}
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Отклонить инвентарь</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label for="reason{{ item.inventory_id }}" class="form-label">Причина отклонения</label>
+                                    <textarea name="reason" id="reason{{ item.inventory_id }}" class="form-control" rows="3" required></textarea>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <button type="submit" class="btn btn-danger">Отклонить</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
     {% else %}
         <div class="alert alert-info">Нет инвентаря для модерации</div>
     {% endif %}

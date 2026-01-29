@@ -73,26 +73,6 @@
                                     {% if user.role != 'administrator' %}
                                         {% if user.status != 'blocked' %}
                                             <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#blockModal{{ user.user_id }}">Блокировать</button>
-                                            <div class="modal fade" id="blockModal{{ user.user_id }}" tabindex="-1">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <form method="post" action="{% url 'custom_admin:user_block' user.user_id %}">
-                                                            {% csrf_token %}
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title">Блокировка пользователя</h5>
-                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <p class="mb-0">Заблокировать пользователя {{ user.email }}? Он не сможет войти в систему.</p>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                                                <button type="submit" class="btn btn-danger">Блокировать</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         {% else %}
                                             <form method="post" action="{% url 'custom_admin:user_unblock' user.user_id %}" class="d-inline">
                                                 {% csrf_token %}
@@ -123,5 +103,30 @@
             {% endif %}
         </div>
     </div>
+
+    {% for user in page_obj %}
+        {% if user.role != 'administrator' and user.status != 'blocked' %}
+            <div class="modal fade" id="blockModal{{ user.user_id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="{% url 'custom_admin:user_block' user.user_id %}">
+                            {% csrf_token %}
+                            <div class="modal-header">
+                                <h5 class="modal-title">Блокировка пользователя</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-0">Заблокировать пользователя {{ user.email }}? Он не сможет войти в систему.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                <button type="submit" class="btn btn-danger">Блокировать</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
 </div>
 {% endblock %}

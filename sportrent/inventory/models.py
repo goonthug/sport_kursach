@@ -6,7 +6,7 @@ import uuid
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
-from users.models import Owner, Manager
+from users.models import Owner, Manager, Client
 
 
 class SportCategory(models.Model):
@@ -90,6 +90,28 @@ class Inventory(models.Model):
     def is_available(self):
         """Проверка доступности инвентаря."""
         return self.status == 'available'
+
+
+class Favorite(models.Model):
+    """Избранный инвентарь клиента."""
+
+    favorite_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='favorites', verbose_name='Клиент')
+    inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='favorited_by', verbose_name='Инвентарь')
+    created_date = models.DateTimeField(auto_now_add=True, verbose_name='Дата добавления')
+
+    class Meta:
+        db_table = 'inventory_favorites'
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранное'
+        unique_together = ('client', 'inventory')
+        ordering = ['-created_date']
+        indexes = [
+            models.Index(fields=['client', 'inventory']),
+        ]
+
+    def __str__(self):
+        return f"{self.client.full_name} -> {self.inventory.name}"
 
 
 class InventoryPhoto(models.Model):

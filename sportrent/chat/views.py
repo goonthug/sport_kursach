@@ -9,6 +9,8 @@ from django.contrib import messages
 from django.db.models import Q, Max
 from datetime import timedelta
 from django.utils import timezone
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 from .models import ChatMessage
 from .forms import ChatMessageForm
@@ -103,6 +105,10 @@ def chat_detail(request, rental_id):
 
     # Обработка отправки нового сообщения
     if request.method == 'POST':
+        if user.role == 'administrator':
+            messages.error(request, 'Администратор может только читать сообщения')
+            return redirect('chat:detail', rental_id=rental_id)
+
         form = ChatMessageForm(request.POST, request.FILES)
         if form.is_valid():
             if not other_user:
@@ -114,6 +120,34 @@ def chat_detail(request, rental_id):
                 message.receiver = other_user
                 message.save()
 
+                channel_layer = get_channel_layer()
+                payload = {
+                    'message_id': str(message.message_id),
+                    'sender_id': str(message.sender.user_id),
+                    'sender_name': message.sender.get_full_name(),
+                    'text': message.message_text,
+                    'text_preview': message.message_text[:120],
+                    'sent_date': message.sent_date.isoformat(),
+                    'is_read': message.is_read,
+                    'inventory_name': message.rental.inventory.name,
+                    'file_url': message.file_url.url if message.file_url else None,
+                }
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{rental_id}',
+                    {'type': 'chat.message', 'message': payload}
+                )
+                async_to_sync(channel_layer.group_send)(
+                    f'user_{other_user.user_id}',
+                    {
+                        'type': 'notify.message',
+                        'message': {
+                            'title': f'Новое сообщение от {message.sender.get_full_name()}',
+                            'body': f'{message.rental.inventory.name}: {message.message_text[:120]}',
+                            'url': f'/chat/{rental_id}/',
+                        },
+                    }
+                )
+
                 logger.info(f'Сообщение отправлено в чате аренды {rental_id}: {user.email} -> {other_user.email}')
                 return redirect('chat:detail', rental_id=rental_id)
     else:
@@ -121,7 +155,7 @@ def chat_detail(request, rental_id):
 
     context = {
         'rental': rental,
-        'messages': messages_qs,
+        'chat_messages': messages_qs,
         'form': form,
         'other_user': other_user,
     }

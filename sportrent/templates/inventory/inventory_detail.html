@@ -109,36 +109,55 @@
                 {% endif %}
             </div>
 
+            {% if user.is_authenticated and user.role == 'client' and inventory.status == 'available' %}
+                <div class="d-grid mb-4">
+                    <form method="post" action="{% url 'inventory:favorite_toggle' inventory.inventory_id %}?next={{ request.get_full_path|urlencode }}">
+                        {% csrf_token %}
+                        {% if is_favorite %}
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="bi bi-heartbreak"></i> Убрать из избранного
+                            </button>
+                        {% else %}
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="bi bi-heart"></i> В избранное
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
+            {% endif %}
+
             {% if user.is_authenticated %}
                 {% if user.role == 'owner' and user.owner_profile == inventory.owner %}
-                    <div class="d-grid gap-2 d-md-flex">
-                        <a href="{% url 'inventory:update' inventory.inventory_id %}" class="btn btn-warning flex-fill">
-                            <i class="bi bi-pencil"></i> Редактировать
-                        </a>
-                        <button type="button" class="btn btn-danger flex-fill" data-bs-toggle="modal" data-bs-target="#deleteInventoryModal">
-                            <i class="bi bi-trash"></i> Удалить
-                        </button>
-                    </div>
-                    <div class="modal fade" id="deleteInventoryModal" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <form method="post" action="{% url 'inventory:delete' inventory.inventory_id %}">
-                                    {% csrf_token %}
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Удалить инвентарь</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <p class="mb-0">Удалить «{{ inventory.name }}»? Это действие необратимо.</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                        <button type="submit" class="btn btn-danger">Удалить</button>
-                                    </div>
-                                </form>
+                    {% if inventory.status == 'pending' or inventory.status == 'rejected' %}
+                        <div class="d-grid gap-2 d-md-flex">
+                            <a href="{% url 'inventory:update' inventory.inventory_id %}" class="btn btn-warning flex-fill">
+                                <i class="bi bi-pencil"></i> Редактировать
+                            </a>
+                            <button type="button" class="btn btn-danger flex-fill" data-bs-toggle="modal" data-bs-target="#deleteInventoryModal">
+                                <i class="bi bi-trash"></i> Удалить
+                            </button>
+                        </div>
+                        <div class="modal fade" id="deleteInventoryModal" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'inventory:delete' inventory.inventory_id %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Удалить инвентарь</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p class="mb-0">Удалить «{{ inventory.name }}»? Это действие необратимо.</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                            <button type="submit" class="btn btn-danger">Удалить</button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    {% endif %}
                 {% endif %}
             {% endif %}
         </div>

@@ -85,7 +85,7 @@ class RentalCreateForm(forms.ModelForm):
                 # Проверка что инвентарь свободен в эти даты
                 overlapping = Rental.objects.filter(
                     inventory=self.inventory,
-                    status__in=['confirmed', 'active']
+                    status__in=['pending', 'confirmed', 'active']
                 ).filter(
                     start_date__lt=end_date,
                     end_date__gt=start_date

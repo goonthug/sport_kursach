@@ -98,7 +98,8 @@
     </div>
 
     <!-- Уведомления -->
-    {% if pending_inventory > 0 or pending_rentals > 0 or pending_reviews > 0 %}
+    {% if user.role == 'manager' %}
+        {% if pending_inventory > 0 or pending_rentals > 0 %}
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card shadow-sm border-warning">
@@ -123,20 +124,33 @@
                                     </a>
                                 </div>
                             {% endif %}
-                            {% if pending_reviews > 0 %}
-                                <div class="col-md-4">
-                                    <a href="{% url 'reviews:list' %}?status=pending" class="text-decoration-none">
-                                        <div class="alert alert-secondary mb-0">
-                                            <strong>{{ pending_reviews }}</strong> отзывов на модерации
-                                        </div>
-                                    </a>
-                                </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        {% endif %}
+    {% elif user.role == 'administrator' %}
+        {% if pending_reviews > 0 %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-bell"></i> Требуют внимания</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <a href="{% url 'reviews:list' %}?status=pending" class="text-decoration-none">
+                                    <div class="alert alert-secondary mb-0">
+                                        <strong>{{ pending_reviews }}</strong> отзывов на модерации
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     {% endif %}
 
     <!-- Графики и аналитика -->

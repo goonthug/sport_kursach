@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Избранное - SportRent{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Избранное</h2>
+            <p class="text-muted">Сохранено предметов: {{ total_count }}</p>
+        </div>
+    </div>
+
+    {% if page_obj %}
+        <div class="row g-4 mb-4">
+            {% for item in page_obj %}
+                <div class="col-md-6 col-lg-4 col-xl-3">
+                    <div class="card h-100">
+                        {% if item.inventory.photos.all %}
+                            <img src="{{ item.inventory.photos.first.photo_url.url }}" class="card-img-top" alt="{{ item.inventory.name }}" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title mb-2" style="font-size: 1rem;">{{ item.inventory.name|truncatewords:4 }}</h5>
+                            <p class="text-muted small mb-2">{{ item.inventory.brand }}</p>
+                            <p class="card-text small text-muted mb-3">{{ item.inventory.description|truncatewords:12 }}</p>
+
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-secondary">{{ item.inventory.category.name }}</span>
+                                    <span class="badge bg-success">{{ item.inventory.get_condition_display }}</span>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong class="text-primary">{{ item.inventory.price_per_day }} ₽/день</strong>
+                                    <a href="{% url 'inventory:detail' item.inventory.inventory_id %}" class="btn btn-sm btn-outline-primary">
+                                        Подробнее
+                                    </a>
+                                </div>
+
+                                <form method="post" action="{% url 'inventory:favorite_toggle' item.inventory.inventory_id %}?next={{ request.get_full_path|urlencode }}" class="mt-2">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                        <i class="bi bi-heartbreak"></i> Убрать из избранного
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if page_obj.has_other_pages %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a>
+                        </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Вперед</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-info">
+            В избранном пока нет инвентаря.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

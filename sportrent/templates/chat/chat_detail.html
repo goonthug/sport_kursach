@@ -76,20 +76,30 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="mb-0">{{ rental.inventory.name }}</h5>
-                            <small class="text-muted">Чат с {{ other_user.get_full_name }}</small>
+                            {% if other_user %}
+                                <small class="text-muted">Чат с {{ other_user.get_full_name }}</small>
+                            {% else %}
+                                <small class="text-muted">Просмотр чата</small>
+                            {% endif %}
                         </div>
-                        <a href="{% url 'rentals:detail' rental.rental_id %}" class="btn btn-sm btn-outline-primary">
-                            К аренде
-                        </a>
+                        {% if rental.status == 'inquiry' %}
+                            <a href="{% url 'inventory:detail' rental.inventory.inventory_id %}" class="btn btn-sm btn-outline-primary">
+                                К инвентарю
+                            </a>
+                        {% else %}
+                            <a href="{% url 'rentals:detail' rental.rental_id %}" class="btn btn-sm btn-outline-primary">
+                                К аренде
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
                 
                 <div class="card-body">
                     <!-- Контейнер сообщений -->
-                    <div class="chat-container" id="chatContainer">
-                        {% if messages %}
-                            {% for msg in messages %}
-                                <div class="message {% if msg.sender == user %}sent{% else %}received{% endif %}">
+                    <div class="chat-container" id="chatContainer" data-rental-id="{{ rental.rental_id }}" data-user-id="{{ user.user_id }}">
+                        {% if chat_messages %}
+                            {% for msg in chat_messages %}
+                                <div class="message {% if msg.sender == user %}sent{% else %}received{% endif %}" data-message-id="{{ msg.message_id }}">
                                     <div class="message-bubble">
                                         <div class="message-text">{{ msg.message_text }}</div>
                                         {% if msg.file_url %}
@@ -117,27 +127,33 @@
                     </div>
                     
                     <!-- Форма отправки сообщения -->
-                    <form method="post" enctype="multipart/form-data" class="mt-3">
-                        {% csrf_token %}
-                        
-                        <div class="mb-2">
-                            {{ form.message_text }}
-                            {% if form.message_text.errors %}
-                                <div class="text-danger small">{{ form.message_text.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-8 mb-2">
-                                {{ form.file_url }}
+                    {% if user.role != 'administrator' and other_user %}
+                        <form method="post" enctype="multipart/form-data" class="mt-3" id="chatForm">
+                            {% csrf_token %}
+                            
+                            <div class="mb-2">
+                                {{ form.message_text }}
+                                {% if form.message_text.errors %}
+                                    <div class="text-danger small">{{ form.message_text.errors.0 }}</div>
+                                {% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="bi bi-send"></i> Отправить
-                                </button>
+                            
+                            <div class="row">
+                                <div class="col-md-8 mb-2">
+                                    {{ form.file_url }}
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-send"></i> Отправить
+                                    </button>
+                                </div>
                             </div>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-info mt-3 mb-0">
+                            Просмотр доступен в режиме чтения.
                         </div>
-                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -153,29 +169,38 @@
                     {% endif %}
                     
                     <p class="mb-2"><strong>Инвентарь:</strong> {{ rental.inventory.name }}</p>
-                    <p class="mb-2"><strong>Период:</strong> {{ rental.start_date|date:"d.m.Y" }} - {{ rental.end_date|date:"d.m.Y" }}</p>
-                    <p class="mb-2"><strong>Стоимость:</strong> {{ rental.total_price }} ₽</p>
-                    <p class="mb-2"><strong>Статус:</strong> 
-                        {% if rental.status == 'pending' %}
-                            <span class="badge bg-warning">{{ rental.get_status_display }}</span>
-                        {% elif rental.status == 'confirmed' %}
-                            <span class="badge bg-info">{{ rental.get_status_display }}</span>
-                        {% elif rental.status == 'active' %}
-                            <span class="badge bg-primary">{{ rental.get_status_display }}</span>
-                        {% elif rental.status == 'completed' %}
-                            <span class="badge bg-success">{{ rental.get_status_display }}</span>
-                        {% else %}
-                            <span class="badge bg-secondary">{{ rental.get_status_display }}</span>
-                        {% endif %}
-                    </p>
-                    
-                    <hr>
-                    
-                    <div class="d-grid">
-                        <a href="{% url 'rentals:detail' rental.rental_id %}" class="btn btn-outline-primary">
-                            Детали аренды
-                        </a>
-                    </div>
+                    {% if rental.status == 'inquiry' %}
+                        <p class="text-muted mb-3">Диалог по инвентарю без бронирования.</p>
+                        <div class="d-grid">
+                            <a href="{% url 'inventory:detail' rental.inventory.inventory_id %}" class="btn btn-outline-primary">
+                                Вернуться к инвентарю
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="mb-2"><strong>Период:</strong> {{ rental.start_date|date:"d.m.Y" }} - {{ rental.end_date|date:"d.m.Y" }}</p>
+                        <p class="mb-2"><strong>Стоимость:</strong> {{ rental.total_price }} ₽</p>
+                        <p class="mb-2"><strong>Статус:</strong> 
+                            {% if rental.status == 'pending' %}
+                                <span class="badge bg-warning">{{ rental.get_status_display }}</span>
+                            {% elif rental.status == 'confirmed' %}
+                                <span class="badge bg-info">{{ rental.get_status_display }}</span>
+                            {% elif rental.status == 'active' %}
+                                <span class="badge bg-primary">{{ rental.get_status_display }}</span>
+                            {% elif rental.status == 'completed' %}
+                                <span class="badge bg-success">{{ rental.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ rental.get_status_display }}</span>
+                            {% endif %}
+                        </p>
+                        
+                        <hr>
+                        
+                        <div class="d-grid">
+                            <a href="{% url 'rentals:detail' rental.rental_id %}" class="btn btn-outline-primary">
+                                Детали аренды
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -188,6 +213,87 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatContainer = document.getElementById('chatContainer');
     if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    const rentalId = chatContainer?.dataset.rentalId;
+    const currentUserId = chatContainer?.dataset.userId;
+    if (!rentalId || !currentUserId) {
+        return;
+    }
+
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const chatSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/chat/${rentalId}/`);
+
+    const form = document.getElementById('chatForm');
+
+    function appendMessage(msg) {
+        if (document.querySelector(`[data-message-id="${msg.message_id}"]`)) {
+            return;
+        }
+
+        const isSent = msg.sender_id === currentUserId;
+        const messageEl = document.createElement('div');
+        messageEl.className = `message ${isSent ? 'sent' : 'received'}`;
+        messageEl.dataset.messageId = msg.message_id;
+
+        const sentDate = msg.sent_date ? new Date(msg.sent_date) : null;
+        const timeText = sentDate
+            ? sentDate.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : '';
+
+        const fileHtml = msg.file_url
+            ? `<div class="mt-2"><a href="${msg.file_url}" target="_blank" class="${isSent ? 'text-white' : ''}"><i class="bi bi-paperclip"></i> Файл</a></div>`
+            : '';
+
+        const readHtml = isSent && msg.is_read ? '<i class="bi bi-check-all"></i>' : '';
+
+        messageEl.innerHTML = `
+            <div class="message-bubble">
+                <div class="message-text"></div>
+                ${fileHtml}
+                <div class="message-time">${timeText} ${readHtml}</div>
+            </div>
+        `;
+        messageEl.querySelector('.message-text').textContent = msg.text || '';
+        chatContainer.appendChild(messageEl);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    chatSocket.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type !== 'chat.message') {
+                return;
+            }
+            appendMessage(data.message);
+        } catch (e) {
+            console.error('Ошибка сообщения чата', e);
+        }
+    };
+
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            const textarea = form.querySelector('textarea[name="message_text"]');
+            const fileInput = form.querySelector('input[type="file"]');
+            const text = textarea ? textarea.value.trim() : '';
+
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                return;
+            }
+
+            if (!text) {
+                event.preventDefault();
+                return;
+            }
+
+            if (chatSocket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            event.preventDefault();
+            chatSocket.send(JSON.stringify({ message: text }));
+            textarea.value = '';
+        });
     }
 });
 </script>

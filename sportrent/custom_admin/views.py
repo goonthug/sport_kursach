@@ -29,6 +29,10 @@ def is_staff(user):
 @user_passes_test(is_staff)
 def admin_dashboard(request):
     """Главная страница административной панели с статистикой."""
+    user = request.user
+    manager_profile = None
+    if user.role == 'manager' and hasattr(user, 'manager_profile'):
+        manager_profile = user.manager_profile
 
     # Базовая статистика
     total_users = User.objects.count()
@@ -38,10 +42,14 @@ def admin_dashboard(request):
     available_inventory = Inventory.objects.filter(status='available').count()
     pending_inventory = Inventory.objects.filter(status='pending').count()
 
-    total_rentals = Rental.objects.count()
-    active_rentals = Rental.objects.filter(status='active').count()
-    pending_rentals = Rental.objects.filter(status='pending').count()
-    completed_rentals = Rental.objects.filter(status='completed').count()
+    rentals_scope = Rental.objects.all()
+    if manager_profile:
+        rentals_scope = rentals_scope.filter(manager=manager_profile)
+
+    total_rentals = rentals_scope.count()
+    active_rentals = rentals_scope.filter(status='active').count()
+    pending_rentals = rentals_scope.filter(status='pending').count()
+    completed_rentals = rentals_scope.filter(status='completed').count()
 
     pending_reviews = Review.objects.filter(status='pending').count()
 
@@ -53,7 +61,7 @@ def admin_dashboard(request):
     # Статистика за последний месяц
     last_month = timezone.now() - timedelta(days=30)
     new_users_month = User.objects.filter(registration_date__gte=last_month).count()
-    new_rentals_month = Rental.objects.filter(created_date__gte=last_month).count()
+    new_rentals_month = rentals_scope.filter(created_date__gte=last_month).count()
 
     # Популярные категории
     popular_categories = SportCategory.objects.annotate(
@@ -69,7 +77,7 @@ def admin_dashboard(request):
     ).order_by('-rental_count')[:5]
 
     # Недавняя активность
-    recent_rentals = Rental.objects.select_related(
+    recent_rentals = rentals_scope.select_related(
         'inventory', 'client', 'client__user'
     ).order_by('-created_date')[:10]
 
