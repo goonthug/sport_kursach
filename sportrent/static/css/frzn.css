@@ -44,12 +44,11 @@ body::before {
   background-size: 120px 120px;
   opacity: 0.4;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 main {
   position: relative;
-  z-index: 1;
   padding-top: 120px;
   padding-bottom: 80px;
 }
@@ -541,6 +540,18 @@ a:focus-visible {
 .modal-header,
 .modal-footer {
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+.modal {
+  z-index: 1100;
+}
+
+.modal-backdrop {
+  z-index: 1090;
+}
+
+.modal-dialog {
+  pointer-events: auto;
 }
 
 .modal-backdrop.show {
