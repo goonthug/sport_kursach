@@ -88,11 +88,13 @@
                                         </td>
                                         <td class="text-end">
                                             {% if review.status == 'pending' %}
-                                                <form method="post" action="{% url 'reviews:approve' review.review_id %}" class="d-inline" data-preserve-scroll="true">
-                                                    {% csrf_token %}
-                                                    <button type="submit" class="btn btn-sm btn-success">Одобрить</button>
-                                                </form>
-                                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectReviewModal{{ review.review_id }}">Отклонить</button>
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    <form method="post" action="{% url 'reviews:approve' review.review_id %}" data-preserve-scroll="true">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-sm btn-success" style="min-width: 110px;">Одобрить</button>
+                                                    </form>
+                                                    <button type="button" class="btn btn-sm btn-danger" style="min-width: 110px;" data-bs-toggle="modal" data-bs-target="#rejectReviewModal{{ review.review_id }}">Отклонить</button>
+                                                </div>
                                             {% else %}
                                                 <span class="text-muted small">Обработан</span>
                                             {% endif %}
