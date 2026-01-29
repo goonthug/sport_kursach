@@ -3,186 +3,142 @@
 {% block title %}SportRent - Аренда спортивного инвентаря{% endblock %}
 
 {% block content %}
-<div class="hero-section py-5" style="background: linear-gradient(135deg, #2c5f7c 0%, #3a7ca5 100%);">
-    <div class="container text-white">
-        <div class="row align-items-center">
-            <div class="col-lg-6 mb-4 mb-lg-0">
-                <h1 class="display-4 fw-bold mb-3">SportRent</h1>
-                <p class="lead mb-4">Платформа для аренды и обмена спортивного инвентаря с системой репутации</p>
-                <div class="d-flex gap-3">
-                    <a href="{% url 'inventory:list' %}" class="btn btn-light btn-lg">
-                        <i class="bi bi-search"></i> Найти инвентарь
-                    </a>
-                    {% if not user.is_authenticated %}
-                        <a href="{% url 'users:register' %}" class="btn btn-outline-light btn-lg">
-                            <i class="bi bi-person-plus"></i> Присоединиться
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="bi bi-bicycle display-4 text-primary"></i>
-                                <h3 class="mt-2">500+</h3>
-                                <p class="mb-0 text-muted">Предметов</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="bi bi-people display-4 text-primary"></i>
-                                <h3 class="mt-2">1000+</h3>
-                                <p class="mb-0 text-muted">Пользователей</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="bi bi-star-fill display-4 text-warning"></i>
-                                <h3 class="mt-2">4.8</h3>
-                                <p class="mb-0 text-muted">Средний рейтинг</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="card text-center">
-                            <div class="card-body">
-                                <i class="bi bi-shield-check display-4 text-success"></i>
-                                <h3 class="mt-2">100%</h3>
-                                <p class="mb-0 text-muted">Безопасность</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<section class="frzn-hero">
+    <div class="frzn-hero-bg"></div>
+    <div class="container frzn-hero-content">
+        <div>
+            <div class="frzn-label">/ Аренда премиум инвентаря</div>
+            <h1 class="frzn-title">НЕ ДЛЯ ВСЕХ<br>ДЛЯ ИЗБРАННЫХ</h1>
+            <p class="frzn-subtitle">
+                Премиальный инвентарь для тех, кто не идёт на компромисс.
+                Надёжное снаряжение с сервисом полного цикла.
+            </p>
+            <div class="d-flex flex-wrap gap-3 mt-4">
+                <a href="{% url 'inventory:list' %}" class="btn btn-primary">Смотреть каталог</a>
+                {% if not user.is_authenticated %}
+                    <a href="{% url 'users:register' %}" class="btn btn-outline-primary">Присоединиться</a>
+                {% endif %}
             </div>
         </div>
-    </div>
-</div>
-
-<div class="container py-5">
-    <div class="row mb-4">
-        <div class="col">
-            <h2 class="mb-4">Категории инвентаря</h2>
-        </div>
-    </div>
-    
-    {% if categories %}
-        <div class="row g-4 mb-5">
-            {% for category in categories %}
-                <div class="col-md-4 col-lg-3">
-                    <a href="{% url 'inventory:list' %}?category={{ category.category_id }}" class="text-decoration-none">
-                        <div class="card h-100 text-center">
-                            <div class="card-body">
-                                <i class="{{ category.icon }} display-4 text-primary mb-3"></i>
-                                <h5 class="card-title">{{ category.name }}</h5>
-                                <p class="text-muted small mb-0">{{ category.item_count }} предметов</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-    
-    <div class="row mb-4">
-        <div class="col">
-            <h2 class="mb-4">Популярный инвентарь</h2>
-        </div>
-    </div>
-    
-    {% if inventories %}
-        <div class="row g-4">
-            {% for item in inventories %}
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100">
-                        {% if item.photos.all %}
-                            <img src="{{ item.photos.first.photo_url.url }}" class="card-img-top" alt="{{ item.name }}" style="height: 200px; object-fit: cover;">
+        <div>
+            <div class="card">
+                {% with featured=inventories|first %}
+                    <div class="product-image">
+                        {% if featured and featured.photos.all %}
+                            <img src="{{ featured.photos.first.photo_url.url }}" alt="{{ featured.name }}">
                         {% else %}
-                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                            <div class="h-100 d-flex align-items-center justify-content-center text-muted">
+                                <i class="bi bi-image" style="font-size: 3rem;"></i>
                             </div>
                         {% endif %}
-                        
-                        <div class="card-body d-flex flex-column">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0">{{ item.name|truncatewords:3 }}</h5>
-                                {% if item.avg_rating %}
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="bi bi-star-fill"></i> {{ item.avg_rating }}
-                                    </span>
-                                {% endif %}
-                            </div>
-                            
-                            <p class="text-muted small mb-2">{{ item.brand }}</p>
-                            <p class="card-text small text-muted mb-3">{{ item.description|truncatewords:10 }}</p>
-                            
-                            <div class="mt-auto">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-muted small">{{ item.category.name }}</span>
-                                    <span class="badge bg-success">{{ item.get_status_display }}</span>
-                                </div>
-                                
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <strong class="text-primary">{{ item.price_per_day }} руб/день</strong>
-                                    <a href="{% url 'inventory:detail' item.inventory_id %}" class="btn btn-sm btn-outline-primary">
-                                        Подробнее
-                                    </a>
-                                </div>
-                            </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="frzn-label">/ Featured</div>
+                        <div class="product-name">{{ featured.name|default:"Горнолыжный комплект PRO" }}</div>
+                        <div class="product-meta">{{ featured.brand|default:"Премиальный инвентарь" }}</div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="product-price">{{ featured.price_per_day|default:"2 500" }} ₽</div>
+                            <div class="text-muted">за сутки</div>
                         </div>
                     </div>
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="frzn-section">
+    <div class="container">
+        <div class="frzn-section-header">
+            <div class="frzn-label">/ {{ categories|length }} категорий</div>
+            <h2 class="frzn-title">ВЫБЕРИ СВОЮ<br>КАТЕГОРИЮ</h2>
+            <p class="frzn-subtitle">Инвентарь под любую активность — от гор до воды.</p>
+        </div>
+        <div class="row g-4">
+            {% for category in categories %}
+                <div class="col-md-4 col-lg-3">
+                    <a href="{% url 'inventory:list' %}?category={{ category.category_id }}">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="{{ category.icon }} display-4 text-white mb-3"></i>
+                                <h5 class="mb-1">{{ category.name }}</h5>
+                                <p class="text-muted small mb-0">{{ category.item_count }} позиций</p>
+                            </div>
+                        </div>
+                    </a>
                 </div>
             {% endfor %}
         </div>
-        
-        <div class="text-center mt-4">
-            <a href="{% url 'inventory:list' %}" class="btn btn-primary btn-lg">
-                <i class="bi bi-grid"></i> Смотреть весь каталог
-            </a>
-        </div>
-    {% else %}
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> Инвентарь пока не добавлен. Станьте первым владельцем!
-        </div>
-    {% endif %}
-</div>
+    </div>
+</section>
 
-<div class="py-5" style="background-color: #f8f9fa;">
+<section class="frzn-section frzn-section--slate">
     <div class="container">
-        <div class="row">
-            <div class="col-md-4 mb-4">
-                <div class="text-center">
-                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
-                        <i class="bi bi-search" style="font-size: 2rem;"></i>
+        <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 frzn-section-header">
+            <div>
+                <div class="frzn-label">/ Популярные позиции</div>
+                <h2 class="frzn-title">ГОРЯЧИЕ<br>ПРЕДЛОЖЕНИЯ</h2>
+            </div>
+            <a href="{% url 'inventory:list' %}" class="btn btn-outline-primary">Смотреть каталог</a>
+        </div>
+        {% if inventories %}
+            <div class="row g-4">
+                {% for item in inventories %}
+                    <div class="col-md-6 col-lg-3">
+                        <a href="{% url 'inventory:detail' item.inventory_id %}">
+                            <div class="product-card h-100">
+                                <div class="product-image">
+                                    {% if item.photos.all %}
+                                        <img src="{{ item.photos.first.photo_url.url }}" alt="{{ item.name }}">
+                                    {% else %}
+                                        <div class="h-100 d-flex align-items-center justify-content-center text-muted">
+                                            <i class="bi bi-image" style="font-size: 2rem;"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="product-info">
+                                    <div class="product-name">{{ item.name|truncatewords:3 }}</div>
+                                    <div class="product-meta">{{ item.brand }}</div>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="product-price">{{ item.price_per_day }} ₽</span>
+                                        <span class="text-muted">{{ item.category.name }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
                     </div>
-                    <h4>Найдите инвентарь</h4>
-                    <p class="text-muted">Используйте фильтры для поиска подходящего оборудования рядом с вами</p>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">Инвентарь пока не добавлен.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="frzn-section frzn-section--deep">
+    <div class="container text-center">
+        <div class="frzn-label">/ Доверие</div>
+        <h2 class="frzn-title">ЦИФРЫ, КОТОРЫЕ<br>ГОВОРЯТ ЗА НАС</h2>
+        <div class="row g-4 mt-4">
+            <div class="col-md-4">
+                <div class="card p-4">
+                    <div class="display-4">2 500+</div>
+                    <div class="text-muted">Довольных клиентов</div>
                 </div>
             </div>
-            <div class="col-md-4 mb-4">
-                <div class="text-center">
-                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
-                        <i class="bi bi-calendar-check" style="font-size: 2rem;"></i>
-                    </div>
-                    <h4>Забронируйте</h4>
-                    <p class="text-muted">Выберите даты и оформите заявку на аренду через платформу</p>
+            <div class="col-md-4">
+                <div class="card p-4">
+                    <div class="display-4">250+</div>
+                    <div class="text-muted">Единиц инвентаря</div>
                 </div>
             </div>
-            <div class="col-md-4 mb-4">
-                <div class="text-center">
-                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
-                        <i class="bi bi-star-fill" style="font-size: 2rem;"></i>
-                    </div>
-                    <h4>Оставьте отзыв</h4>
-                    <p class="text-muted">Помогите другим пользователям, оценив качество инвентаря и сервиса</p>
+            <div class="col-md-4">
+                <div class="card p-4">
+                    <div class="display-4">98%</div>
+                    <div class="text-muted">Положительных отзывов</div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 {% endblock %}
