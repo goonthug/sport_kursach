@@ -220,6 +220,23 @@
     });
     </script>
 
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scrollKey = `scroll:${window.location.pathname}${window.location.search}`;
+        const savedScroll = sessionStorage.getItem(scrollKey);
+        if (savedScroll) {
+            sessionStorage.removeItem(scrollKey);
+            window.scrollTo(0, parseInt(savedScroll, 10));
+        }
+
+        document.querySelectorAll('form[data-preserve-scroll="true"]').forEach((form) => {
+            form.addEventListener('submit', () => {
+                sessionStorage.setItem(scrollKey, window.scrollY.toString());
+            });
+        });
+    });
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

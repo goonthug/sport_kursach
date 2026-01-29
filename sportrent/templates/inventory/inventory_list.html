@@ -84,7 +84,7 @@
                                     {% endif %}
                                     {% if user.is_authenticated and user.role == 'client' %}
                                         <div class="product-favorite">
-                                            <form method="post" action="{% url 'inventory:favorite_toggle' item.inventory_id %}?next={{ request.get_full_path|urlencode }}">
+                                            <form method="post" action="{% url 'inventory:favorite_toggle' item.inventory_id %}?next={{ request.get_full_path|urlencode }}" data-preserve-scroll="true">
                                                 {% csrf_token %}
                                                 <button type="submit" aria-label="Избранное">
                                                     <i class="bi {% if item.inventory_id in favorite_ids %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>

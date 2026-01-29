@@ -111,7 +111,7 @@
 
             {% if user.is_authenticated and user.role == 'client' and inventory.status == 'available' %}
                 <div class="d-grid mb-4">
-                    <form method="post" action="{% url 'inventory:favorite_toggle' inventory.inventory_id %}?next={{ request.get_full_path|urlencode }}">
+                    <form method="post" action="{% url 'inventory:favorite_toggle' inventory.inventory_id %}?next={{ request.get_full_path|urlencode }}" data-preserve-scroll="true">
                         {% csrf_token %}
                         {% if is_favorite %}
                             <button type="submit" class="btn btn-outline-danger">

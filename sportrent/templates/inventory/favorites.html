@@ -34,7 +34,7 @@
                                 <span class="product-price">{{ item.inventory.price_per_day }} ₽</span>
                                 <span class="text-muted">{{ item.inventory.category.name }}</span>
                             </div>
-                            <form method="post" action="{% url 'inventory:favorite_toggle' item.inventory.inventory_id %}?next={{ request.get_full_path|urlencode }}" class="mt-3">
+                            <form method="post" action="{% url 'inventory:favorite_toggle' item.inventory.inventory_id %}?next={{ request.get_full_path|urlencode }}" class="mt-3" data-preserve-scroll="true">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-outline-danger btn-sm w-100">
                                     <i class="bi bi-heartbreak"></i> Убрать из избранного
