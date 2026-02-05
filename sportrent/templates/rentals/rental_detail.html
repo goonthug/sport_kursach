@@ -168,9 +168,16 @@
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#completeRentalModal">
-                                <i class="bi bi-check-lg"></i> Завершить аренду
-                            </button>
+                            {% if can_complete_rental %}
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#completeRentalModal">
+                                    <i class="bi bi-check-lg"></i> Завершить аренду
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-secondary" disabled title="У владельца нет реквизитов в профиле">
+                                    <i class="bi bi-check-lg"></i> Завершить аренду
+                                </button>
+                                <p class="small text-muted mb-0">Чтобы завершить аренду, владелец должен указать банковские реквизиты в своём профиле.</p>
+                            {% endif %}
                             <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#extendRentalModal">
                                 <i class="bi bi-calendar-plus"></i> Продлить аренду
                             </button>
@@ -217,12 +224,12 @@
                 </div>
             {% endif %}
             
-            {% if user.role == 'client' or user.role == 'manager' %}
+            {% if user.role == 'client' or user.role == 'manager' or user.role == 'administrator' %}
                 <div class="card shadow-sm mt-3">
                     <div class="card-body">
                         <div class="d-grid">
                             <a href="{% url 'chat:detail' rental.rental_id %}" class="btn btn-primary">
-                                <i class="bi bi-chat-dots"></i> Открыть чат
+                                <i class="bi bi-chat-dots"></i> {% if user.role == 'administrator' %}Чат (клиент и менеджер){% else %}Открыть чат{% endif %}
                             </a>
                         </div>
                     </div>
@@ -269,13 +276,9 @@
                     </div>
                     <div class="modal-body">
                         <p class="mb-3">Подтвердить завершение аренды и возврат инвентаря?</p>
-                        {% if rental.inventory.bank_account %}
+                        {% if owner_bank_account %}
                             <div class="alert alert-info">
-                                <small>Выплата владельцу будет выполнена автоматически на счет: {{ rental.inventory.bank_account.bank_name }} ({{ rental.inventory.bank_account.account_number }})</small>
-                            </div>
-                        {% else %}
-                            <div class="alert alert-warning">
-                                <small>Банковский счет владельца не указан в инвентаре. Выплата невозможна.</small>
+                                <small>Выплата владельцу будет выполнена на счёт из профиля: {{ owner_bank_account.bank_name }} ({{ owner_bank_account.account_number }})</small>
                             </div>
                         {% endif %}
                     </div>

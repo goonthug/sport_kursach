@@ -243,7 +243,7 @@
                                         <h6 class="mb-1">{{ rental.inventory.name|truncatewords:4 }}</h6>
                                         <small class="text-muted">{{ rental.created_date|timesince }}</small>
                                     </div>
-                                    <p class="mb-1 small text-muted">{{ rental.client.full_name }}</p>
+                                    <p class="mb-1 small text-muted">{{ rental.client.full_name }}{% if rental.manager %} · {{ rental.manager.full_name }}{% endif %}</p>
                                     <small>
                                         {% if rental.status == 'pending' %}
                                             <span class="badge bg-warning">{{ rental.get_status_display }}</span>

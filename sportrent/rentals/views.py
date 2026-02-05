@@ -132,6 +132,15 @@ def rental_detail(request, pk):
     payments = rental.payments.all().order_by('-payment_date')
     contract = getattr(rental, 'contract', None)
 
+    # Может ли менеджер завершить аренду (у владельца есть реквизиты в профиле)
+    can_complete_rental = False
+    owner_bank_account = None
+    if user.role == 'manager' and rental.status in ('confirmed', 'active'):
+        from users.models import BankAccount
+        owner_accounts = BankAccount.objects.filter(owner=rental.inventory.owner)
+        can_complete_rental = owner_accounts.exists()
+        owner_bank_account = owner_accounts.order_by('-is_default').first()
+
     # Может ли клиент оставить отзыв (аренда завершена и отзыв еще не оставлен)
     can_leave_review = False
     if user.role == 'client' and hasattr(user, 'client_profile') and rental.client == user.client_profile:
@@ -149,6 +158,8 @@ def rental_detail(request, pk):
         'payments': payments,
         'contract': contract,
         'can_leave_review': can_leave_review,
+        'can_complete_rental': can_complete_rental,
+        'owner_bank_account': owner_bank_account,
     }
 
     return render(request, 'rentals/rental_detail.html', context)
@@ -368,7 +379,7 @@ def rental_complete(request, pk):
     Завершение аренды (возврат инвентаря) с возможностью выплаты владельцу.
     """
     rental = get_object_or_404(
-        Rental.objects.select_related('inventory', 'inventory__owner', 'bank_account'),
+        Rental.objects.select_related('inventory', 'inventory__owner', 'inventory__bank_account'),
         pk=pk
     )
 
@@ -379,6 +390,14 @@ def rental_complete(request, pk):
 
     if rental.status not in ['confirmed', 'active']:
         messages.warning(request, 'Эта аренда не может быть завершена')
+        return redirect('rentals:detail', pk=pk)
+
+    from users.models import BankAccount
+    if not BankAccount.objects.filter(owner=rental.inventory.owner).exists():
+        messages.error(
+            request,
+            'Завершение невозможно: у владельца нет банковских реквизитов в профиле.'
+        )
         return redirect('rentals:detail', pk=pk)
 
     if request.method == 'POST':
@@ -402,27 +421,27 @@ def rental_complete(request, pk):
                 client.loyalty_points += 10  # 10 баллов за аренду
                 client.save()
 
-                # Выплата владельцу
-                if pay_owner and inventory.bank_account:
-                    from users.models import OwnerAgreement
-                    # Получаем актуальное соглашение владельца
+                # Выплата владельцу — счёт берём из профиля владельца
+                if pay_owner:
+                    from users.models import BankAccount, OwnerAgreement
+                    bank_account = BankAccount.objects.filter(owner=inventory.owner).order_by('-is_default').first()
                     agreement = OwnerAgreement.objects.filter(
                         owner=inventory.owner,
                         is_accepted=True
                     ).order_by('-created_date').first()
-                    
-                    if agreement:
-                        owner_amount = (rental.total_price * agreement.owner_percentage) / 100
-                        owner = inventory.owner
-                        owner.total_earnings += owner_amount
-                        owner.save()
-                        
-                        logger.info(f'Выплата владельцу: {owner_amount} руб. для {owner.full_name}')
-                        messages.success(request, f'Аренда завершена. Владельцу выплачено {owner_amount:.2f} ₽ на счет {inventory.bank_account.bank_name}.')
+                    owner_pct = agreement.owner_percentage if agreement else 70
+                    owner_amount = (rental.total_price * owner_pct) / 100
+                    owner = inventory.owner
+                    owner.total_earnings += owner_amount
+                    owner.save()
+                    logger.info(f'Выплата владельцу: {owner_amount} руб. для {owner.full_name}')
+                    if bank_account:
+                        messages.success(
+                            request,
+                            f'Аренда завершена. Владельцу выплачено {owner_amount:.2f} ₽ на счет {bank_account.bank_name}.'
+                        )
                     else:
-                        messages.warning(request, 'Аренда завершена, но соглашение владельца не найдено')
-                elif pay_owner and not inventory.bank_account:
-                    messages.warning(request, 'Аренда завершена, но банковский счет не указан в инвентаре')
+                        messages.success(request, f'Аренда завершена. Владельцу начислено {owner_amount:.2f} ₽.')
                 else:
                     logger.info(f'Аренда завершена: {rental.rental_id}')
                     messages.success(request, 'Аренда успешно завершена')
