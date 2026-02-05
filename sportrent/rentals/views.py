@@ -14,7 +14,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .models import Rental, Payment, Contract
-from .forms import RentalCreateForm, RentalUpdateForm
+from .forms import RentalCreateForm, RentalUpdateForm, RentalBankAccountForm
 from inventory.models import Inventory
 from users.models import Client, Manager
 
@@ -135,11 +135,24 @@ def rental_detail(request, pk):
             ).exists()
             can_leave_review = not has_review
 
+    # Форма выбора банковского счета для владельца
+    bank_account_form = None
+    if user.role == 'owner' and hasattr(user, 'owner_profile') and rental.inventory.owner == user.owner_profile:
+        if request.method == 'POST' and 'bank_account' in request.POST:
+            bank_account_form = RentalBankAccountForm(request.POST, instance=rental, owner=user.owner_profile)
+            if bank_account_form.is_valid():
+                bank_account_form.save()
+                messages.success(request, 'Банковский счет выбран для выплаты.')
+                return redirect('rentals:detail', pk=pk)
+        else:
+            bank_account_form = RentalBankAccountForm(instance=rental, owner=user.owner_profile)
+
     context = {
         'rental': rental,
         'payments': payments,
         'contract': contract,
         'can_leave_review': can_leave_review,
+        'bank_account_form': bank_account_form,
     }
 
     return render(request, 'rentals/rental_detail.html', context)
@@ -356,9 +369,12 @@ def rental_reject(request, pk):
 @login_required
 def rental_complete(request, pk):
     """
-    Завершение аренды (возврат инвентаря).
+    Завершение аренды (возврат инвентаря) с возможностью выплаты владельцу.
     """
-    rental = get_object_or_404(Rental, pk=pk)
+    rental = get_object_or_404(
+        Rental.objects.select_related('inventory', 'inventory__owner', 'bank_account'),
+        pk=pk
+    )
 
     # Только менеджер может завершать
     if request.user.role != 'manager':
@@ -370,6 +386,8 @@ def rental_complete(request, pk):
         return redirect('rentals:detail', pk=pk)
 
     if request.method == 'POST':
+        pay_owner = request.POST.get('pay_owner', 'false') == 'true'
+        
         try:
             with transaction.atomic():
                 rental.status = 'completed'
@@ -388,12 +406,76 @@ def rental_complete(request, pk):
                 client.loyalty_points += 10  # 10 баллов за аренду
                 client.save()
 
-                logger.info(f'Аренда завершена: {rental.rental_id}')
-                messages.success(request, 'Аренда успешно завершена')
+                # Выплата владельцу
+                if pay_owner and rental.bank_account:
+                    from users.models import OwnerAgreement
+                    # Получаем актуальное соглашение владельца
+                    agreement = OwnerAgreement.objects.filter(
+                        owner=inventory.owner,
+                        is_accepted=True
+                    ).order_by('-created_date').first()
+                    
+                    if agreement:
+                        owner_amount = (rental.total_price * agreement.owner_percentage) / 100
+                        owner = inventory.owner
+                        owner.total_earnings += owner_amount
+                        owner.save()
+                        
+                        logger.info(f'Выплата владельцу: {owner_amount} руб. для {owner.full_name}')
+                        messages.success(request, f'Аренда завершена. Владельцу выплачено {owner_amount:.2f} руб.')
+                    else:
+                        messages.warning(request, 'Аренда завершена, но соглашение владельца не найдено')
+                else:
+                    logger.info(f'Аренда завершена: {rental.rental_id}')
+                    messages.success(request, 'Аренда успешно завершена')
 
         except Exception as e:
             logger.error(f'Ошибка при завершении аренды: {str(e)}')
             messages.error(request, 'Ошибка при завершении')
+
+    return redirect('rentals:detail', pk=pk)
+
+
+@login_required
+def rental_extend(request, pk):
+    """
+    Продление аренды менеджером (если инвентарь задержан).
+    """
+    rental = get_object_or_404(Rental, pk=pk)
+
+    # Только менеджер может продлевать
+    if request.user.role != 'manager':
+        messages.error(request, 'Недостаточно прав')
+        return redirect('rentals:detail', pk=pk)
+
+    if rental.status != 'active':
+        messages.warning(request, 'Можно продлевать только активную аренду')
+        return redirect('rentals:detail', pk=pk)
+
+    if request.method == 'POST':
+        additional_days = int(request.POST.get('additional_days', 0))
+        
+        if additional_days <= 0:
+            messages.error(request, 'Количество дней должно быть больше 0')
+            return redirect('rentals:detail', pk=pk)
+
+        try:
+            with transaction.atomic():
+                from datetime import timedelta
+                # Продлеваем дату окончания
+                rental.end_date = rental.end_date + timedelta(days=additional_days)
+                
+                # Пересчитываем стоимость
+                additional_price = rental.inventory.price_per_day * additional_days
+                rental.total_price += additional_price
+                rental.save()
+
+                logger.info(f'Аренда продлена на {additional_days} дней: {rental.rental_id}')
+                messages.success(request, f'Аренда продлена на {additional_days} дней. Дополнительная стоимость: {additional_price:.2f} руб.')
+
+        except Exception as e:
+            logger.error(f'Ошибка при продлении аренды: {str(e)}')
+            messages.error(request, 'Ошибка при продлении')
 
     return redirect('rentals:detail', pk=pk)
 

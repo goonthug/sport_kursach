@@ -692,8 +692,9 @@ a:focus-visible {
 .product-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   filter: contrast(1.05) saturate(0.95) brightness(0.95);
+  background-color: #f8f9fa;
 }
 
 .product-info {

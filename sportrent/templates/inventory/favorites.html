@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Избранное - SportRent{% endblock %}
+{% block title %}Избранное - СпортРент{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -19,7 +19,7 @@
                         <a href="{% url 'inventory:detail' item.inventory.inventory_id %}">
                             <div class="product-image">
                                 {% if item.inventory.photos.all %}
-                                    <img src="{{ item.inventory.photos.first.photo_url.url }}" alt="{{ item.inventory.name }}">
+                                    <img src="{{ item.inventory.photos.first.photo_url.url }}" alt="{{ item.inventory.name }}" style="object-fit: contain;">
                                 {% else %}
                                     <div class="h-100 d-flex align-items-center justify-content-center text-muted">
                                         <i class="bi bi-image" style="font-size: 2rem;"></i>

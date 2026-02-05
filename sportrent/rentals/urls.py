@@ -11,5 +11,6 @@ urlpatterns = [
     path('<uuid:pk>/confirm/', views.rental_confirm, name='confirm'),
     path('<uuid:pk>/reject/', views.rental_reject, name='reject'),
     path('<uuid:pk>/complete/', views.rental_complete, name='complete'),
+    path('<uuid:pk>/extend/', views.rental_extend, name='extend'),
     path('<uuid:pk>/cancel/', views.rental_cancel, name='cancel'),
 ]

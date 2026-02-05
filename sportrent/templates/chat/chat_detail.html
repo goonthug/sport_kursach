@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Чат - SportRent{% endblock %}
+{% block title %}Чат - СпортРент{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -159,6 +159,24 @@
         </div>
         
         <div class="col-lg-4">
+            {% if user.role == 'manager' and rental.client %}
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Клиент</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>{{ rental.client.full_name }}</strong></p>
+                        {% if rental.client.user.phone %}
+                            <p class="mb-2">
+                                <i class="bi bi-telephone"></i> 
+                                <a href="tel:{{ rental.client.user.phone }}" class="text-decoration-none">{{ rental.client.user.phone }}</a>
+                            </p>
+                        {% endif %}
+                        <p class="text-muted small mb-0">{{ rental.client.user.email }}</p>
+                    </div>
+                </div>
+            {% endif %}
+            
             <div class="card shadow-sm">
                 <div class="card-header bg-white">
                     <h6 class="mb-0">Информация об аренде</h6>

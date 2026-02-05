@@ -163,6 +163,74 @@ class Owner(models.Model):
         return self.full_name
 
 
+class OwnerAgreement(models.Model):
+    """Соглашение владельца с условиями выплат."""
+
+    agreement_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name='agreements', verbose_name='Владелец')
+
+    owner_percentage = models.IntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Процент владельцу'
+    )
+    store_percentage = models.IntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Процент магазину'
+    )
+    agreement_text = models.TextField(verbose_name='Текст соглашения')
+    is_accepted = models.BooleanField(default=False, verbose_name='Принято')
+    accepted_date = models.DateTimeField(null=True, blank=True, verbose_name='Дата принятия')
+
+    created_date = models.DateTimeField(default=timezone.now, verbose_name='Дата создания')
+
+    class Meta:
+        db_table = 'owner_agreements'
+        verbose_name = 'Соглашение владельца'
+        verbose_name_plural = 'Соглашения владельцев'
+        ordering = ['-created_date']
+
+    def __str__(self):
+        return f"Соглашение {self.owner.full_name} - {self.owner_percentage}/{self.store_percentage}%"
+
+    def save(self, *args, **kwargs):
+        if self.is_accepted and not self.accepted_date:
+            self.accepted_date = timezone.now()
+        super().save(*args, **kwargs)
+
+
+class BankAccount(models.Model):
+    """Банковские реквизиты владельца."""
+
+    account_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name='bank_accounts', verbose_name='Владелец')
+
+    bank_name = models.CharField(max_length=200, verbose_name='Название банка')
+    account_number = models.CharField(max_length=50, verbose_name='Номер счета')
+    bik = models.CharField(max_length=20, blank=True, verbose_name='БИК')
+    correspondent_account = models.CharField(max_length=50, blank=True, verbose_name='Корреспондентский счет')
+    recipient_name = models.CharField(max_length=200, verbose_name='Получатель')
+    inn = models.CharField(max_length=20, blank=True, verbose_name='ИНН получателя')
+    kpp = models.CharField(max_length=20, blank=True, verbose_name='КПП')
+
+    is_default = models.BooleanField(default=False, verbose_name='По умолчанию')
+    created_date = models.DateTimeField(default=timezone.now, verbose_name='Дата создания')
+
+    class Meta:
+        db_table = 'bank_accounts'
+        verbose_name = 'Банковский счет'
+        verbose_name_plural = 'Банковские счета'
+        ordering = ['-is_default', '-created_date']
+
+    def __str__(self):
+        return f"{self.bank_name} - {self.account_number}"
+
+    def save(self, *args, **kwargs):
+        if self.is_default:
+            # Убираем флаг is_default у других счетов этого владельца
+            BankAccount.objects.filter(owner=self.owner, is_default=True).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
+
+
 class Manager(models.Model):
     """Профиль менеджера магазина."""
 

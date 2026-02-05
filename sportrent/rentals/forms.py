@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
 from .models import Rental
+from users.models import BankAccount
 
 
 class RentalCreateForm(forms.ModelForm):
@@ -108,3 +109,21 @@ class RentalUpdateForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'rejection_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+
+class RentalBankAccountForm(forms.ModelForm):
+    """Форма выбора банковского счета для заявки (для владельца)."""
+
+    class Meta:
+        model = Rental
+        fields = ['bank_account']
+        widgets = {
+            'bank_account': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        owner = kwargs.pop('owner', None)
+        super().__init__(*args, **kwargs)
+        if owner:
+            self.fields['bank_account'].queryset = BankAccount.objects.filter(owner=owner)
+            self.fields['bank_account'].label = 'Выберите банковский счет для выплаты'

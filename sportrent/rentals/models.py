@@ -6,7 +6,7 @@ import uuid
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
-from users.models import Client, Manager
+from users.models import Client, Manager, BankAccount
 from inventory.models import Inventory
 
 
@@ -51,6 +51,10 @@ class Rental(models.Model):
     created_date = models.DateTimeField(default=timezone.now, verbose_name='Дата создания')
     notes = models.TextField(blank=True, verbose_name='Примечания')
     rejection_reason = models.TextField(blank=True, verbose_name='Причина отклонения')
+    
+    # Банковский счет для выплаты владельцу
+    bank_account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='rentals', verbose_name='Банковский счет для выплаты')
 
     class Meta:
         db_table = 'rentals'

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Каталог инвентаря - SportRent{% endblock %}
+{% block title %}Каталог инвентаря - СпортРент{% endblock %}
 
 {% block content %}
 <section class="frzn-section frzn-section--slate frzn-section--tight">
@@ -76,7 +76,7 @@
                             <a href="{% url 'inventory:detail' item.inventory_id %}">
                                 <div class="product-image">
                                     {% if item.photos.all %}
-                                        <img src="{{ item.photos.first.photo_url.url }}" alt="{{ item.name }}">
+                                        <img src="{{ item.photos.first.photo_url.url }}" alt="{{ item.name }}" style="object-fit: contain;">
                                     {% else %}
                                         <div class="h-100 d-flex align-items-center justify-content-center text-muted">
                                             <i class="bi bi-image" style="font-size: 2rem;"></i>
@@ -97,6 +97,20 @@
                             <div class="product-info">
                                 <div class="product-name">{{ item.name|truncatewords:4 }}</div>
                                 <div class="product-meta">{{ item.brand }}</div>
+                                {% if item.avg_rating %}
+                                    <div class="mb-2">
+                                        <span class="text-warning">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= item.avg_rating %}
+                                                    <i class="bi bi-star-fill small"></i>
+                                                {% else %}
+                                                    <i class="bi bi-star small"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </span>
+                                        <span class="text-muted small ms-1">{{ item.avg_rating|floatformat:1 }} ({{ item.reviews_count }})</span>
+                                    </div>
+                                {% endif %}
                                 <div class="d-flex align-items-center justify-content-between">
                                     <span class="product-price">{{ item.price_per_day }} ₽</span>
                                     <span class="text-muted">{{ item.category.name }}</span>

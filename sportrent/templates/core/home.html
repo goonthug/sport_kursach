@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}SportRent - Аренда спортивного инвентаря{% endblock %}
+{% block title %}СпортРент - Аренда спортивного инвентаря{% endblock %}
 
 {% block content %}
 <section class="frzn-hero">
@@ -89,7 +89,7 @@
                             <div class="product-card h-100">
                                 <div class="product-image">
                                     {% if item.photos.all %}
-                                        <img src="{{ item.photos.first.photo_url.url }}" alt="{{ item.name }}">
+                                        <img src="{{ item.photos.first.photo_url.url }}" alt="{{ item.name }}" style="object-fit: contain;">
                                     {% else %}
                                         <div class="h-100 d-flex align-items-center justify-content-center text-muted">
                                             <i class="bi bi-image" style="font-size: 2rem;"></i>

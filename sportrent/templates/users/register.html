@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Регистрация - SportRent{% endblock %}
+{% block title %}Регистрация - СпортРент{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -28,9 +28,12 @@
                         
                         <div class="mb-3">
                             <label for="{{ form.phone.id_for_label }}" class="form-label">
-                                <i class="bi bi-telephone"></i> {{ form.phone.label }} (необязательно)
+                                <i class="bi bi-telephone"></i> {{ form.phone.label }} <span class="text-danger">*</span>
                             </label>
                             {{ form.phone }}
+                            <div class="form-text">
+                                Формат: +7XXXXXXXXXX
+                            </div>
                             {% if form.phone.errors %}
                                 <div class="text-danger small mt-1">
                                     {{ form.phone.errors.0 }}
@@ -69,7 +72,12 @@
                             <label for="{{ form.password1.id_for_label }}" class="form-label">
                                 <i class="bi bi-lock"></i> {{ form.password1.label }}
                             </label>
-                            {{ form.password1 }}
+                            <div class="input-group">
+                                {{ form.password1 }}
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword1">
+                                    <i class="bi bi-eye" id="togglePassword1Icon"></i>
+                                </button>
+                            </div>
                             <div class="form-text">
                                 Пароль должен содержать минимум 8 символов
                             </div>
@@ -84,12 +92,104 @@
                             <label for="{{ form.password2.id_for_label }}" class="form-label">
                                 <i class="bi bi-lock-fill"></i> {{ form.password2.label }}
                             </label>
-                            {{ form.password2 }}
+                            <div class="input-group">
+                                {{ form.password2 }}
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword2">
+                                    <i class="bi bi-eye" id="togglePassword2Icon"></i>
+                                </button>
+                            </div>
                             {% if form.password2.errors %}
                                 <div class="text-danger small mt-1">
                                     {{ form.password2.errors.0 }}
                                 </div>
                             {% endif %}
+                        </div>
+
+                        <!-- Поля для владельца -->
+                        <div id="ownerFields" style="display: none;">
+                            <hr class="my-4">
+                            <h5 class="mb-3">Информация для владельца</h5>
+
+                            <!-- Соглашение -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Соглашение о выплатах</h6>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form.owner_percentage.id_for_label }}" class="form-label">
+                                                {{ form.owner_percentage.label }}
+                                            </label>
+                                            {{ form.owner_percentage }}
+                                            {% if form.owner_percentage.errors %}
+                                                <div class="text-danger small mt-1">{{ form.owner_percentage.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form.store_percentage.id_for_label }}" class="form-label">
+                                                {{ form.store_percentage.label }}
+                                            </label>
+                                            {{ form.store_percentage }}
+                                            {% if form.store_percentage.errors %}
+                                                <div class="text-danger small mt-1">{{ form.store_percentage.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="form-check">
+                                        {{ form.agreement_accepted }}
+                                        <label class="form-check-label" for="{{ form.agreement_accepted.id_for_label }}">
+                                            {{ form.agreement_accepted.label }}
+                                        </label>
+                                        {% if form.agreement_accepted.errors %}
+                                            <div class="text-danger small mt-1">{{ form.agreement_accepted.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Банковские реквизиты -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Банковские реквизиты</h6>
+                                    <div class="mb-3">
+                                        <label for="{{ form.bank_name.id_for_label }}" class="form-label">
+                                            {{ form.bank_name.label }} <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.bank_name }}
+                                        {% if form.bank_name.errors %}
+                                            <div class="text-danger small mt-1">{{ form.bank_name.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="{{ form.account_number.id_for_label }}" class="form-label">
+                                            {{ form.account_number.label }} <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.account_number }}
+                                        {% if form.account_number.errors %}
+                                            <div class="text-danger small mt-1">{{ form.account_number.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ form.bik.id_for_label }}" class="form-label">
+                                                {{ form.bik.label }}
+                                            </label>
+                                            {{ form.bik }}
+                                            {% if form.bik.errors %}
+                                                <div class="text-danger small mt-1">{{ form.bik.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ form.recipient_name.id_for_label }}" class="form-label">
+                                                {{ form.recipient_name.label }} <span class="text-danger">*</span>
+                                            </label>
+                                            {{ form.recipient_name }}
+                                            {% if form.recipient_name.errors %}
+                                                <div class="text-danger small mt-1">{{ form.recipient_name.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <button type="submit" class="btn btn-primary w-100 mb-3">
@@ -106,4 +206,47 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('id_role');
+    const ownerFields = document.getElementById('ownerFields');
+    
+    function toggleOwnerFields() {
+        if (roleSelect.value === 'owner') {
+            ownerFields.style.display = 'block';
+        } else {
+            ownerFields.style.display = 'none';
+        }
+    }
+    
+    roleSelect.addEventListener('change', toggleOwnerFields);
+    toggleOwnerFields(); // Проверяем при загрузке страницы
+    
+    // Глазок на пароле
+    function setupPasswordToggle(toggleId, inputId, iconId) {
+        const toggle = document.getElementById(toggleId);
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        
+        if (toggle && input && icon) {
+            toggle.addEventListener('click', function() {
+                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                input.setAttribute('type', type);
+                
+                if (type === 'password') {
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                } else {
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                }
+            });
+        }
+    }
+    
+    setupPasswordToggle('togglePassword1', 'id_password1', 'togglePassword1Icon');
+    setupPasswordToggle('togglePassword2', 'id_password2', 'togglePassword2Icon');
+});
+</script>
 {% endblock %}

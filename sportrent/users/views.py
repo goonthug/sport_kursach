@@ -3,14 +3,14 @@ Views для управления пользователями.
 """
 
 import logging
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
 
-from .forms import UserRegistrationForm, UserLoginForm, UserUpdateForm, ClientProfileForm, OwnerProfileForm
-from .models import User
+from .forms import UserRegistrationForm, UserLoginForm, UserUpdateForm, ClientProfileForm, OwnerProfileForm, BankAccountForm
+from .models import User, BankAccount
 
 logger = logging.getLogger('users')
 
@@ -163,5 +163,55 @@ def profile(request):
         from inventory.models import Inventory
         context['total_items'] = Inventory.objects.filter(owner=user.owner_profile).count()
         context['active_items'] = Inventory.objects.filter(owner=user.owner_profile, status='available').count()
+        context['bank_accounts'] = BankAccount.objects.filter(owner=user.owner_profile).order_by('-is_default', '-created_date')
 
     return render(request, 'users/profile.html', context)
+
+
+@login_required
+def bank_account_add(request):
+    """Добавление банковского счета владельцем."""
+    if request.user.role != 'owner' or not hasattr(request.user, 'owner_profile'):
+        messages.error(request, 'Недостаточно прав')
+        return redirect('users:profile')
+
+    owner = request.user.owner_profile
+
+    if request.method == 'POST':
+        form = BankAccountForm(request.POST)
+        if form.is_valid():
+            try:
+                bank_account = form.save(commit=False)
+                bank_account.owner = owner
+                bank_account.save()
+                logger.info(f'Добавлен банковский счет: {bank_account.account_id} для {owner.full_name}')
+                messages.success(request, 'Банковский счет успешно добавлен.')
+                return redirect('users:profile')
+            except Exception as e:
+                logger.error(f'Ошибка при добавлении банковского счета: {str(e)}')
+                messages.error(request, 'Произошла ошибка при сохранении.')
+    else:
+        form = BankAccountForm()
+
+    return render(request, 'users/bank_account_form.html', {'form': form, 'is_create': True})
+
+
+@login_required
+def bank_account_delete(request, pk):
+    """Удаление банковского счета владельцем."""
+    if request.user.role != 'owner' or not hasattr(request.user, 'owner_profile'):
+        messages.error(request, 'Недостаточно прав')
+        return redirect('users:profile')
+
+    bank_account = get_object_or_404(BankAccount, pk=pk, owner=request.user.owner_profile)
+
+    if request.method == 'POST':
+        try:
+            bank_account.delete()
+            logger.info(f'Удален банковский счет: {bank_account.account_id}')
+            messages.success(request, 'Банковский счет успешно удален.')
+        except Exception as e:
+            logger.error(f'Ошибка при удалении банковского счета: {str(e)}')
+            messages.error(request, 'Произошла ошибка при удалении.')
+
+    return redirect('users:profile')

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Профиль - SportRent{% endblock %}
+{% block title %}Профиль - СпортРент{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -176,6 +176,44 @@
                         </p>
                         <a href="{% url 'inventory:list' %}" class="btn btn-outline-primary">
                             <i class="bi bi-box"></i> Мой инвентарь
+                        </a>
+                        
+                        <hr class="my-4">
+                        
+                        <h6 class="mb-3">Банковские реквизиты</h6>
+                        {% if bank_accounts %}
+                            {% for account in bank_accounts %}
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1">
+                                                    {{ account.bank_name }}
+                                                    {% if account.is_default %}
+                                                        <span class="badge bg-primary">По умолчанию</span>
+                                                    {% endif %}
+                                                </h6>
+                                                <p class="text-muted small mb-1">
+                                                    <strong>Счет:</strong> {{ account.account_number }}<br>
+                                                    {% if account.bik %}<strong>БИК:</strong> {{ account.bik }}<br>{% endif %}
+                                                    <strong>Получатель:</strong> {{ account.recipient_name }}
+                                                </p>
+                                            </div>
+                                            <form method="post" action="{% url 'users:bank_account_delete' account.account_id %}" data-preserve-scroll="true" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить этот банковский счет?');">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small">Банковские счета не добавлены</p>
+                        {% endif %}
+                        <a href="{% url 'users:bank_account_add' %}" class="btn btn-sm btn-primary mt-2">
+                            <i class="bi bi-plus-circle"></i> Добавить банковский счет
                         </a>
                     {% else %}
                         <p class="text-muted">

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Вход - SportRent{% endblock %}
+{% block title %}Вход - СпортРент{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -30,7 +30,12 @@
                             <label for="{{ form.password.id_for_label }}" class="form-label">
                                 <i class="bi bi-lock"></i> {{ form.password.label }}
                             </label>
-                            {{ form.password }}
+                            <div class="input-group">
+                                {{ form.password }}
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                                </button>
+                            </div>
                             {% if form.password.errors %}
                                 <div class="text-danger small mt-1">
                                     {{ form.password.errors.0 }}
@@ -49,46 +54,30 @@
                     </form>
                 </div>
             </div>
-            
-            <div class="card shadow-sm mb-5">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-3">Тестовые аккаунты</h5>
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Роль</th>
-                                    <th>Email</th>
-                                    <th>Пароль</th>
-                                </tr>
-                            </thead>
-                            <tbody class="small">
-                                <tr>
-                                    <td>Администратор</td>
-                                    <td>admin@sportrent.ru</td>
-                                    <td>admin123</td>
-                                </tr>
-                                <tr>
-                                    <td>Менеджер</td>
-                                    <td>manager1@sportrent.ru</td>
-                                    <td>manager123</td>
-                                </tr>
-                                <tr>
-                                    <td>Клиент</td>
-                                    <td>client1@mail.ru</td>
-                                    <td>client123</td>
-                                </tr>
-                                <tr>
-                                    <td>Владелец</td>
-                                    <td>owner1@mail.ru</td>
-                                    <td>owner123</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('id_password');
+    const toggleIcon = document.getElementById('togglePasswordIcon');
+    
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            if (type === 'password') {
+                toggleIcon.classList.remove('bi-eye-slash');
+                toggleIcon.classList.add('bi-eye');
+            } else {
+                toggleIcon.classList.remove('bi-eye');
+                toggleIcon.classList.add('bi-eye-slash');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
