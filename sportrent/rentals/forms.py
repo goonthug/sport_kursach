@@ -86,14 +86,23 @@ class RentalCreateForm(forms.ModelForm):
                 # Проверка что инвентарь свободен в эти даты
                 overlapping = Rental.objects.filter(
                     inventory=self.inventory,
-                    status__in=['pending', 'confirmed', 'active']
+                    status__in=['pending', 'confirmed', 'active', 'delayed']
                 ).filter(
                     start_date__lt=end_date,
                     end_date__gt=start_date
                 )
 
                 if overlapping.exists():
-                    raise ValidationError('Инвентарь уже забронирован на эти даты')
+                    # Получаем информацию о занятых датах
+                    occupied_rentals = []
+                    for rent in overlapping:
+                        occupied_rentals.append(f"с {rent.start_date.strftime('%d.%m.%Y')} по {rent.end_date.strftime('%d.%m.%Y')}")
+                    
+                    if len(occupied_rentals) == 1:
+                        raise ValidationError(f'Инвентарь уже забронирован на эти даты ({occupied_rentals[0]})')
+                    else:
+                        dates_str = ', '.join(occupied_rentals)
+                        raise ValidationError(f'Инвентарь уже забронирован на эти даты ({dates_str})')
 
         return cleaned_data
 

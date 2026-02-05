@@ -6,7 +6,7 @@ import uuid
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
-from users.models import Owner, Manager, Client
+from users.models import Owner, Manager, Client, BankAccount
 
 
 class SportCategory(models.Model):
@@ -73,6 +73,10 @@ class Inventory(models.Model):
 
     # Поле для причины отклонения
     rejection_reason = models.TextField(blank=True, verbose_name='Причина отклонения')
+    
+    # Банковский счет для выплат владельцу
+    bank_account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='inventory_items', verbose_name='Банковский счет для выплаты')
 
     class Meta:
         db_table = 'inventory'

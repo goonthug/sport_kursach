@@ -5,6 +5,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from .models import Inventory, InventoryPhoto, SportCategory
+from users.models import BankAccount
 
 
 class InventoryForm(forms.ModelForm):
@@ -18,7 +19,7 @@ class InventoryForm(forms.ModelForm):
         fields = [
             'category', 'name', 'description', 'brand', 'model',
             'price_per_day', 'condition', 'min_rental_days',
-            'max_rental_days',
+            'max_rental_days', 'bank_account',
         ]
         widgets = {
             'category': forms.Select(attrs={'class': 'form-select'}),
@@ -31,6 +32,7 @@ class InventoryForm(forms.ModelForm):
             'condition': forms.Select(attrs={'class': 'form-select'}),
             'min_rental_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'max_rental_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'bank_account': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'category': 'Категория',
@@ -42,7 +44,16 @@ class InventoryForm(forms.ModelForm):
             'condition': 'Состояние',
             'min_rental_days': 'Минимум дней аренды',
             'max_rental_days': 'Максимум дней аренды',
+            'bank_account': 'Банковский счет для выплаты',
         }
+
+    def __init__(self, *args, **kwargs):
+        owner = kwargs.pop('owner', None)
+        super().__init__(*args, **kwargs)
+        if owner:
+            self.fields['bank_account'].queryset = BankAccount.objects.filter(owner=owner)
+            self.fields['bank_account'].required = True
+            self.fields['bank_account'].empty_label = 'Выберите банковский счет'
 
     def clean(self):
         """Дополнительная валидация."""

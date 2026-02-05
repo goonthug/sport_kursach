@@ -30,9 +30,12 @@
                             <label for="{{ form.phone.id_for_label }}" class="form-label">
                                 <i class="bi bi-telephone"></i> {{ form.phone.label }} <span class="text-danger">*</span>
                             </label>
-                            {{ form.phone }}
+                            <div class="input-group">
+                                <span class="input-group-text">+7</span>
+                                {{ form.phone }}
+                            </div>
                             <div class="form-text">
-                                Формат: +7XXXXXXXXXX
+                                Формат: 917 922 54 66
                             </div>
                             {% if form.phone.errors %}
                                 <div class="text-danger small mt-1">
@@ -114,26 +117,7 @@
                             <div class="card mb-3">
                                 <div class="card-body">
                                     <h6 class="card-title">Соглашение о выплатах</h6>
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label for="{{ form.owner_percentage.id_for_label }}" class="form-label">
-                                                {{ form.owner_percentage.label }}
-                                            </label>
-                                            {{ form.owner_percentage }}
-                                            {% if form.owner_percentage.errors %}
-                                                <div class="text-danger small mt-1">{{ form.owner_percentage.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="{{ form.store_percentage.id_for_label }}" class="form-label">
-                                                {{ form.store_percentage.label }}
-                                            </label>
-                                            {{ form.store_percentage }}
-                                            {% if form.store_percentage.errors %}
-                                                <div class="text-danger small mt-1">{{ form.store_percentage.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
+                                    <p class="mb-3">Условия выплат: <strong>70% владельцу, 30% магазину</strong></p>
                                     <div class="form-check">
                                         {{ form.agreement_accepted }}
                                         <label class="form-check-label" for="{{ form.agreement_accepted.id_for_label }}">
@@ -168,25 +152,14 @@
                                             <div class="text-danger small mt-1">{{ form.account_number.errors.0 }}</div>
                                         {% endif %}
                                     </div>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="{{ form.bik.id_for_label }}" class="form-label">
-                                                {{ form.bik.label }}
-                                            </label>
-                                            {{ form.bik }}
-                                            {% if form.bik.errors %}
-                                                <div class="text-danger small mt-1">{{ form.bik.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="{{ form.recipient_name.id_for_label }}" class="form-label">
-                                                {{ form.recipient_name.label }} <span class="text-danger">*</span>
-                                            </label>
-                                            {{ form.recipient_name }}
-                                            {% if form.recipient_name.errors %}
-                                                <div class="text-danger small mt-1">{{ form.recipient_name.errors.0 }}</div>
-                                            {% endif %}
-                                        </div>
+                                    <div class="mb-3">
+                                        <label for="{{ form.recipient_name.id_for_label }}" class="form-label">
+                                            {{ form.recipient_name.label }} <span class="text-danger">*</span>
+                                        </label>
+                                        {{ form.recipient_name }}
+                                        {% if form.recipient_name.errors %}
+                                            <div class="text-danger small mt-1">{{ form.recipient_name.errors.0 }}</div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -247,6 +220,89 @@ document.addEventListener('DOMContentLoaded', function() {
     
     setupPasswordToggle('togglePassword1', 'id_password1', 'togglePassword1Icon');
     setupPasswordToggle('togglePassword2', 'id_password2', 'togglePassword2Icon');
+    
+    // Маска телефона
+    const phoneInput = document.getElementById('id_phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, ''); // Только цифры
+            
+            if (value.length > 10) {
+                value = value.slice(0, 10);
+            }
+            
+            // Форматируем: 917 922 54 66
+            let formatted = '';
+            if (value.length > 0) {
+                formatted = value.slice(0, 3);
+                if (value.length > 3) {
+                    formatted += ' ' + value.slice(3, 6);
+                }
+                if (value.length > 6) {
+                    formatted += ' ' + value.slice(6, 8);
+                }
+                if (value.length > 8) {
+                    formatted += ' ' + value.slice(8, 10);
+                }
+            }
+            
+            e.target.value = formatted;
+        });
+        
+        phoneInput.addEventListener('keypress', function(e) {
+            // Разрешаем только цифры
+            if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab') {
+                e.preventDefault();
+            }
+        });
+    }
+    
+    // Маска номера счета
+    const accountInput = document.getElementById('id_account_number_reg');
+    if (accountInput) {
+        accountInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, ''); // Только цифры
+            
+            if (value.length > 16) {
+                value = value.slice(0, 16);
+            }
+            
+            // Форматируем: 2222-2222-2222-2222
+            let formatted = '';
+            if (value.length > 0) {
+                formatted = value.slice(0, 4);
+                if (value.length > 4) {
+                    formatted += '-' + value.slice(4, 8);
+                }
+                if (value.length > 8) {
+                    formatted += '-' + value.slice(8, 12);
+                }
+                if (value.length > 12) {
+                    formatted += '-' + value.slice(12, 16);
+                }
+            }
+            
+            e.target.value = formatted;
+        });
+        
+        accountInput.addEventListener('keypress', function(e) {
+            // Разрешаем только цифры
+            if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab') {
+                e.preventDefault();
+            }
+        });
+    }
+    
+    // Только буквы в имени получателя
+    const recipientInput = document.getElementById('id_recipient_name_reg');
+    if (recipientInput) {
+        recipientInput.addEventListener('keypress', function(e) {
+            // Разрешаем только буквы, пробелы и дефисы
+            if (!/[а-яёА-ЯЁa-zA-Z\s\-]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab') {
+                e.preventDefault();
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

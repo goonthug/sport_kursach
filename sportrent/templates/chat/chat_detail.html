@@ -101,6 +101,9 @@
                             {% for msg in chat_messages %}
                                 <div class="message {% if msg.sender == user %}sent{% else %}received{% endif %}" data-message-id="{{ msg.message_id }}">
                                     <div class="message-bubble">
+                                        {% if user.role == 'administrator' %}
+                                            <div class="small mb-1 fw-bold">{{ msg.sender.get_full_name }}</div>
+                                        {% endif %}
                                         <div class="message-text">{{ msg.message_text }}</div>
                                         {% if msg.file_url %}
                                             <div class="mt-2">

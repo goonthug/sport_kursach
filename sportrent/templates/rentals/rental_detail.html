@@ -22,6 +22,8 @@
                         <span class="badge bg-info">{{ rental.get_status_display }}</span>
                     {% elif rental.status == 'active' %}
                         <span class="badge bg-primary">{{ rental.get_status_display }}</span>
+                    {% elif rental.status == 'delayed' %}
+                        <span class="badge bg-danger">{{ rental.get_status_display }}</span>
                     {% elif rental.status == 'completed' %}
                         <span class="badge bg-success">{{ rental.get_status_display }}</span>
                     {% elif rental.status == 'cancelled' %}
@@ -74,6 +76,15 @@
                             <p class="h5">{{ rental.deposit_paid }} ₽</p>
                         </div>
                     </div>
+                    
+                    {% if rental.additional_payment > 0 %}
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <p class="text-muted small mb-1">Доплата за продление</p>
+                                <p class="h5 text-warning">{{ rental.additional_payment }} ₽</p>
+                            </div>
+                        </div>
+                    {% endif %}
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -153,7 +164,7 @@
                 </div>
             {% endif %}
             
-            {% if user.role == 'manager' and rental.status in 'confirmed,active' %}
+            {% if user.role == 'manager' and rental.status in 'confirmed,active,delayed' %}
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <div class="d-grid gap-2">
@@ -178,34 +189,6 @@
                 </div>
             {% endif %}
 
-            {% if user.role == 'owner' and bank_account_form %}
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">Банковский счет для выплаты</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="post" data-preserve-scroll="true">
-                            {% csrf_token %}
-                            <div class="mb-3">
-                                {{ bank_account_form.bank_account }}
-                                {% if bank_account_form.bank_account.errors %}
-                                    <div class="text-danger small mt-1">{{ bank_account_form.bank_account.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100" name="bank_account">
-                                <i class="bi bi-check-lg"></i> Сохранить счет
-                            </button>
-                        </form>
-                        {% if rental.bank_account %}
-                            <div class="mt-3 p-2 bg-light rounded">
-                                <small class="text-muted">Выбранный счет:</small><br>
-                                <strong>{{ rental.bank_account.bank_name }}</strong><br>
-                                <small>{{ rental.bank_account.account_number }}</small>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
         </div>
         
         <div class="col-lg-4">
@@ -222,7 +205,7 @@
                 </div>
             </div>
             
-            {% if rental.manager %}
+            {% if rental.manager and user.role == 'client' %}
                 <div class="card shadow-sm">
                     <div class="card-header bg-white">
                         <h5 class="mb-0">Менеджер</h5>
@@ -230,7 +213,13 @@
                     <div class="card-body">
                         <p><strong>{{ rental.manager.full_name }}</strong></p>
                         <p class="text-muted small">{{ rental.manager.email_work }}</p>
-
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if user.role == 'client' or user.role == 'manager' %}
+                <div class="card shadow-sm mt-3">
+                    <div class="card-body">
                         <div class="d-grid">
                             <a href="{% url 'chat:detail' rental.rental_id %}" class="btn btn-primary">
                                 <i class="bi bi-chat-dots"></i> Открыть чат
@@ -280,17 +269,17 @@
                     </div>
                     <div class="modal-body">
                         <p class="mb-3">Подтвердить завершение аренды и возврат инвентаря?</p>
-                        {% if rental.bank_account %}
+                        {% if rental.inventory.bank_account %}
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="pay_owner" value="true" id="payOwnerCheck" checked>
                                 <label class="form-check-label" for="payOwnerCheck">
                                     Выплатить владельцу сразу
                                 </label>
                             </div>
-                            <small class="text-muted">Средства будут переведены на счет: {{ rental.bank_account.bank_name }} ({{ rental.bank_account.account_number }})</small>
+                            <small class="text-muted">Средства будут переведены на счет: {{ rental.inventory.bank_account.bank_name }} ({{ rental.inventory.bank_account.account_number }})</small>
                         {% else %}
                             <div class="alert alert-warning">
-                                <small>Банковский счет владельца не выбран. Выплата невозможна.</small>
+                                <small>Банковский счет владельца не указан в инвентаре. Выплата невозможна.</small>
                             </div>
                         {% endif %}
                     </div>

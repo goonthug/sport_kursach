@@ -36,30 +36,10 @@
                                 {{ form.account_number.label }} <span class="text-danger">*</span>
                             </label>
                             {{ form.account_number }}
+                            <div class="form-text">Формат: 2222-2222-2222-2222</div>
                             {% if form.account_number.errors %}
                                 <div class="text-danger small mt-1">{{ form.account_number.errors.0 }}</div>
                             {% endif %}
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.bik.id_for_label }}" class="form-label">
-                                    {{ form.bik.label }}
-                                </label>
-                                {{ form.bik }}
-                                {% if form.bik.errors %}
-                                    <div class="text-danger small mt-1">{{ form.bik.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.correspondent_account.id_for_label }}" class="form-label">
-                                    {{ form.correspondent_account.label }}
-                                </label>
-                                {{ form.correspondent_account }}
-                                {% if form.correspondent_account.errors %}
-                                    <div class="text-danger small mt-1">{{ form.correspondent_account.errors.0 }}</div>
-                                {% endif %}
-                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -70,27 +50,6 @@
                             {% if form.recipient_name.errors %}
                                 <div class="text-danger small mt-1">{{ form.recipient_name.errors.0 }}</div>
                             {% endif %}
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.inn.id_for_label }}" class="form-label">
-                                    {{ form.inn.label }}
-                                </label>
-                                {{ form.inn }}
-                                {% if form.inn.errors %}
-                                    <div class="text-danger small mt-1">{{ form.inn.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.kpp.id_for_label }}" class="form-label">
-                                    {{ form.kpp.label }}
-                                </label>
-                                {{ form.kpp }}
-                                {% if form.kpp.errors %}
-                                    <div class="text-danger small mt-1">{{ form.kpp.errors.0 }}</div>
-                                {% endif %}
-                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -117,4 +76,55 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Маска номера счета
+    const accountInput = document.getElementById('id_account_number_profile');
+    if (accountInput) {
+        accountInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, ''); // Только цифры
+            
+            if (value.length > 16) {
+                value = value.slice(0, 16);
+            }
+            
+            // Форматируем: 2222-2222-2222-2222
+            let formatted = '';
+            if (value.length > 0) {
+                formatted = value.slice(0, 4);
+                if (value.length > 4) {
+                    formatted += '-' + value.slice(4, 8);
+                }
+                if (value.length > 8) {
+                    formatted += '-' + value.slice(8, 12);
+                }
+                if (value.length > 12) {
+                    formatted += '-' + value.slice(12, 16);
+                }
+            }
+            
+            e.target.value = formatted;
+        });
+        
+        accountInput.addEventListener('keypress', function(e) {
+            // Разрешаем только цифры
+            if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab') {
+                e.preventDefault();
+            }
+        });
+    }
+    
+    // Только буквы в имени получателя
+    const recipientInput = document.getElementById('id_recipient_name_profile');
+    if (recipientInput) {
+        recipientInput.addEventListener('keypress', function(e) {
+            // Разрешаем только буквы, пробелы и дефисы
+            if (!/[а-яёА-ЯЁa-zA-Z\s\-]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab') {
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

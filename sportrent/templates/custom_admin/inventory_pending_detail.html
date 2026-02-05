@@ -19,7 +19,7 @@
                     <div class="carousel-inner">
                         {% for photo in inventory.photos.all %}
                             <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                <img src="{{ photo.photo_url.url }}" class="d-block w-100 rounded" alt="{{ photo.description }}" style="height: 400px; object-fit: cover;">
+                                <img src="{{ photo.photo_url.url }}" class="d-block w-100 rounded" alt="{{ photo.description }}" style="height: 400px; object-fit: contain; background-color: #f8f9fa;">
                             </div>
                         {% endfor %}
                     </div>

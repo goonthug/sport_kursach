@@ -137,6 +137,23 @@
                             </div>
                         {% endif %}
 
+                        {% if user.role == 'owner' %}
+                            <hr class="my-4">
+                            
+                            <h5 class="mb-3">Банковский счет для выплаты</h5>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.bank_account.id_for_label }}" class="form-label">
+                                    {{ form.bank_account.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.bank_account }}
+                                {% if form.bank_account.errors %}
+                                    <div class="text-danger small mt-1">{{ form.bank_account.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">Выберите банковский счет, на который будут перечисляться выплаты</div>
+                            </div>
+                        {% endif %}
+
                         <hr class="my-4">
 
                         <h5 class="mb-3">Фотографии</h5>

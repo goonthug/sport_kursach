@@ -205,12 +205,8 @@ class BankAccount(models.Model):
     owner = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name='bank_accounts', verbose_name='Владелец')
 
     bank_name = models.CharField(max_length=200, verbose_name='Название банка')
-    account_number = models.CharField(max_length=50, verbose_name='Номер счета')
-    bik = models.CharField(max_length=20, blank=True, verbose_name='БИК')
-    correspondent_account = models.CharField(max_length=50, blank=True, verbose_name='Корреспондентский счет')
+    account_number = models.CharField(max_length=19, verbose_name='Номер счета')
     recipient_name = models.CharField(max_length=200, verbose_name='Получатель')
-    inn = models.CharField(max_length=20, blank=True, verbose_name='ИНН получателя')
-    kpp = models.CharField(max_length=20, blank=True, verbose_name='КПП')
 
     is_default = models.BooleanField(default=False, verbose_name='По умолчанию')
     created_date = models.DateTimeField(default=timezone.now, verbose_name='Дата создания')

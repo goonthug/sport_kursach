@@ -74,6 +74,12 @@ def inventory_list(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
+    # Обновляем рейтинги для инвентаря на текущей странице
+    from reviews.views import update_inventory_rating
+    for item in page_obj.object_list:
+        if item.reviews_count > 0:
+            update_inventory_rating(item)
+
     favorite_ids = set()
     if request.user.is_authenticated and request.user.role == 'client' and hasattr(request.user, 'client_profile'):
         favorite_ids = set(
@@ -152,7 +158,7 @@ def inventory_create(request):
     owner = request.user.owner_profile
 
     if request.method == 'POST':
-        form = InventoryForm(request.POST, request.FILES)
+        form = InventoryForm(request.POST, request.FILES, owner=owner)
         photo_formset = InventoryPhotoFormSet(request.POST, request.FILES)
 
         if form.is_valid() and photo_formset.is_valid():
@@ -178,7 +184,7 @@ def inventory_create(request):
                 logger.error(f'Ошибка при создании инвентаря: {str(e)}')
                 messages.error(request, 'Произошла ошибка при сохранении.')
     else:
-        form = InventoryForm()
+        form = InventoryForm(owner=owner)
         photo_formset = InventoryPhotoFormSet(queryset=InventoryPhoto.objects.none())
 
     context = {
@@ -210,7 +216,7 @@ def inventory_update(request, pk):
         return redirect('inventory:detail', pk=pk)
 
     if request.method == 'POST':
-        form = InventoryForm(request.POST, request.FILES, instance=inventory)
+        form = InventoryForm(request.POST, request.FILES, instance=inventory, owner=inventory.owner)
         photo_formset = InventoryPhotoFormSet(request.POST, request.FILES, queryset=inventory.photos.all())
 
         if form.is_valid() and photo_formset.is_valid():
@@ -237,6 +243,7 @@ def inventory_update(request, pk):
                 logger.error(f'Ошибка при обновлении инвентаря: {str(e)}')
                 messages.error(request, 'Произошла ошибка при сохранении.')
     else:
+        form = InventoryForm(instance=inventory, owner=inventory.owner)
         form = InventoryForm(instance=inventory)
         photo_formset = InventoryPhotoFormSet(queryset=inventory.photos.all())
 

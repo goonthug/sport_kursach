@@ -24,7 +24,12 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <form method="get" class="row g-3" data-preserve-scroll="true">
-                <div class="col-md-6">
+                {% if user.role == 'manager' %}
+                    <div class="col-md-4">
+                        <input type="text" name="search" class="form-control" placeholder="Поиск по имени клиента или инвентарю" value="{{ search_query }}">
+                    </div>
+                {% endif %}
+                <div class="{% if user.role == 'manager' %}col-md-4{% else %}col-md-6{% endif %}">
                     <select name="status" class="form-select">
                         <option value="">Все статусы</option>
                         {% for value, label in status_choices %}
@@ -34,7 +39,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-6">
+                <div class="{% if user.role == 'manager' %}col-md-4{% else %}col-md-6{% endif %}">
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-funnel"></i> Применить фильтр
                     </button>
@@ -95,6 +100,8 @@
                                             <span class="badge bg-info">{{ rental.get_status_display }}</span>
                                         {% elif rental.status == 'active' %}
                                             <span class="badge bg-primary">{{ rental.get_status_display }}</span>
+                                        {% elif rental.status == 'delayed' %}
+                                            <span class="badge bg-danger">{{ rental.get_status_display }}</span>
                                         {% elif rental.status == 'completed' %}
                                             <span class="badge bg-success">{{ rental.get_status_display }}</span>
                                         {% elif rental.status == 'cancelled' %}
@@ -104,6 +111,9 @@
                                         {% endif %}
                                     </div>
                                     <p class="h5 text-primary mb-0">{{ rental.total_price }} ₽</p>
+                                    {% if rental.additional_payment > 0 %}
+                                        <small class="text-warning">+{{ rental.additional_payment }} ₽ доплата</small><br>
+                                    {% endif %}
                                     <small class="text-muted">{{ rental.get_payment_status_display }}</small>
                                 </div>
 
@@ -159,7 +169,7 @@
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Назад</a>
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Назад</a>
                         </li>
                     {% endif %}
 
@@ -169,7 +179,7 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Вперед</a>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Вперед</a>
                         </li>
                     {% endif %}
                 </ul>

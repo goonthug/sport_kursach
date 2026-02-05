@@ -183,6 +183,11 @@ def bank_account_add(request):
             try:
                 bank_account = form.save(commit=False)
                 bank_account.owner = owner
+                
+                # Если это первый счет или выбран "по умолчанию", делаем его по умолчанию
+                if not BankAccount.objects.filter(owner=owner).exists() or form.cleaned_data.get('is_default'):
+                    bank_account.is_default = True
+                
                 bank_account.save()
                 logger.info(f'Добавлен банковский счет: {bank_account.account_id} для {owner.full_name}')
                 messages.success(request, 'Банковский счет успешно добавлен.')
@@ -192,6 +197,9 @@ def bank_account_add(request):
                 messages.error(request, 'Произошла ошибка при сохранении.')
     else:
         form = BankAccountForm()
+        # Если это первый счет, автоматически отмечаем как по умолчанию
+        if not BankAccount.objects.filter(owner=owner).exists():
+            form.fields['is_default'].initial = True
 
     return render(request, 'users/bank_account_form.html', {'form': form, 'is_create': True})
 

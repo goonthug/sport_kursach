@@ -64,13 +64,9 @@
                                 <span>Всего аренд:</span>
                                 <strong>{{ total_rentals|default:0 }}</strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-2">
+                            <div class="d-flex justify-content-between">
                                 <span>Активных:</span>
                                 <strong class="text-primary">{{ active_rentals|default:0 }}</strong>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>Баллы лояльности:</span>
-                                <strong class="text-success">{{ user.loyalty_points }}</strong>
                             </div>
                         {% elif user.role == 'owner' %}
                             <div class="d-flex justify-content-between mb-2">
@@ -83,7 +79,7 @@
                             </div>
                             <div class="d-flex justify-content-between">
                                 <span>Заработок:</span>
-                                <strong class="text-success">{{ user.owner_profile.total_earnings|default:0 }} руб.</strong>
+                                <strong class="text-success">{{ user.owner_profile.total_earnings|floatformat:2|default:"0.00" }} ₽</strong>
                             </div>
                         {% endif %}
                     </div>
@@ -158,70 +154,86 @@
                 </div>
             </div>
             
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Последняя активность</h5>
-                </div>
-                <div class="card-body">
-                    {% if user.role == 'client' %}
-                        <p class="text-muted">
-                            Здесь будет отображаться история ваших аренд
-                        </p>
-                        <a href="{% url 'rentals:list' %}" class="btn btn-outline-primary">
-                            <i class="bi bi-list-ul"></i> Мои аренды
-                        </a>
-                    {% elif user.role == 'owner' %}
-                        <p class="text-muted">
-                            Здесь будет отображаться информация о вашем инвентаре
-                        </p>
-                        <a href="{% url 'inventory:list' %}" class="btn btn-outline-primary">
-                            <i class="bi bi-box"></i> Мой инвентарь
-                        </a>
-                        
-                        <hr class="my-4">
-                        
-                        <h6 class="mb-3">Банковские реквизиты</h6>
-                        {% if bank_accounts %}
-                            {% for account in bank_accounts %}
-                                <div class="card mb-2">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div>
-                                                <h6 class="mb-1">
-                                                    {{ account.bank_name }}
-                                                    {% if account.is_default %}
-                                                        <span class="badge bg-primary">По умолчанию</span>
-                                                    {% endif %}
-                                                </h6>
-                                                <p class="text-muted small mb-1">
-                                                    <strong>Счет:</strong> {{ account.account_number }}<br>
-                                                    {% if account.bik %}<strong>БИК:</strong> {{ account.bik }}<br>{% endif %}
-                                                    <strong>Получатель:</strong> {{ account.recipient_name }}
-                                                </p>
-                                            </div>
-                                            <form method="post" action="{% url 'users:bank_account_delete' account.account_id %}" data-preserve-scroll="true" class="d-inline">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить этот банковский счет?');">
+            {% if user.role == 'client' or user.role == 'owner' %}
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Последняя активность</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if user.role == 'client' %}
+                            <p class="text-muted">
+                                Здесь будет отображаться история ваших аренд
+                            </p>
+                            <a href="{% url 'rentals:list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-list-ul"></i> Мои аренды
+                            </a>
+                        {% elif user.role == 'owner' %}
+                            <p class="text-muted">
+                                Здесь будет отображаться информация о вашем инвентаре
+                            </p>
+                            <a href="{% url 'inventory:list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-box"></i> Мой инвентарь
+                            </a>
+                            
+                            <hr class="my-4">
+                            
+                            <h6 class="mb-3">Банковские реквизиты</h6>
+                            {% if bank_accounts %}
+                                {% for account in bank_accounts %}
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <h6 class="mb-1">
+                                                        {{ account.bank_name }}
+                                                        {% if account.is_default %}
+                                                            <span class="badge bg-primary">По умолчанию</span>
+                                                        {% endif %}
+                                                    </h6>
+                                                    <p class="text-muted small mb-1">
+                                                        <strong>Счет:</strong> {{ account.account_number }}<br>
+                                                        <strong>Получатель:</strong> {{ account.recipient_name }}
+                                                    </p>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBankAccountModal{{ account.account_id }}">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
-                                            </form>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="text-muted small">Банковские счета не добавлены</p>
+                                    
+                                    <!-- Modal для удаления -->
+                                    <div class="modal fade" id="deleteBankAccountModal{{ account.account_id }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <form method="post" action="{% url 'users:bank_account_delete' account.account_id %}" data-preserve-scroll="true">
+                                                    {% csrf_token %}
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Удалить банковский счет</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p class="mb-0">Вы уверены, что хотите удалить банковский счет <strong>{{ account.bank_name }}</strong> ({{ account.account_number }})?</p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                                        <button type="submit" class="btn btn-danger">Удалить</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small">Банковские счета не добавлены</p>
+                            {% endif %}
+                            <a href="{% url 'users:bank_account_add' %}" class="btn btn-sm btn-primary mt-2">
+                                <i class="bi bi-plus-circle"></i> Добавить банковский счет
+                            </a>
                         {% endif %}
-                        <a href="{% url 'users:bank_account_add' %}" class="btn btn-sm btn-primary mt-2">
-                            <i class="bi bi-plus-circle"></i> Добавить банковский счет
-                        </a>
-                    {% else %}
-                        <p class="text-muted">
-                            Информация о профиле доступна после авторизации
-                        </p>
-                    {% endif %}
+                    </div>
                 </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>

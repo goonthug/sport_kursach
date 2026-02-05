@@ -28,8 +28,9 @@ class UserRegistrationForm(UserCreationForm):
         required=True,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '+7 (999) 123-45-67',
-            'maxlength': '18',  # +7 (999) 123-45-67
+            'placeholder': '917 922 54 66',
+            'maxlength': '15',
+            'id': 'id_phone',
         })
     )
 
@@ -66,32 +67,8 @@ class UserRegistrationForm(UserCreationForm):
     )
 
     # Поля для владельца
-    owner_percentage = forms.IntegerField(
-        label='Процент владельцу',
-        required=False,
-        min_value=0,
-        max_value=100,
-        initial=70,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': '70'
-        })
-    )
-
-    store_percentage = forms.IntegerField(
-        label='Процент магазину',
-        required=False,
-        min_value=0,
-        max_value=100,
-        initial=30,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': '30'
-        })
-    )
-
     agreement_accepted = forms.BooleanField(
-        label='Принимаю условия соглашения',
+        label='Принимаю условия соглашения (70% владельцу, 30% магазину)',
         required=False,
         widget=forms.CheckboxInput(attrs={
             'class': 'form-check-input'
@@ -112,20 +89,11 @@ class UserRegistrationForm(UserCreationForm):
     account_number = forms.CharField(
         label='Номер счета',
         required=False,
-        max_length=50,
+        max_length=19,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': '40702810100000000000'
-        })
-    )
-
-    bik = forms.CharField(
-        label='БИК',
-        required=False,
-        max_length=20,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': '044525225'
+            'placeholder': '2222-2222-2222-2222',
+            'id': 'id_account_number_reg',
         })
     )
 
@@ -135,7 +103,8 @@ class UserRegistrationForm(UserCreationForm):
         max_length=200,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Иванов Иван Иванович'
+            'placeholder': 'Иванов Иван Иванович',
+            'id': 'id_recipient_name_reg',
         })
     )
 
@@ -164,14 +133,15 @@ class UserRegistrationForm(UserCreationForm):
         if not phone:
             raise ValidationError('Телефон обязателен для заполнения')
 
-        # Убираем все символы кроме цифр и +
-        cleaned_phone = re.sub(r'[^\d+]', '', phone)
+        # Убираем все символы кроме цифр
+        cleaned_phone = re.sub(r'[^\d]', '', phone)
 
-        # Ожидаем формат российского номера +7XXXXXXXXXX (11 цифр)
-        if not re.match(r'^\+7[0-9]{10}$', cleaned_phone):
-            raise ValidationError('Введите номер в формате +7XXXXXXXXXX')
+        # Ожидаем формат российского номера 10 цифр (без +7)
+        if len(cleaned_phone) != 10 or not cleaned_phone.isdigit():
+            raise ValidationError('Введите 10 цифр номера телефона (например: 9179225466)')
 
-        return cleaned_phone
+        # Возвращаем в формате +7XXXXXXXXXX
+        return '+7' + cleaned_phone
 
     def clean_full_name(self):
         """Валидация полного имени."""
@@ -211,6 +181,40 @@ class UserRegistrationForm(UserCreationForm):
 
         return password
 
+    def clean_account_number(self):
+        """Валидация номера счета."""
+        account_number = self.cleaned_data.get('account_number', '').strip()
+        role = self.cleaned_data.get('role')
+        
+        if role == 'owner':
+            if not account_number:
+                raise ValidationError('Номер счета обязателен для владельца')
+            
+            # Убираем дефисы и проверяем что только цифры
+            cleaned = re.sub(r'[^\d]', '', account_number)
+            if len(cleaned) != 16:
+                raise ValidationError('Номер счета должен содержать 16 цифр в формате 2222-2222-2222-2222')
+            
+            # Возвращаем в формате с дефисами
+            return f"{cleaned[:4]}-{cleaned[4:8]}-{cleaned[8:12]}-{cleaned[12:16]}"
+        
+        return account_number
+
+    def clean_recipient_name(self):
+        """Валидация имени получателя - только буквы."""
+        recipient_name = self.cleaned_data.get('recipient_name', '').strip()
+        role = self.cleaned_data.get('role')
+        
+        if role == 'owner':
+            if not recipient_name:
+                raise ValidationError('Имя получателя обязательно для владельца')
+            
+            # Проверяем что только буквы, пробелы и дефисы
+            if not re.match(r'^[а-яёА-ЯЁa-zA-Z\s\-]+$', recipient_name):
+                raise ValidationError('Имя получателя должно содержать только буквы')
+        
+        return recipient_name
+
     def clean(self):
         """Валидация полей для владельца."""
         cleaned_data = super().clean()
@@ -219,14 +223,9 @@ class UserRegistrationForm(UserCreationForm):
         if role == 'owner':
             # Проверка соглашения
             agreement_accepted = cleaned_data.get('agreement_accepted')
-            owner_percentage = cleaned_data.get('owner_percentage', 0)
-            store_percentage = cleaned_data.get('store_percentage', 0)
 
             if not agreement_accepted:
                 raise ValidationError('Необходимо принять условия соглашения')
-
-            if owner_percentage + store_percentage != 100:
-                raise ValidationError('Сумма процентов владельца и магазина должна равняться 100%')
 
             # Проверка банковских реквизитов
             bank_name = cleaned_data.get('bank_name', '').strip()
@@ -262,16 +261,12 @@ class UserRegistrationForm(UserCreationForm):
                     full_name=full_name
                 )
 
-                # Создаем соглашение
-                owner_percentage = self.cleaned_data.get('owner_percentage', 70)
-                store_percentage = self.cleaned_data.get('store_percentage', 30)
-                agreement_text = f"Соглашение о выплатах: {owner_percentage}% владельцу, {store_percentage}% магазину"
-
+                # Создаем соглашение с фиксированными процентами 70/30
                 OwnerAgreement.objects.create(
                     owner=owner,
-                    owner_percentage=owner_percentage,
-                    store_percentage=store_percentage,
-                    agreement_text=agreement_text,
+                    owner_percentage=70,
+                    store_percentage=30,
+                    agreement_text="Соглашение о выплатах: 70% владельцу, 30% магазину",
                     is_accepted=True,
                     accepted_date=timezone.now()
                 )
@@ -281,7 +276,6 @@ class UserRegistrationForm(UserCreationForm):
                     owner=owner,
                     bank_name=self.cleaned_data.get('bank_name', ''),
                     account_number=self.cleaned_data.get('account_number', ''),
-                    bik=self.cleaned_data.get('bik', ''),
                     recipient_name=self.cleaned_data.get('recipient_name', ''),
                     is_default=True
                 )
@@ -331,16 +325,12 @@ class OwnerProfileForm(forms.ModelForm):
 
     class Meta:
         model = Owner
-        fields = ['full_name', 'tax_number', 'bank_details']
+        fields = ['full_name']
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'tax_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'bank_details': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
             'full_name': 'Полное имя',
-            'tax_number': 'ИНН',
-            'bank_details': 'Банковские реквизиты',
         }
 
 
@@ -367,24 +357,44 @@ class BankAccountForm(forms.ModelForm):
 
     class Meta:
         model = BankAccount
-        fields = ['bank_name', 'account_number', 'bik', 'correspondent_account', 'recipient_name', 'inn', 'kpp', 'is_default']
+        fields = ['bank_name', 'account_number', 'recipient_name', 'is_default']
         widgets = {
-            'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'account_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'bik': forms.TextInput(attrs={'class': 'form-control'}),
-            'correspondent_account': forms.TextInput(attrs={'class': 'form-control'}),
-            'recipient_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'inn': forms.TextInput(attrs={'class': 'form-control'}),
-            'kpp': forms.TextInput(attrs={'class': 'form-control'}),
+            'bank_name': forms.TextInput(attrs={'class': 'form-control', 'id': 'id_bank_name_profile'}),
+            'account_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '2222-2222-2222-2222', 'id': 'id_account_number_profile'}),
+            'recipient_name': forms.TextInput(attrs={'class': 'form-control', 'id': 'id_recipient_name_profile'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'bank_name': 'Название банка',
             'account_number': 'Номер счета',
-            'bik': 'БИК',
-            'correspondent_account': 'Корреспондентский счет',
             'recipient_name': 'Получатель',
-            'inn': 'ИНН получателя',
-            'kpp': 'КПП',
             'is_default': 'По умолчанию',
         }
+
+    def clean_account_number(self):
+        """Валидация номера счета."""
+        account_number = self.cleaned_data.get('account_number', '').strip()
+        
+        if not account_number:
+            raise ValidationError('Номер счета обязателен')
+        
+        # Убираем дефисы и проверяем что только цифры
+        cleaned = re.sub(r'[^\d]', '', account_number)
+        if len(cleaned) != 16:
+            raise ValidationError('Номер счета должен содержать 16 цифр в формате 2222-2222-2222-2222')
+        
+        # Возвращаем в формате с дефисами
+        return f"{cleaned[:4]}-{cleaned[4:8]}-{cleaned[8:12]}-{cleaned[12:16]}"
+
+    def clean_recipient_name(self):
+        """Валидация имени получателя - только буквы."""
+        recipient_name = self.cleaned_data.get('recipient_name', '').strip()
+        
+        if not recipient_name:
+            raise ValidationError('Имя получателя обязательно')
+        
+        # Проверяем что только буквы, пробелы и дефисы
+        if not re.match(r'^[а-яёА-ЯЁa-zA-Z\s\-]+$', recipient_name):
+            raise ValidationError('Имя получателя должно содержать только буквы')
+        
+        return recipient_name

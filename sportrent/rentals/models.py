@@ -18,6 +18,7 @@ class Rental(models.Model):
         ('pending', 'Ожидает подтверждения'),
         ('confirmed', 'Подтверждена'),
         ('active', 'Активна'),
+        ('delayed', 'Задержка'),
         ('completed', 'Завершена'),
         ('cancelled', 'Отменена'),
         ('rejected', 'Отклонена'),
@@ -43,6 +44,7 @@ class Rental(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)],
                                       verbose_name='Общая стоимость')
     deposit_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Внесенный залог')
+    additional_payment = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Доплата за продление')
 
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending', verbose_name='Статус')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending',

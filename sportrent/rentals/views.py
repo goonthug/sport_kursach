@@ -69,6 +69,14 @@ def rental_list(request):
         messages.error(request, 'Недостаточно прав для просмотра аренд')
         return redirect('core:home')
 
+    # Поиск для менеджера
+    search_query = request.GET.get('search', '').strip()
+    if search_query and user.role == 'manager':
+        rentals = rentals.filter(
+            Q(client__full_name__icontains=search_query) |
+            Q(inventory__name__icontains=search_query)
+        )
+    
     # Фильтрация по статусу
     status = request.GET.get('status')
     if status:
@@ -83,6 +91,7 @@ def rental_list(request):
         'page_obj': page_obj,
         'selected_status': status,
         'status_choices': status_choices,
+        'search_query': search_query,
     }
 
     return render(request, 'rentals/rental_list.html', context)
@@ -135,24 +144,11 @@ def rental_detail(request, pk):
             ).exists()
             can_leave_review = not has_review
 
-    # Форма выбора банковского счета для владельца
-    bank_account_form = None
-    if user.role == 'owner' and hasattr(user, 'owner_profile') and rental.inventory.owner == user.owner_profile:
-        if request.method == 'POST' and 'bank_account' in request.POST:
-            bank_account_form = RentalBankAccountForm(request.POST, instance=rental, owner=user.owner_profile)
-            if bank_account_form.is_valid():
-                bank_account_form.save()
-                messages.success(request, 'Банковский счет выбран для выплаты.')
-                return redirect('rentals:detail', pk=pk)
-        else:
-            bank_account_form = RentalBankAccountForm(instance=rental, owner=user.owner_profile)
-
     context = {
         'rental': rental,
         'payments': payments,
         'contract': contract,
         'can_leave_review': can_leave_review,
-        'bank_account_form': bank_account_form,
     }
 
     return render(request, 'rentals/rental_detail.html', context)
@@ -381,7 +377,7 @@ def rental_complete(request, pk):
         messages.error(request, 'Недостаточно прав')
         return redirect('rentals:detail', pk=pk)
 
-    if rental.status not in ['confirmed', 'active']:
+    if rental.status not in ['confirmed', 'active', 'delayed']:
         messages.warning(request, 'Эта аренда не может быть завершена')
         return redirect('rentals:detail', pk=pk)
 
@@ -407,7 +403,7 @@ def rental_complete(request, pk):
                 client.save()
 
                 # Выплата владельцу
-                if pay_owner and rental.bank_account:
+                if pay_owner and inventory.bank_account:
                     from users.models import OwnerAgreement
                     # Получаем актуальное соглашение владельца
                     agreement = OwnerAgreement.objects.filter(
@@ -422,9 +418,11 @@ def rental_complete(request, pk):
                         owner.save()
                         
                         logger.info(f'Выплата владельцу: {owner_amount} руб. для {owner.full_name}')
-                        messages.success(request, f'Аренда завершена. Владельцу выплачено {owner_amount:.2f} руб.')
+                        messages.success(request, f'Аренда завершена. Владельцу выплачено {owner_amount:.2f} ₽ на счет {inventory.bank_account.bank_name}.')
                     else:
                         messages.warning(request, 'Аренда завершена, но соглашение владельца не найдено')
+                elif pay_owner and not inventory.bank_account:
+                    messages.warning(request, 'Аренда завершена, но банковский счет не указан в инвентаре')
                 else:
                     logger.info(f'Аренда завершена: {rental.rental_id}')
                     messages.success(request, 'Аренда успешно завершена')
@@ -448,8 +446,8 @@ def rental_extend(request, pk):
         messages.error(request, 'Недостаточно прав')
         return redirect('rentals:detail', pk=pk)
 
-    if rental.status != 'active':
-        messages.warning(request, 'Можно продлевать только активную аренду')
+    if rental.status not in ['active', 'delayed']:
+        messages.warning(request, 'Можно продлевать только активную аренду или аренду с задержкой')
         return redirect('rentals:detail', pk=pk)
 
     if request.method == 'POST':
@@ -465,13 +463,14 @@ def rental_extend(request, pk):
                 # Продлеваем дату окончания
                 rental.end_date = rental.end_date + timedelta(days=additional_days)
                 
-                # Пересчитываем стоимость
+                # Рассчитываем стоимость доплаты
                 additional_price = rental.inventory.price_per_day * additional_days
-                rental.total_price += additional_price
+                rental.additional_payment += additional_price
+                rental.status = 'delayed'  # Меняем статус на задержка
                 rental.save()
 
                 logger.info(f'Аренда продлена на {additional_days} дней: {rental.rental_id}')
-                messages.success(request, f'Аренда продлена на {additional_days} дней. Дополнительная стоимость: {additional_price:.2f} руб.')
+                messages.success(request, f'Аренда продлена на {additional_days} дней. Доплата: {additional_price:.2f} ₽')
 
         except Exception as e:
             logger.error(f'Ошибка при продлении аренды: {str(e)}')
