@@ -16,9 +16,16 @@
                                 <div class="row align-items-center">
                                     <div class="col-md-8">
                                         <h5 class="card-title mb-1">{{ chat.rental.inventory.name }}</h5>
-                                        <p class="text-muted small mb-2">
-                                            Собеседник: {{ chat.other_user.get_full_name }}
-                                        </p>
+                                        {% if user.role == 'administrator' %}
+                                            <p class="text-muted small mb-2">
+                                                Клиент: {{ chat.rental.client.full_name }}
+                                                {% if chat.rental.manager %}| Менеджер: {{ chat.rental.manager.full_name }}{% endif %}
+                                            </p>
+                                        {% else %}
+                                            <p class="text-muted small mb-2">
+                                                Собеседник: {{ chat.other_user.get_full_name }}
+                                            </p>
+                                        {% endif %}
                                         <p class="card-text mb-0">
                                             <strong>{{ chat.last_message.sender.get_full_name }}:</strong>
                                             {{ chat.last_message.message_text|truncatewords:10 }}

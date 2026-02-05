@@ -18,7 +18,6 @@ class Rental(models.Model):
         ('pending', 'Ожидает подтверждения'),
         ('confirmed', 'Подтверждена'),
         ('active', 'Активна'),
-        ('delayed', 'Задержка'),
         ('completed', 'Завершена'),
         ('cancelled', 'Отменена'),
         ('rejected', 'Отклонена'),
@@ -27,6 +26,7 @@ class Rental(models.Model):
     PAYMENT_STATUS_CHOICES = [
         ('pending', 'Ожидает оплаты'),
         ('paid', 'Оплачено'),
+        ('delayed', 'Задержка оплаты'),
         ('refunded', 'Возвращено'),
         ('failed', 'Ошибка оплаты'),
     ]

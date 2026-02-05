@@ -22,8 +22,6 @@
                         <span class="badge bg-info">{{ rental.get_status_display }}</span>
                     {% elif rental.status == 'active' %}
                         <span class="badge bg-primary">{{ rental.get_status_display }}</span>
-                    {% elif rental.status == 'delayed' %}
-                        <span class="badge bg-danger">{{ rental.get_status_display }}</span>
                     {% elif rental.status == 'completed' %}
                         <span class="badge bg-success">{{ rental.get_status_display }}</span>
                     {% elif rental.status == 'cancelled' %}
@@ -92,6 +90,8 @@
                             <p>
                                 {% if rental.payment_status == 'paid' %}
                                     <span class="badge bg-success">{{ rental.get_payment_status_display }}</span>
+                                {% elif rental.payment_status == 'delayed' %}
+                                    <span class="badge bg-warning">{{ rental.get_payment_status_display }}</span>
                                 {% elif rental.payment_status == 'pending' %}
                                     <span class="badge bg-warning">{{ rental.get_payment_status_display }}</span>
                                 {% else %}
@@ -164,7 +164,7 @@
                 </div>
             {% endif %}
             
-            {% if user.role == 'manager' and rental.status in 'confirmed,active,delayed' %}
+            {% if user.role == 'manager' and rental.status in 'confirmed,active' %}
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <div class="d-grid gap-2">
@@ -270,13 +270,9 @@
                     <div class="modal-body">
                         <p class="mb-3">Подтвердить завершение аренды и возврат инвентаря?</p>
                         {% if rental.inventory.bank_account %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="pay_owner" value="true" id="payOwnerCheck" checked>
-                                <label class="form-check-label" for="payOwnerCheck">
-                                    Выплатить владельцу сразу
-                                </label>
+                            <div class="alert alert-info">
+                                <small>Выплата владельцу будет выполнена автоматически на счет: {{ rental.inventory.bank_account.bank_name }} ({{ rental.inventory.bank_account.account_number }})</small>
                             </div>
-                            <small class="text-muted">Средства будут переведены на счет: {{ rental.inventory.bank_account.bank_name }} ({{ rental.inventory.bank_account.account_number }})</small>
                         {% else %}
                             <div class="alert alert-warning">
                                 <small>Банковский счет владельца не указан в инвентаре. Выплата невозможна.</small>

@@ -51,9 +51,14 @@ class InventoryForm(forms.ModelForm):
         owner = kwargs.pop('owner', None)
         super().__init__(*args, **kwargs)
         if owner:
-            self.fields['bank_account'].queryset = BankAccount.objects.filter(owner=owner)
+            owner_accounts = BankAccount.objects.filter(owner=owner)
+            self.fields['bank_account'].queryset = owner_accounts
             self.fields['bank_account'].required = True
             self.fields['bank_account'].empty_label = 'Выберите банковский счет'
+            if self.instance and self.instance.pk and self.instance.bank_account_id:
+                if not owner_accounts.filter(pk=self.instance.bank_account_id).exists():
+                    self.initial['bank_account'] = None
+                    self.instance.bank_account = None
 
     def clean(self):
         """Дополнительная валидация."""

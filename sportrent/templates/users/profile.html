@@ -195,31 +195,15 @@
                                                         <strong>Получатель:</strong> {{ account.recipient_name }}
                                                     </p>
                                                 </div>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBankAccountModal{{ account.account_id }}">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#deleteBankAccountModal"
+                                                        data-account-id="{{ account.account_id }}"
+                                                        data-account-name="{{ account.bank_name }}"
+                                                        data-account-number="{{ account.account_number }}">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Modal для удаления -->
-                                    <div class="modal fade" id="deleteBankAccountModal{{ account.account_id }}" tabindex="-1">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <form method="post" action="{% url 'users:bank_account_delete' account.account_id %}" data-preserve-scroll="true">
-                                                    {% csrf_token %}
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">Удалить банковский счет</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p class="mb-0">Вы уверены, что хотите удалить банковский счет <strong>{{ account.bank_name }}</strong> ({{ account.account_number }})?</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                                        <button type="submit" class="btn btn-danger">Удалить</button>
-                                                    </div>
-                                                </form>
                                             </div>
                                         </div>
                                     </div>
@@ -237,4 +221,51 @@
         </div>
     </div>
 </div>
+
+{% if user.role == 'owner' and bank_accounts %}
+    {% with first=bank_accounts.0 %}
+    <div class="modal fade" id="deleteBankAccountModal" tabindex="-1" aria-labelledby="deleteBankAccountModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="deleteBankAccountForm" method="post" action="{% url 'users:bank_account_delete' first.account_id %}" data-url-template="{% url 'users:bank_account_delete' first.account_id %}" data-uuid-placeholder="{{ first.account_id }}" data-preserve-scroll="true">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteBankAccountModalLabel">Удалить банковский счет</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0" id="deleteBankAccountText"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEl = document.getElementById('deleteBankAccountModal');
+    const formEl = document.getElementById('deleteBankAccountForm');
+    const textEl = document.getElementById('deleteBankAccountText');
+
+    if (!modalEl || !formEl || !textEl) return;
+
+    modalEl.addEventListener('show.bs.modal', function(event) {
+        var trigger = event.relatedTarget;
+        if (!trigger) return;
+        var accountId = trigger.getAttribute('data-account-id');
+        var accountName = trigger.getAttribute('data-account-name');
+        var accountNumber = trigger.getAttribute('data-account-number');
+        var template = formEl.getAttribute('data-url-template') || '';
+        var placeholder = formEl.getAttribute('data-uuid-placeholder') || '';
+        formEl.action = template.replace(placeholder, accountId);
+        textEl.textContent = 'Вы уверены, что хотите удалить банковский счет ' + accountName + ' (' + accountNumber + ')?';
+    });
+});
+</script>
 {% endblock %}

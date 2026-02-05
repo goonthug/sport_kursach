@@ -100,8 +100,6 @@
                                             <span class="badge bg-info">{{ rental.get_status_display }}</span>
                                         {% elif rental.status == 'active' %}
                                             <span class="badge bg-primary">{{ rental.get_status_display }}</span>
-                                        {% elif rental.status == 'delayed' %}
-                                            <span class="badge bg-danger">{{ rental.get_status_display }}</span>
                                         {% elif rental.status == 'completed' %}
                                             <span class="badge bg-success">{{ rental.get_status_display }}</span>
                                         {% elif rental.status == 'cancelled' %}

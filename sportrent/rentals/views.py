@@ -377,12 +377,12 @@ def rental_complete(request, pk):
         messages.error(request, 'Недостаточно прав')
         return redirect('rentals:detail', pk=pk)
 
-    if rental.status not in ['confirmed', 'active', 'delayed']:
+    if rental.status not in ['confirmed', 'active']:
         messages.warning(request, 'Эта аренда не может быть завершена')
         return redirect('rentals:detail', pk=pk)
 
     if request.method == 'POST':
-        pay_owner = request.POST.get('pay_owner', 'false') == 'true'
+        pay_owner = True
         
         try:
             with transaction.atomic():
@@ -446,8 +446,8 @@ def rental_extend(request, pk):
         messages.error(request, 'Недостаточно прав')
         return redirect('rentals:detail', pk=pk)
 
-    if rental.status not in ['active', 'delayed']:
-        messages.warning(request, 'Можно продлевать только активную аренду или аренду с задержкой')
+    if rental.status in ['completed', 'cancelled', 'rejected']:
+        messages.warning(request, 'Нельзя продлевать завершенную или отмененную аренду')
         return redirect('rentals:detail', pk=pk)
 
     if request.method == 'POST':
@@ -466,7 +466,7 @@ def rental_extend(request, pk):
                 # Рассчитываем стоимость доплаты
                 additional_price = rental.inventory.price_per_day * additional_days
                 rental.additional_payment += additional_price
-                rental.status = 'delayed'  # Меняем статус на задержка
+                rental.payment_status = 'delayed'
                 rental.save()
 
                 logger.info(f'Аренда продлена на {additional_days} дней: {rental.rental_id}')

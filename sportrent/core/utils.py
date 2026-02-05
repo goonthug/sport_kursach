@@ -2,8 +2,11 @@
 Утилиты для экспорта данных в XLSX и PDF.
 """
 
+import os
+import sys
 from io import BytesIO
 from django.http import HttpResponse
+from django.conf import settings
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -14,6 +17,44 @@ from reportlab.pdfbase.ttfonts import TTFont
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from datetime import datetime
+
+# Шрифт с поддержкой кириллицы для PDF
+_PDF_CYRILLIC_FONT = None
+
+
+def _get_pdf_cyrillic_font():
+    """Регистрирует и возвращает имя шрифта с поддержкой кириллицы (Arial или DejaVu)."""
+    global _PDF_CYRILLIC_FONT
+    if _PDF_CYRILLIC_FONT:
+        return _PDF_CYRILLIC_FONT
+    font_name = 'Helvetica'
+    try:
+        if sys.platform == 'win32':
+            win_fonts = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts')
+            arial_path = os.path.join(win_fonts, 'arial.ttf')
+            arial_bold_path = os.path.join(win_fonts, 'arialbd.ttf')
+            if os.path.exists(arial_path):
+                pdfmetrics.registerFont(TTFont('PdfCyrillic', arial_path))
+                if os.path.exists(arial_bold_path):
+                    pdfmetrics.registerFont(TTFont('PdfCyrillicBold', arial_bold_path))
+                else:
+                    pdfmetrics.registerFont(TTFont('PdfCyrillicBold', arial_path))
+                _PDF_CYRILLIC_FONT = 'PdfCyrillic'
+                return _PDF_CYRILLIC_FONT
+        base_dir = getattr(settings, 'BASE_DIR', None)
+        if base_dir:
+            fonts_dir = os.path.join(base_dir, 'sportrent', 'static', 'fonts')
+            normal_path = os.path.join(fonts_dir, 'DejaVuSans.ttf')
+            bold_path = os.path.join(fonts_dir, 'DejaVuSans-Bold.ttf')
+            if os.path.exists(normal_path):
+                pdfmetrics.registerFont(TTFont('PdfCyrillic', normal_path))
+                pdfmetrics.registerFont(TTFont('PdfCyrillicBold', bold_path if os.path.exists(bold_path) else normal_path))
+                _PDF_CYRILLIC_FONT = 'PdfCyrillic'
+                return _PDF_CYRILLIC_FONT
+    except Exception:
+        pass
+    _PDF_CYRILLIC_FONT = font_name
+    return _PDF_CYRILLIC_FONT
 
 
 def export_inventory_to_xlsx(inventory_qs):
@@ -144,42 +185,41 @@ def export_inventory_to_pdf(inventory_qs):
     """
     Экспорт списка инвентаря в PDF.
     """
+    font_name = _get_pdf_cyrillic_font()
+    font_bold = 'PdfCyrillicBold' if font_name == 'PdfCyrillic' else font_name
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     elements = []
 
-    # Стили
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
+        fontName=font_bold,
         fontSize=24,
         textColor=colors.HexColor('#2C5F7C'),
         spaceAfter=30,
-        alignment=1  # CENTER
+        alignment=1
     )
+    normal_style = ParagraphStyle('PdfNormal', parent=styles['Normal'], fontName=font_name, fontSize=10)
 
-    # Заголовок
-    title = Paragraph("Каталог инвентаря SportRent", title_style)
+    title = Paragraph("Каталог инвентаря СпортРент", title_style)
     elements.append(title)
     elements.append(Spacer(1, 0.2 * inch))
 
-    # Дата генерации
-    date_text = f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
-    date_para = Paragraph(date_text, styles['Normal'])
-    elements.append(date_para)
+    date_text = "Дата: %s" % datetime.now().strftime('%d.%m.%Y %H:%M')
+    elements.append(Paragraph(date_text, normal_style))
     elements.append(Spacer(1, 0.3 * inch))
 
-    # Таблица данных
     data = [['Название', 'Категория', 'Цена/день', 'Статус', 'Рейтинг']]
-
-    for item in inventory_qs[:50]:  # Ограничение для PDF
+    for item in inventory_qs[:50]:
         data.append([
-            item.name[:30],
+            (item.name[:30] if len(item.name) > 30 else item.name),
             item.category.name,
-            f"{item.price_per_day} руб.",
+            "%s руб." % item.price_per_day,
             item.get_status_display(),
-            f"{item.avg_rating:.1f}" if item.avg_rating else '-'
+            "%.1f" % item.avg_rating if item.avg_rating else '-'
         ])
 
     table = Table(data, colWidths=[2.5 * inch, 1.5 * inch, 1 * inch, 1 * inch, 0.8 * inch])
@@ -187,12 +227,12 @@ def export_inventory_to_pdf(inventory_qs):
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C5F7C')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), font_bold),
         ('FONTSIZE', (0, 0), (-1, 0), 12),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 1), (-1, -1), font_name),
         ('FONTSIZE', (0, 1), (-1, -1), 10),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F7F9')]),
     ]))
@@ -200,10 +240,8 @@ def export_inventory_to_pdf(inventory_qs):
     elements.append(table)
     elements.append(Spacer(1, 0.3 * inch))
 
-    # Итого
-    total_text = f"Всего предметов: {inventory_qs.count()}"
-    total_para = Paragraph(total_text, styles['Normal'])
-    elements.append(total_para)
+    total_text = "Всего предметов: %d" % inventory_qs.count()
+    elements.append(Paragraph(total_text, normal_style))
 
     # Генерация PDF
     doc.build(elements)
@@ -219,6 +257,9 @@ def export_stats_to_pdf(stats_data):
     """
     Экспорт статистики в PDF (для админки).
     """
+    font_name = _get_pdf_cyrillic_font()
+    font_bold = 'PdfCyrillicBold' if font_name == 'PdfCyrillic' else font_name
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     elements = []
@@ -227,23 +268,22 @@ def export_stats_to_pdf(stats_data):
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
+        fontName=font_bold,
         fontSize=24,
         textColor=colors.HexColor('#2C5F7C'),
         spaceAfter=30,
         alignment=1
     )
+    normal_style = ParagraphStyle('PdfNormal', parent=styles['Normal'], fontName=font_name, fontSize=10)
 
-    # Заголовок
-    title = Paragraph("Отчет SportRent", title_style)
+    title = Paragraph("Отчет СпортРент", title_style)
     elements.append(title)
     elements.append(Spacer(1, 0.3 * inch))
 
-    # Период
-    period_text = f"Период: {datetime.now().strftime('%d.%m.%Y')}"
-    elements.append(Paragraph(period_text, styles['Normal']))
+    period_text = "Период: %s" % datetime.now().strftime('%d.%m.%Y')
+    elements.append(Paragraph(period_text, normal_style))
     elements.append(Spacer(1, 0.3 * inch))
 
-    # Статистика
     stats_table_data = [
         ['Показатель', 'Значение'],
         ['Всего пользователей', str(stats_data.get('total_users', 0))],
@@ -254,7 +294,7 @@ def export_stats_to_pdf(stats_data):
         ['Всего аренд', str(stats_data.get('total_rentals', 0))],
         ['Активных', str(stats_data.get('active_rentals', 0))],
         ['Завершенных', str(stats_data.get('completed_rentals', 0))],
-        ['Общий доход', f"{stats_data.get('total_revenue', 0)} руб."],
+        ['Общий доход', "%s руб." % stats_data.get('total_revenue', 0)],
     ]
 
     stats_table = Table(stats_table_data, colWidths=[3 * inch, 2 * inch])
@@ -262,11 +302,13 @@ def export_stats_to_pdf(stats_data):
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C5F7C')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), font_bold),
         ('FONTSIZE', (0, 0), (-1, 0), 12),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), font_name),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F4F7F9')]),
     ]))
 

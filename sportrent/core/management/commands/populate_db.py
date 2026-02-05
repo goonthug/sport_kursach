@@ -9,7 +9,7 @@ from datetime import timedelta
 from decimal import Decimal
 import random
 
-from users.models import User, Client, Owner, Manager, Administrator
+from users.models import User, Client, Owner, Manager, Administrator, BankAccount, OwnerAgreement
 from inventory.models import SportCategory, Inventory, InventoryPhoto
 from rentals.models import Rental, Payment, Contract
 from reviews.models import Review
@@ -43,17 +43,21 @@ class Command(BaseCommand):
         self.stdout.write('Создаем пользователей...')
 
         # Администратор
-        if not User.objects.filter(email='admin@sportrent.ru').exists():
-            admin_user = User.objects.create_superuser(
-                email='admin@sportrent.ru',
-                password='admin123',
-                role='administrator'
-            )
-            Administrator.objects.create(
-                user=admin_user,
-                full_name='Администратор Системы',
-                email_work='admin@sportrent.ru'
-            )
+        admin_user, created = User.objects.get_or_create(
+            email='admin@sportrent.ru',
+            defaults={'role': 'administrator'}
+        )
+        if created:
+            admin_user.set_password('admin123')
+            admin_user.is_staff = True
+            admin_user.save()
+        Administrator.objects.get_or_create(
+            user=admin_user,
+            defaults={
+                'full_name': 'Администратор Системы',
+                'email_work': 'admin@sportrent.ru'
+            }
+        )
 
         # Менеджеры
         manager_data = [
@@ -61,20 +65,22 @@ class Command(BaseCommand):
             ('manager2@sportrent.ru', 'Сидорова Анна Ивановна'),
         ]
 
-        for email, name in manager_data:
-            if not User.objects.filter(email=email).exists():
-                user = User.objects.create_user(
-                    email=email,
-                    password='manager123',
-                    role='manager',
-                    is_staff=True
-                )
-                Manager.objects.create(
-                    user=user,
-                    full_name=name,
-                    phone_work='+7(999)222-33-44',
-                    email_work=email
-                )
+        for index, (email, name) in enumerate(manager_data, start=1):
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={'role': 'manager', 'is_staff': True}
+            )
+            if created:
+                user.set_password('manager123')
+                user.save()
+            Manager.objects.get_or_create(
+                user=user,
+                defaults={
+                    'full_name': name,
+                    'phone_work': f'+7(999)222-33-4{index}',
+                    'email_work': email
+                }
+            )
 
         # Владельцы
         owner_data = [
@@ -83,17 +89,37 @@ class Command(BaseCommand):
             ('owner3@mail.ru', 'Николаев Николай Николаевич'),
         ]
 
-        for email, name in owner_data:
-            if not User.objects.filter(email=email).exists():
-                user = User.objects.create_user(
-                    email=email,
-                    password='owner123',
-                    role='owner'
+        for index, (email, name) in enumerate(owner_data, start=1):
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={'role': 'owner'}
+            )
+            if created:
+                user.set_password('owner123')
+                user.save()
+            if not user.phone:
+                user.phone = f'+7{9000000000 + index}'
+                user.save(update_fields=['phone'])
+            owner, _ = Owner.objects.get_or_create(
+                user=user,
+                defaults={'full_name': name, 'verified': random.choice([True, False])}
+            )
+            if not OwnerAgreement.objects.filter(owner=owner, is_accepted=True).exists():
+                OwnerAgreement.objects.create(
+                    owner=owner,
+                    owner_percentage=70,
+                    store_percentage=30,
+                    agreement_text="Соглашение о выплатах: 70% владельцу, 30% магазину",
+                    is_accepted=True,
+                    accepted_date=timezone.now()
                 )
-                Owner.objects.create(
-                    user=user,
-                    full_name=name,
-                    verified=random.choice([True, False])
+            if not BankAccount.objects.filter(owner=owner).exists():
+                BankAccount.objects.create(
+                    owner=owner,
+                    bank_name='Сбербанк',
+                    account_number=f'2222-2222-2222-{str(1110 + index)}',
+                    recipient_name=owner.full_name,
+                    is_default=True
                 )
 
         # Клиенты
@@ -105,19 +131,25 @@ class Command(BaseCommand):
             ('client5@mail.ru', 'Федоров Андрей Михайлович'),
         ]
 
-        for email, name in client_data:
-            if not User.objects.filter(email=email).exists():
-                user = User.objects.create_user(
-                    email=email,
-                    password='client123',
-                    role='client'
-                )
-                Client.objects.create(
-                    user=user,
-                    full_name=name,
-                    verified=random.choice([True, False]),
-                    preferred_payment=random.choice(['card', 'cash', 'online'])
-                )
+        for index, (email, name) in enumerate(client_data, start=1):
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={'role': 'client'}
+            )
+            if created:
+                user.set_password('client123')
+                user.save()
+            if not user.phone:
+                user.phone = f'+7{9100000000 + index}'
+                user.save(update_fields=['phone'])
+            Client.objects.get_or_create(
+                user=user,
+                defaults={
+                    'full_name': name,
+                    'verified': random.choice([True, False]),
+                    'preferred_payment': random.choice(['card', 'cash', 'online'])
+                }
+            )
 
         self.stdout.write(self.style.SUCCESS(f'Создано пользователей: {User.objects.count()}'))
 
@@ -198,7 +230,7 @@ class Command(BaseCommand):
                 weights=[0.6, 0.2, 0.2]
             )[0]
 
-            Inventory.objects.get_or_create(
+            inventory, _ = Inventory.objects.get_or_create(
                 name=name,
                 defaults={
                     'owner': owner,
@@ -215,6 +247,13 @@ class Command(BaseCommand):
                     'deposit_amount': price * Decimal('0.3'),
                 }
             )
+            if not inventory.bank_account:
+                owner_account = BankAccount.objects.filter(owner=owner, is_default=True).first()
+                if not owner_account:
+                    owner_account = BankAccount.objects.filter(owner=owner).first()
+                if owner_account:
+                    inventory.bank_account = owner_account
+                    inventory.save(update_fields=['bank_account'])
 
         self.stdout.write(self.style.SUCCESS(f'Создано инвентаря: {Inventory.objects.count()}'))
 
@@ -276,19 +315,25 @@ class Command(BaseCommand):
             'Приятное обслуживание.',
         ]
 
-        for rental in completed_rentals[:7]:
-            # Отзыв о инвентаре
-            Review.objects.create(
+        for rental in completed_rentals[:15]:
+            Review.objects.get_or_create(
                 rental=rental,
                 reviewer=rental.client.user,
-                reviewed_id=rental.inventory.inventory_id,
                 target_type='inventory',
-                rating=random.randint(4, 5),
-                comment=random.choice(comments),
-                status='published',
-                punctuality_rating=random.randint(4, 5),
-                condition_rating=random.randint(4, 5),
-                communication_rating=random.randint(4, 5)
+                defaults={
+                    'reviewed_id': rental.inventory.inventory_id,
+                    'rating': random.randint(4, 5),
+                    'comment': random.choice(comments),
+                    'status': 'published',
+                    'punctuality_rating': random.randint(4, 5),
+                    'condition_rating': random.randint(4, 5),
+                    'communication_rating': random.randint(4, 5),
+                }
             )
+
+        # Обновляем рейтинг по всем отзывам
+        from reviews.views import update_inventory_rating
+        for inventory in Inventory.objects.all():
+            update_inventory_rating(inventory)
 
         self.stdout.write(self.style.SUCCESS(f'Создано отзывов: {Review.objects.count()}'))

@@ -51,7 +51,7 @@
                                 <th>Комментарий</th>
                                 {% if user.role == 'administrator' %}
                                     <th>Статус</th>
-                                    <th class="text-end">Действия</th>
+                                    <th class="text-end" style="min-width: 140px;">Действия</th>
                                 {% endif %}
                             </tr>
                         </thead>
@@ -88,12 +88,12 @@
                                         </td>
                                         <td class="text-end">
                                             {% if review.status == 'pending' %}
-                                                <div class="d-flex justify-content-end gap-2">
-                                                    <form method="post" action="{% url 'reviews:approve' review.review_id %}" data-preserve-scroll="true">
+                                                <div class="d-flex flex-nowrap gap-1 justify-content-end">
+                                                    <form method="post" action="{% url 'reviews:approve' review.review_id %}" data-preserve-scroll="true" class="d-inline">
                                                         {% csrf_token %}
-                                                        <button type="submit" class="btn btn-sm btn-success" style="min-width: 110px;">Одобрить</button>
+                                                        <button type="submit" class="btn btn-sm btn-success">Одобрить</button>
                                                     </form>
-                                                    <button type="button" class="btn btn-sm btn-danger" style="min-width: 110px;" data-bs-toggle="modal" data-bs-target="#rejectReviewModal{{ review.review_id }}">Отклонить</button>
+                                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectReviewModal{{ review.review_id }}">Отклонить</button>
                                                 </div>
                                             {% else %}
                                                 <span class="text-muted small">Обработан</span>

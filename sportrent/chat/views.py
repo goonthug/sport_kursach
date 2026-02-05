@@ -28,9 +28,14 @@ def chat_list(request):
     user = request.user
 
     # Получаем все чаты где пользователь участвует
-    chats_qs = ChatMessage.objects.filter(
-        Q(sender=user) | Q(receiver=user)
-    ).select_related('rental', 'rental__inventory', 'sender', 'receiver').order_by('rental', '-sent_date')
+    if user.role == 'administrator':
+        chats_qs = ChatMessage.objects.select_related(
+            'rental', 'rental__inventory', 'rental__client', 'rental__manager', 'sender', 'receiver'
+        ).order_by('rental', '-sent_date')
+    else:
+        chats_qs = ChatMessage.objects.filter(
+            Q(sender=user) | Q(receiver=user)
+        ).select_related('rental', 'rental__inventory', 'sender', 'receiver').order_by('rental', '-sent_date')
 
     # Группируем по rental_id и берем последнее сообщение
     chat_groups = {}
@@ -38,14 +43,16 @@ def chat_list(request):
         rental_id = str(message.rental.rental_id)
         if rental_id not in chat_groups:
             # Определяем собеседника
-            other_user = message.receiver if message.sender == user else message.sender
-
-            # Подсчитываем непрочитанные
-            unread_count = ChatMessage.objects.filter(
-                rental=message.rental,
-                receiver=user,
-                is_read=False
-            ).count()
+            if user.role == 'administrator':
+                other_user = message.sender
+                unread_count = 0
+            else:
+                other_user = message.receiver if message.sender == user else message.sender
+                unread_count = ChatMessage.objects.filter(
+                    rental=message.rental,
+                    receiver=user,
+                    is_read=False
+                ).count()
 
             chat_groups[rental_id] = {
                 'rental': message.rental,
