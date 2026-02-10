@@ -58,6 +58,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='client', verbose_name='Роль')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', verbose_name='Статус')
+    block_reason = models.TextField(blank=True, verbose_name='Причина блокировки')
 
     registration_date = models.DateTimeField(default=timezone.now, verbose_name='Дата регистрации')
     avatar_url = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='Аватар')

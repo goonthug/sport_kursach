@@ -116,7 +116,9 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <p class="mb-0">Заблокировать пользователя {{ user.email }}? Он не сможет войти в систему.</p>
+                                <p class="mb-3">Заблокировать пользователя <strong>{{ user.email }}</strong>? Он не сможет войти в систему. Укажите причину блокировки — она будет показана пользователю при попытке входа.</p>
+                                <label for="block_reason_{{ user.user_id }}" class="form-label">Причина блокировки</label>
+                                <textarea name="block_reason" id="block_reason_{{ user.user_id }}" class="form-control" rows="3" placeholder="Например: нарушение правил платформы" required></textarea>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>

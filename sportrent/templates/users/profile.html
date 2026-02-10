@@ -171,8 +171,11 @@
                             <p class="text-muted">
                                 Здесь будет отображаться информация о вашем инвентаре
                             </p>
-                            <a href="{% url 'inventory:list' %}" class="btn btn-outline-primary">
+                            <a href="{% url 'inventory:my_inventory' %}" class="btn btn-outline-primary">
                                 <i class="bi bi-box"></i> Мой инвентарь
+                            </a>
+                            <a href="{% url 'inventory:owner_earnings' %}" class="btn btn-outline-success mt-2">
+                                <i class="bi bi-graph-up"></i> Аналитика заработка
                             </a>
                             
                             <hr class="my-4">

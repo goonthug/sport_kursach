@@ -22,7 +22,7 @@
     <!-- Навигация -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'core:home' %}" style="font-family: 'Bebas Neue', cursive; font-size: 32px; letter-spacing: 2px;">
+            <a class="navbar-brand" href="{% url 'core:home' %}">
                 СпортРент
             </a>
 
@@ -54,6 +54,11 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'inventory:my_inventory' %}">
                                     <i class="bi bi-box"></i> Мой инвентарь
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'inventory:owner_earnings' %}">
+                                    <i class="bi bi-graph-up"></i> Аналитика
                                 </a>
                             </li>
                         {% endif %}
@@ -155,7 +160,7 @@
             </div>
             <hr class="mt-4 mb-3" style="border-color: rgba(255,255,255,0.1)">
             <div class="text-center text-muted">
-                <p>&copy; 2026 СпортРент. Курсовой проект.</p>
+                <p>&copy; 2026 СпортРент.</p>
             </div>
         </div>
     </footer>

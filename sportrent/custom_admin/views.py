@@ -161,10 +161,12 @@ def admin_user_block(request, user_id):
         return redirect('custom_admin:users')
 
     if request.method == 'POST':
+        reason = (request.POST.get('block_reason') or '').strip() or 'Причина не указана.'
         user.status = 'blocked'
+        user.block_reason = reason
         user.save()
 
-        logger.info(f'Пользователь заблокирован: {user.email} администратором {request.user.email}')
+        logger.info(f'Пользователь заблокирован: {user.email}, причина: {reason}, администратор {request.user.email}')
         messages.success(request, f'Пользователь {user.email} заблокирован')
 
     return redirect('custom_admin:users')
@@ -183,6 +185,7 @@ def admin_user_unblock(request, user_id):
 
     if request.method == 'POST':
         user.status = 'active'
+        user.block_reason = ''
         user.save()
 
         logger.info(f'Пользователь разблокирован: {user.email} администратором {request.user.email}')

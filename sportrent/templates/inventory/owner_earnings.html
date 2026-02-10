@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Аналитика заработка - СпортРент{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Аналитика заработка</h2>
+            <p class="text-muted">Заработок со своего инвентаря за выбранный период (ваша доля 70%)</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'inventory:my_inventory' %}" class="btn btn-outline-primary">
+                <i class="bi bi-box"></i> Мой инвентарь
+            </a>
+        </div>
+    </div>
+
+    <!-- Фильтр по периоду -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3" data-preserve-scroll="true">
+                <div class="col-md-4">
+                    <label class="form-label">Дата с</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Дата по</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel"></i> Показать
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Итого за период -->
+    <div class="card shadow-sm mb-4 border-success">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-currency-exchange"></i> Итого за период</h5>
+            <p class="mb-0 display-6 text-success">{{ period_total|floatformat:2 }} ₽</p>
+            <small class="text-muted">{{ date_from|date:"d.m.Y" }} — {{ date_to|date:"d.m.Y" }}</small>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Заработок по дням -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Заработок по дням</h5>
+                </div>
+                <div class="card-body">
+                    {% if earnings_by_day %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Дата</th>
+                                        <th>Аренд</th>
+                                        <th class="text-end">Заработок</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in earnings_by_day %}
+                                    <tr>
+                                        <td>{{ row.day|date:"d.m.Y" }}</td>
+                                        <td>{{ row.rentals_count }}</td>
+                                        <td class="text-end text-success">{{ row.earnings|floatformat:2 }} ₽</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">За выбранный период завершённых аренд нет.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Топ инвентаря по заработку -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Больше всего зарабатывает</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_inventory %}
+                        <ul class="list-group list-group-flush">
+                            {% for item in top_inventory %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    <a href="{% url 'inventory:detail' item.inventory.inventory_id %}" class="text-decoration-none">{{ item.inventory.name }}</a>
+                                    <br><small class="text-muted">Аренд: {{ item.rentals_count }}</small>
+                                </div>
+                                <span class="badge bg-success rounded-pill">{{ item.earnings|floatformat:2 }} ₽</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">Пока нет завершённых аренд по вашему инвентарю.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Меньше всего спроса -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-graph-down-arrow"></i> Меньше всего спроса (низкий доход или без аренд)</h5>
+        </div>
+        <div class="card-body">
+            {% if least_inventory %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Инвентарь</th>
+                                <th>Кол-во аренд</th>
+                                <th class="text-end">Заработок</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in least_inventory %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:detail' item.inventory.inventory_id %}" class="text-decoration-none">{{ item.inventory.name }}</a>
+                                </td>
+                                <td>{{ item.rentals_count }}</td>
+                                <td class="text-end">{{ item.earnings|floatformat:2 }} ₽</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">У вас один предмет инвентаря или по всем есть аренды.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

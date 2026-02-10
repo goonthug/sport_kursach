@@ -7,9 +7,14 @@ import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from datetime import datetime, timedelta
+from decimal import Decimal
+
 from django.core.paginator import Paginator
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, Sum, Count
+from django.db.models.functions import TruncDate
 from django.db import transaction
+from django.utils import timezone
 
 from .models import Inventory, SportCategory, InventoryPhoto, Favorite
 from .forms import InventoryForm, InventoryPhotoFormSet
@@ -320,6 +325,119 @@ def my_inventory(request):
     }
 
     return render(request, 'inventory/my_inventory.html', context)
+
+
+@login_required
+def owner_earnings_analytics(request):
+    """
+    Аналитика заработка владельца: по дням, за период, топ и аутсайдеры по инвентарю.
+    """
+    if request.user.role != 'owner' or not hasattr(request.user, 'owner_profile'):
+        messages.error(request, 'Доступно только владельцам инвентаря')
+        return redirect('core:home')
+
+    owner = request.user.owner_profile
+    owner_pct = Decimal('0.70')  # 70% владельцу по умолчанию
+
+    # Период из GET или по умолчанию последние 30 дней
+    today = timezone.now().date()
+    try:
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        if date_from:
+            date_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+        else:
+            date_from = today - timedelta(days=30)
+        if date_to:
+            date_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+        else:
+            date_to = today
+        if date_from > date_to:
+            date_from, date_to = date_to, date_from
+    except (ValueError, TypeError):
+        date_from = today - timedelta(days=30)
+        date_to = today
+
+    from rentals.models import Rental
+
+    # Заработок по дням (завершённые аренды, дата = actual_return_date)
+    rentals_completed = Rental.objects.filter(
+        inventory__owner=owner,
+        status='completed',
+        actual_return_date__isnull=False,
+        actual_return_date__date__gte=date_from,
+        actual_return_date__date__lte=date_to,
+    )
+    earnings_by_day_qs = rentals_completed.annotate(
+        day=TruncDate('actual_return_date')
+    ).values('day').annotate(
+        total=Sum('total_price')
+    ).order_by('day')
+    earnings_by_day = []
+    for row in earnings_by_day_qs:
+        earnings_by_day.append({
+            'day': row['day'],
+            'earnings': (row['total'] or Decimal('0')) * owner_pct,
+            'rentals_count': None,
+        })
+    # Количество аренд по дням
+    from django.db.models import Count
+    count_by_day = rentals_completed.annotate(
+        day=TruncDate('actual_return_date')
+    ).values('day').annotate(
+        cnt=Count('rental_id')
+    )
+    count_map = {r['day']: r['cnt'] for r in count_by_day}
+    for row in earnings_by_day:
+        row['rentals_count'] = count_map.get(row['day'], 0)
+
+    # Итого за период
+    period_total = sum((r['earnings'] for r in earnings_by_day), Decimal('0'))
+
+    # По инвентарю: кто приносит больше всего и меньше всего (по сумме заработка и по количеству аренд)
+    inventory_with_stats = Inventory.objects.filter(
+        owner=owner
+    ).annotate(
+        completed_rentals=Count('rentals', filter=Q(rentals__status='completed')),
+        total_revenue=Sum('rentals__total_price', filter=Q(rentals__status='completed')),
+    ).filter(
+        completed_rentals__gt=0
+    ).order_by('-total_revenue')
+    top_inventory = []
+    for inv in inventory_with_stats[:10]:
+        total_rev = inv.total_revenue or Decimal('0')
+        top_inventory.append({
+            'inventory': inv,
+            'rentals_count': inv.completed_rentals,
+            'earnings': total_rev * owner_pct,
+        })
+    # Меньше всего спроса (по количеству аренд или по сумме)
+    least_inventory = list(
+        Inventory.objects.filter(owner=owner).annotate(
+            completed_rentals=Count('rentals', filter=Q(rentals__status='completed')),
+            total_revenue=Sum('rentals__total_price', filter=Q(rentals__status='completed')),
+        ).order_by('completed_rentals', 'total_revenue')[:10]
+    )
+    least_inventory_with_earnings = []
+    for inv in least_inventory:
+        rev = getattr(inv, 'total_revenue', None) or Decimal('0')
+        cnt = getattr(inv, 'completed_rentals', 0)
+        least_inventory_with_earnings.append({
+            'inventory': inv,
+            'rentals_count': cnt,
+            'earnings': rev * owner_pct,
+        })
+
+    context = {
+        'date_from': date_from,
+        'date_to': date_to,
+        'earnings_by_day': earnings_by_day,
+        'period_total': period_total,
+        'top_inventory': top_inventory,
+        'least_inventory': least_inventory_with_earnings,
+        'owner_pct': owner_pct,
+    }
+    return render(request, 'inventory/owner_earnings.html', context)
 
 
 @login_required

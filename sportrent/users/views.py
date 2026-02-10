@@ -67,7 +67,11 @@ def user_login(request):
 
             if user is not None:
                 if user.status == 'blocked':
-                    messages.error(request, 'Ваш аккаунт заблокирован. Обратитесь в поддержку.')
+                    reason = getattr(user, 'block_reason', '') or 'Причина не указана.'
+                    messages.error(
+                        request,
+                        f'Ваш аккаунт заблокирован. Причина: {reason} Обратитесь в поддержку.'
+                    )
                     logger.warning(f'Попытка входа заблокированного пользователя: {email}')
                 else:
                     login(request, user)

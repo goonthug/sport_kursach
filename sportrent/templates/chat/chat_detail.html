@@ -81,6 +81,7 @@
                             {% else %}
                                 <small class="text-muted">Просмотр чата</small>
                             {% endif %}
+                            <span id="chatWsStatus" class="small text-success ms-2"></span>
                         </div>
                         {% if rental.status == 'inquiry' %}
                             <a href="{% url 'inventory:detail' rental.inventory.inventory_id %}" class="btn btn-sm btn-outline-primary">
@@ -229,7 +230,7 @@
 </div>
 
 <script>
-// Автоматическая прокрутка к последнему сообщению
+// Чат на WebSocket: мгновенная доставка сообщений без перезагрузки страницы
 document.addEventListener('DOMContentLoaded', function() {
     const chatContainer = document.getElementById('chatContainer');
     if (chatContainer) {
@@ -243,9 +244,52 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const chatSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/chat/${rentalId}/`);
+    let chatSocket = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = 2000;
 
-    const form = document.getElementById('chatForm');
+    function connect() {
+        chatSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/chat/${rentalId}/`);
+        setStatus('connecting');
+
+        chatSocket.onopen = function() {
+            reconnectAttempts = 0;
+            setStatus('connected');
+        };
+
+        chatSocket.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type !== 'chat.message') {
+                    return;
+                }
+                appendMessage(data.message);
+            } catch (e) {
+                console.error('Ошибка сообщения чата', e);
+            }
+        };
+
+        chatSocket.onclose = function() {
+            setStatus('closed');
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts += 1;
+                setTimeout(connect, reconnectDelay);
+            }
+        };
+
+        chatSocket.onerror = function() {
+            setStatus('error');
+        };
+    }
+
+    function setStatus(status) {
+        const el = document.getElementById('chatWsStatus');
+        if (!el) return;
+        const labels = { connecting: 'Подключение…', connected: 'В сети', closed: 'Переподключение…', error: 'Ошибка соединения' };
+        el.textContent = labels[status] || '';
+        el.className = 'small ' + (status === 'connected' ? 'text-success' : 'text-warning');
+    }
 
     function appendMessage(msg) {
         if (document.querySelector(`[data-message-id="${msg.message_id}"]`)) {
@@ -280,18 +324,9 @@ document.addEventListener('DOMContentLoaded', function() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    chatSocket.onmessage = function(event) {
-        try {
-            const data = JSON.parse(event.data);
-            if (data.type !== 'chat.message') {
-                return;
-            }
-            appendMessage(data.message);
-        } catch (e) {
-            console.error('Ошибка сообщения чата', e);
-        }
-    };
+    connect();
 
+    const form = document.getElementById('chatForm');
     if (form) {
         form.addEventListener('submit', function(event) {
             const textarea = form.querySelector('textarea[name="message_text"]');
@@ -307,15 +342,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            if (chatSocket.readyState !== WebSocket.OPEN) {
-                return;
+            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                event.preventDefault();
+                chatSocket.send(JSON.stringify({ message: text }));
+                textarea.value = '';
             }
-
-            event.preventDefault();
-            chatSocket.send(JSON.stringify({ message: text }));
-            textarea.value = '';
         });
     }
+
+    window.addEventListener('beforeunload', function() {
+        if (chatSocket) chatSocket.close();
+    });
 });
 </script>
 {% endblock %}

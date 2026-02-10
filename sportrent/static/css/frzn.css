@@ -104,8 +104,8 @@ a:hover {
 }
 
 .navbar-brand {
-  font-family: var(--font-display);
-  font-size: 32px;
+  font-family: var(--font-body);
+  font-size: 1.25rem;
   letter-spacing: 2px;
   color: var(--pure-white);
 }
