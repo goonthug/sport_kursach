@@ -9,13 +9,19 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
 
 import os
 
+# 1) Сначала задаём настройки и инициализируем Django (загружаем приложения).
+# Иначе при импорте chat.routing -> consumers -> models получим "Apps aren't loaded yet".
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+
+import django
+django.setup()
+
+# 2) Только после setup() импортируем приложения и Channels.
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
 
 from chat.routing import websocket_urlpatterns
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
