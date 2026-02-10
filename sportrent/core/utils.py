@@ -23,29 +23,42 @@ _PDF_CYRILLIC_FONT = None
 
 
 def _get_pdf_cyrillic_font():
-    """Регистрирует и возвращает имя шрифта с поддержкой кириллицы (Arial или DejaVu)."""
+    """
+    Регистрирует и возвращает шрифт с поддержкой кириллицы для PDF.
+    Порядок: 1) Встроенные шрифты в static/fonts (одинаково на Windows и Linux),
+    2) На Windows — Arial из системы, 3) Helvetica (кириллица не отображается).
+    Для работы на Linux поместите DejaVuSans.ttf и DejaVuSans-Bold.ttf в static/fonts/.
+    """
     global _PDF_CYRILLIC_FONT
     if _PDF_CYRILLIC_FONT:
         return _PDF_CYRILLIC_FONT
     font_name = 'Helvetica'
     try:
+        base_dir = getattr(settings, 'BASE_DIR', None)
+        if base_dir:
+            base_dir = str(base_dir)
+            # Единый путь для всех ОС: проект/static/fonts (рядом с manage.py — корень проекта)
+            fonts_dir = os.path.join(base_dir, 'static', 'fonts')
+            normal_path = os.path.join(fonts_dir, 'DejaVuSans.ttf')
+            bold_path = os.path.join(fonts_dir, 'DejaVuSans-Bold.ttf')
+            if os.path.exists(normal_path):
+                pdfmetrics.registerFont(TTFont('PdfCyrillic', normal_path))
+                pdfmetrics.registerFont(TTFont('PdfCyrillicBold', bold_path if os.path.exists(bold_path) else normal_path))
+                _PDF_CYRILLIC_FONT = 'PdfCyrillic'
+                return _PDF_CYRILLIC_FONT
         if sys.platform == 'win32':
             win_fonts = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts')
             arial_path = os.path.join(win_fonts, 'arial.ttf')
             arial_bold_path = os.path.join(win_fonts, 'arialbd.ttf')
             if os.path.exists(arial_path):
                 pdfmetrics.registerFont(TTFont('PdfCyrillic', arial_path))
-                if os.path.exists(arial_bold_path):
-                    pdfmetrics.registerFont(TTFont('PdfCyrillicBold', arial_bold_path))
-                else:
-                    pdfmetrics.registerFont(TTFont('PdfCyrillicBold', arial_path))
+                pdfmetrics.registerFont(TTFont('PdfCyrillicBold', arial_bold_path if os.path.exists(arial_bold_path) else arial_path))
                 _PDF_CYRILLIC_FONT = 'PdfCyrillic'
                 return _PDF_CYRILLIC_FONT
-        base_dir = getattr(settings, 'BASE_DIR', None)
-        if base_dir:
-            fonts_dir = os.path.join(base_dir, 'sportrent', 'static', 'fonts')
-            normal_path = os.path.join(fonts_dir, 'DejaVuSans.ttf')
-            bold_path = os.path.join(fonts_dir, 'DejaVuSans-Bold.ttf')
+        # Linux: типичные пути к DejaVu (пакет fonts-dejavu-core)
+        for linux_dir in ('/usr/share/fonts/truetype/dejavu', '/usr/share/fonts/TTF', '/usr/share/fonts/dejavu'):
+            normal_path = os.path.join(linux_dir, 'DejaVuSans.ttf')
+            bold_path = os.path.join(linux_dir, 'DejaVuSans-Bold.ttf')
             if os.path.exists(normal_path):
                 pdfmetrics.registerFont(TTFont('PdfCyrillic', normal_path))
                 pdfmetrics.registerFont(TTFont('PdfCyrillicBold', bold_path if os.path.exists(bold_path) else normal_path))

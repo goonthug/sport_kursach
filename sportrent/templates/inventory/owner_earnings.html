@@ -92,7 +92,7 @@
                     {% if top_inventory %}
                         <ul class="list-group list-group-flush">
                             {% for item in top_inventory %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-3">
                                 <div>
                                     <a href="{% url 'inventory:detail' item.inventory.inventory_id %}" class="text-decoration-none">{{ item.inventory.name }}</a>
                                     <br><small class="text-muted">Аренд: {{ item.rentals_count }}</small>

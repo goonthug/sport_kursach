@@ -10,8 +10,17 @@
                 <div class="card-body p-5">
                     <h2 class="text-center mb-4">Вход в систему</h2>
                     <p class="text-center text-muted mb-4">Войдите в свой аккаунт</p>
-                    
-                <form method="post" novalidate data-preserve-scroll="true">
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" novalidate data-preserve-scroll="true">
                         {% csrf_token %}
                         
                         <div class="mb-3">
