@@ -614,10 +614,12 @@ def contract_download(request, pk):
             status='active',
         )
 
-    # Путь к шаблону договора: берём файл "договор аренды.docx" уровнем выше BASE_DIR (как у тебя на Desktop)
+    # Путь к шаблону договора:
+    # ожидаем, что файл "dogovor_arendy.docx" лежит в папке contracts внутри проекта (BASE_DIR/contracts).
+    # Так проект будет работать одинаково на любом компьютере.
     from pathlib import Path
 
-    template_path = (Path(settings.BASE_DIR).parent / 'договор аренды.docx')
+    template_path = (Path(settings.BASE_DIR) / 'contracts' / 'dogovor_arendy.docx')
     if not template_path.exists():
         messages.error(
             request,
@@ -654,11 +656,11 @@ def contract_download(request, pk):
             paragraph.text = f'ДОГОВОР АРЕНДЫ № {contract.contract_number}'
             break
 
-    # 2) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Казань, DD.MM.YYYY г."
+    # 2) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Альметьевск, DD.MM.YYYY г."
     formatted_date = today.strftime('%d.%m.%Y')
     for paragraph in document.paragraphs:
-        if 'г.' in paragraph.text and 'Казань' in paragraph.text:
-            paragraph.text = f'г. Казань, {formatted_date} г.'
+        if 'г.' in paragraph.text:
+            paragraph.text = f'г. Альметьевск, {formatted_date} г.'
             break
 
     # 3) ФИО менеджера: в шаблоне стоит "Петров Петр Петрович"
