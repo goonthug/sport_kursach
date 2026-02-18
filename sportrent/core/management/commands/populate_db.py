@@ -142,12 +142,23 @@ class Command(BaseCommand):
             if not user.phone:
                 user.phone = f'+7{9100000000 + index}'
                 user.save(update_fields=['phone'])
+
+            # Генерируем реалистичные паспортные данные
+            passport_series = f"{4500 + index:04d}"
+            passport_number = f"{120000 + index:06d}"
+            passport_issue_date = (timezone.now() - timedelta(days=365 * random.randint(3, 15))).date()
+            passport_department_code = f"{random.randint(100, 899):03d}-{random.randint(100, 899):03d}"
+
             Client.objects.get_or_create(
                 user=user,
                 defaults={
                     'full_name': name,
                     'verified': random.choice([True, False]),
-                    'preferred_payment': random.choice(['card', 'cash', 'online'])
+                    'preferred_payment': random.choice(['card', 'cash', 'online']),
+                    'passport_series': passport_series,
+                    'passport_number': passport_number,
+                    'passport_issue_date': passport_issue_date,
+                    'passport_department_code': passport_department_code,
                 }
             )
 

@@ -13,4 +13,5 @@ urlpatterns = [
     path('<uuid:pk>/complete/', views.rental_complete, name='complete'),
     path('<uuid:pk>/extend/', views.rental_extend, name='extend'),
     path('<uuid:pk>/cancel/', views.rental_cancel, name='cancel'),
+    path('<uuid:pk>/contract/download/', views.contract_download, name='contract_download'),
 ]

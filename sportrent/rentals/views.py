@@ -5,16 +5,18 @@ Views для управления арендой - ПОЛНАЯ РЕАЛИЗАЦ
 import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .models import Rental, Payment, Contract
-from .forms import RentalCreateForm, RentalUpdateForm, RentalBankAccountForm
+from .forms import RentalBankAccountForm, RentalCreateForm, RentalUpdateForm
+from .models import Contract, Payment, Rental
 from inventory.models import Inventory
 from users.models import Client, Manager
 
@@ -538,3 +540,110 @@ def rental_cancel(request, pk):
             messages.error(request, 'Ошибка при отмене')
 
     return redirect('rentals:detail', pk=pk)
+
+
+@login_required
+def contract_download(request, pk):
+    """
+    Скачивание договора аренды для заявки в статусе «Подтверждена».
+    В договор подставляются данные из аренды и профилей клиента и менеджера.
+    """
+    rental = get_object_or_404(
+        Rental.objects.select_related(
+            'inventory',
+            'client',
+            'client__user',
+            'manager',
+            'manager__user',
+        ),
+        pk=pk,
+    )
+
+    user = request.user
+
+    # Доступ только менеджеру, который ведёт эту аренду, или администратору
+    if user.role == 'manager':
+        if not hasattr(user, 'manager_profile') or rental.manager != user.manager_profile:
+            messages.error(request, 'Недостаточно прав для скачивания договора')
+            return redirect('rentals:detail', pk=pk)
+    elif user.role != 'administrator':
+        messages.error(request, 'Недостаточно прав для скачивания договора')
+        return redirect('rentals:detail', pk=pk)
+
+    if rental.status != 'confirmed':
+        messages.error(request, 'Договор доступен только для подтвержденных заявок')
+        return redirect('rentals:detail', pk=pk)
+
+    # Определяем менеджера, который попадает в договор
+    if user.role == 'manager' and hasattr(user, 'manager_profile'):
+        manager_profile = user.manager_profile
+    else:
+        manager_profile = rental.manager
+
+    manager_full_name = manager_profile.full_name if manager_profile else ''
+
+    client = rental.client
+    client_full_name = client.full_name
+
+    # Паспортные данные клиента
+    passport_series = client.passport_series or ''
+    passport_number = client.passport_number or ''
+    passport_issue_date = client.passport_issue_date
+    passport_department_code = client.passport_department_code or ''
+
+    today = timezone.now().date()
+
+    # Получаем или создаём запись о договоре
+    contract = getattr(rental, 'contract', None)
+    if contract is None:
+        # Номер договора: последовательный, уникальный
+        base_number = Contract.objects.count() + 1
+        contract_number = str(base_number)
+        while Contract.objects.filter(contract_number=contract_number).exists():
+            base_number += 1
+            contract_number = str(base_number)
+
+        rental_days = rental.rental_days
+
+        # Текст договора: динамические части формируем здесь.
+        # Основной текст вы можете заменить на свой в дальнейшем.
+        lines = [
+            f"Договор аренды № {contract_number}",
+            f"г. Казань, {today.strftime('%d.%m.%Y')}",
+            "",
+            f"{manager_full_name}, действующий(ая) от имени сервиса аренды спортивного инвентаря,",
+            f"с одной стороны и {client_full_name},",
+            f"Паспорт: серия {passport_series} № {passport_number},",
+        ]
+
+        if passport_issue_date:
+            lines.append(f"выдан {passport_issue_date.strftime('%d.%m.%Y')},")
+        if passport_department_code:
+            lines.append(f"код подразделения {passport_department_code},")
+
+        lines.append(
+            f"с другой стороны, совместно именуемые «Стороны», заключили настоящий договор аренды на срок "
+            f"{rental_days} дней о нижеследующем:"
+        )
+        lines.append("")
+        lines.append("Остальной текст договора остаётся без изменений согласно шаблону.")
+
+        terms_text = "\n".join(lines)
+
+        contract = Contract.objects.create(
+            rental=rental,
+            contract_number=contract_number,
+            terms=terms_text,
+            start_date=rental.start_date.date(),
+            end_date=rental.end_date.date(),
+            signed_date=today,
+            status='active',
+        )
+    else:
+        terms_text = contract.terms
+
+    # Отдаём договор как текстовый файл для скачивания.
+    filename = f"dogovor_arendy_{contract.contract_number}.txt"
+    response = HttpResponse(terms_text, content_type='text/plain; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+    return response

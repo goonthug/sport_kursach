@@ -116,7 +116,32 @@ class Client(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='client_profile')
 
     full_name = models.CharField(max_length=200, verbose_name='Полное имя')
-    passport_data = models.TextField(blank=True, verbose_name='Паспортные данные')
+
+    # Паспортные данные клиента. Заполняются при регистрации и далее не изменяются через сайт.
+    passport_series = models.CharField(
+        max_length=4,
+        blank=True,
+        null=True,
+        verbose_name='Серия паспорта',
+    )
+    passport_number = models.CharField(
+        max_length=6,
+        blank=True,
+        null=True,
+        verbose_name='Номер паспорта',
+    )
+    passport_issue_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='Дата выдачи паспорта',
+    )
+    passport_department_code = models.CharField(
+        max_length=7,
+        blank=True,
+        null=True,
+        verbose_name='Код подразделения',
+        help_text='В формате 000-000',
+    )
 
     rating = models.DecimalField(
         max_digits=3,

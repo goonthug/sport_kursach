@@ -161,7 +161,21 @@ def admin_user_block(request, user_id):
         return redirect('custom_admin:users')
 
     if request.method == 'POST':
-        reason = (request.POST.get('block_reason') or '').strip() or 'Причина не указана.'
+        # Основная причина выбирается из списка, при необходимости админ может добавить комментарий.
+        reason_choice = (request.POST.get('block_reason_choice') or '').strip()
+        reason_custom = (request.POST.get('block_reason_custom') or '').strip()
+
+        if not reason_choice and not reason_custom:
+            messages.error(request, 'Укажите причину блокировки')
+            return redirect('custom_admin:users')
+
+        if reason_choice and reason_custom:
+            reason = f'{reason_choice}. Дополнительно: {reason_custom}'
+        elif reason_choice:
+            reason = reason_choice
+        else:
+            reason = reason_custom
+
         user.status = 'blocked'
         user.block_reason = reason
         user.save()

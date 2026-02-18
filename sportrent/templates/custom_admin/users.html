@@ -117,8 +117,20 @@
                             </div>
                             <div class="modal-body">
                                 <p class="mb-3">Заблокировать пользователя <strong>{{ user.email }}</strong>? Он не сможет войти в систему. Укажите причину блокировки — она будет показана пользователю при попытке входа.</p>
-                                <label for="block_reason_{{ user.user_id }}" class="form-label">Причина блокировки</label>
-                                <textarea name="block_reason" id="block_reason_{{ user.user_id }}" class="form-control" rows="3" placeholder="Например: нарушение правил платформы" required></textarea>
+                                <div class="mb-3">
+                                    <label for="block_reason_choice_{{ user.user_id }}" class="form-label">Основная причина блокировки</label>
+                                    <select name="block_reason_choice" id="block_reason_choice_{{ user.user_id }}" class="form-select">
+                                        <option value="">Выберите причину</option>
+                                        <option value="Подозрение на мошенничество">Подозрение на мошенничество</option>
+                                        <option value="Многократные нарушения правил платформы">Многократные нарушения правил платформы</option>
+                                        <option value="Оскорбительное поведение по отношению к другим пользователям">Оскорбительное поведение по отношению к другим пользователям</option>
+                                        <option value="Спам или реклама несвязанных услуг">Спам или реклама несвязанных услуг</option>
+                                        <option value="Запрос на удаление/блокировку от самого пользователя">Запрос на удаление/блокировку от самого пользователя</option>
+                                        <option value="Иное (указано администратором)">Иное (указано администратором)</option>
+                                    </select>
+                                </div>
+                                <label for="block_reason_custom_{{ user.user_id }}" class="form-label">Дополнительный комментарий (необязательно)</label>
+                                <textarea name="block_reason_custom" id="block_reason_custom_{{ user.user_id }}" class="form-control" rows="3" placeholder="Например: конкретное описание нарушения"></textarea>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>

@@ -30,6 +30,18 @@
                             <i class="bi bi-telephone"></i> {{ user.phone }}
                         </p>
                     {% endif %}
+
+                    {% if user.role == 'client' and user.client_profile.passport_series %}
+                        <div class="text-muted small mb-3">
+                            <div>Паспорт: серия {{ user.client_profile.passport_series }}, номер {{ user.client_profile.passport_number }}</div>
+                            {% if user.client_profile.passport_issue_date %}
+                                <div>Выдан: {{ user.client_profile.passport_issue_date|date:"d.m.Y" }}</div>
+                            {% endif %}
+                            {% if user.client_profile.passport_department_code %}
+                                <div>Код подразделения: {{ user.client_profile.passport_department_code }}</div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
                     
                     {% if user.avg_rating %}
                         <div class="mb-3">

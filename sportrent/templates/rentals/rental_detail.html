@@ -181,6 +181,11 @@
                             <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#extendRentalModal">
                                 <i class="bi bi-calendar-plus"></i> Продлить аренду
                             </button>
+                            {% if rental.status == 'confirmed' %}
+                                <a href="{% url 'rentals:contract_download' rental.rental_id %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-file-earmark-text"></i> Скачать договор
+                                </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

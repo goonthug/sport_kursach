@@ -66,6 +66,53 @@ class UserRegistrationForm(UserCreationForm):
         })
     )
 
+    # Паспортные данные для клиента
+    passport_series = forms.CharField(
+        label='Серия паспорта',
+        required=False,
+        max_length=4,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '0000',
+            'id': 'id_passport_series',
+            'maxlength': '4',
+        })
+    )
+
+    passport_number = forms.CharField(
+        label='Номер паспорта',
+        required=False,
+        max_length=6,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '000000',
+            'id': 'id_passport_number',
+            'maxlength': '6',
+        })
+    )
+
+    passport_issue_date = forms.DateField(
+        label='Дата выдачи паспорта',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date',
+            'id': 'id_passport_issue_date',
+        })
+    )
+
+    passport_department_code = forms.CharField(
+        label='Код подразделения',
+        required=False,
+        max_length=7,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '000-000',
+            'id': 'id_passport_department_code',
+            'maxlength': '7',
+        })
+    )
+
     # Поля для владельца
     agreement_accepted = forms.BooleanField(
         label='Принимаю условия соглашения (70% владельцу, 30% магазину)',
@@ -181,6 +228,75 @@ class UserRegistrationForm(UserCreationForm):
 
         return password
 
+    def clean_passport_series(self):
+        """Серия паспорта: только 4 цифры."""
+        series = (self.cleaned_data.get('passport_series') or '').strip()
+        role = self.cleaned_data.get('role')
+
+        if role == 'client':
+            if not series:
+                raise ValidationError('Серия паспорта обязательна для клиента')
+            if not series.isdigit() or len(series) != 4:
+                raise ValidationError('Серия паспорта должна содержать 4 цифры')
+        elif not series:
+            return series
+
+        if series and (not series.isdigit() or len(series) != 4):
+            raise ValidationError('Серия паспорта должна содержать 4 цифры')
+
+        return series
+
+    def clean_passport_number(self):
+        """Номер паспорта: только 6 цифр."""
+        number = (self.cleaned_data.get('passport_number') or '').strip()
+        role = self.cleaned_data.get('role')
+
+        if role == 'client':
+            if not number:
+                raise ValidationError('Номер паспорта обязателен для клиента')
+            if not number.isdigit() or len(number) != 6:
+                raise ValidationError('Номер паспорта должен содержать 6 цифр')
+        elif not number:
+            return number
+
+        if number and (not number.isdigit() or len(number) != 6):
+            raise ValidationError('Номер паспорта должен содержать 6 цифр')
+
+        return number
+
+    def clean_passport_department_code(self):
+        """Код подразделения: формат 000-000, только цифры."""
+        code = (self.cleaned_data.get('passport_department_code') or '').strip()
+        role = self.cleaned_data.get('role')
+
+        if role == 'client':
+            if not code:
+                raise ValidationError('Код подразделения обязателен для клиента')
+
+        if not code:
+            return code
+
+        # Убираем все, кроме цифр
+        digits_only = re.sub(r'[^\d]', '', code)
+        if len(digits_only) != 6:
+            raise ValidationError('Код подразделения должен содержать 6 цифр (например: 123-456)')
+
+        # Возвращаем в формате 000-000
+        return f'{digits_only[:3]}-{digits_only[3:]}'
+
+    def clean_passport_issue_date(self):
+        """Дата выдачи паспорта: обязательна для клиента и не может быть в будущем."""
+        issue_date = self.cleaned_data.get('passport_issue_date')
+        role = self.cleaned_data.get('role')
+
+        if role == 'client' and not issue_date:
+            raise ValidationError('Дата выдачи паспорта обязательна для клиента')
+
+        if issue_date and issue_date > timezone.now().date():
+            raise ValidationError('Дата выдачи паспорта не может быть в будущем')
+
+        return issue_date
+
     def clean_account_number(self):
         """Валидация номера счета."""
         account_number = self.cleaned_data.get('account_number', '').strip()
@@ -216,7 +332,7 @@ class UserRegistrationForm(UserCreationForm):
         return recipient_name
 
     def clean(self):
-        """Валидация полей для владельца."""
+        """Валидация полей для владельца и клиента."""
         cleaned_data = super().clean()
         role = cleaned_data.get('role')
 
@@ -253,7 +369,11 @@ class UserRegistrationForm(UserCreationForm):
             if user.role == 'client':
                 Client.objects.create(
                     user=user,
-                    full_name=full_name
+                    full_name=full_name,
+                    passport_series=self.cleaned_data.get('passport_series') or None,
+                    passport_number=self.cleaned_data.get('passport_number') or None,
+                    passport_issue_date=self.cleaned_data.get('passport_issue_date'),
+                    passport_department_code=self.cleaned_data.get('passport_department_code') or None,
                 )
             elif user.role == 'owner':
                 owner = Owner.objects.create(
