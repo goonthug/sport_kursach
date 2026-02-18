@@ -132,11 +132,11 @@ class Command(BaseCommand):
         ]
 
         for index, (email, name) in enumerate(client_data, start=1):
-            user, created = User.objects.get_or_create(
+            user, created_user = User.objects.get_or_create(
                 email=email,
                 defaults={'role': 'client'}
             )
-            if created:
+            if created_user:
                 user.set_password('client123')
                 user.save()
             if not user.phone:
@@ -149,7 +149,7 @@ class Command(BaseCommand):
             passport_issue_date = (timezone.now() - timedelta(days=365 * random.randint(3, 15))).date()
             passport_department_code = f"{random.randint(100, 899):03d}-{random.randint(100, 899):03d}"
 
-            Client.objects.get_or_create(
+            client, created_client = Client.objects.get_or_create(
                 user=user,
                 defaults={
                     'full_name': name,
@@ -161,6 +161,24 @@ class Command(BaseCommand):
                     'passport_department_code': passport_department_code,
                 }
             )
+
+            # Если клиент уже существовал ранее без паспортных данных — дополним их
+            if not created_client:
+                updated = False
+                if not getattr(client, 'passport_series', None):
+                    client.passport_series = passport_series
+                    updated = True
+                if not getattr(client, 'passport_number', None):
+                    client.passport_number = passport_number
+                    updated = True
+                if not getattr(client, 'passport_issue_date', None):
+                    client.passport_issue_date = passport_issue_date
+                    updated = True
+                if not getattr(client, 'passport_department_code', None):
+                    client.passport_department_code = passport_department_code
+                    updated = True
+                if updated:
+                    client.save()
 
         self.stdout.write(self.style.SUCCESS(f'Создано пользователей: {User.objects.count()}'))
 

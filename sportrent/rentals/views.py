@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -603,47 +604,103 @@ def contract_download(request, pk):
             base_number += 1
             contract_number = str(base_number)
 
-        rental_days = rental.rental_days
-
-        # Текст договора: динамические части формируем здесь.
-        # Основной текст вы можете заменить на свой в дальнейшем.
-        lines = [
-            f"Договор аренды № {contract_number}",
-            f"г. Казань, {today.strftime('%d.%m.%Y')}",
-            "",
-            f"{manager_full_name}, действующий(ая) от имени сервиса аренды спортивного инвентаря,",
-            f"с одной стороны и {client_full_name},",
-            f"Паспорт: серия {passport_series} № {passport_number},",
-        ]
-
-        if passport_issue_date:
-            lines.append(f"выдан {passport_issue_date.strftime('%d.%m.%Y')},")
-        if passport_department_code:
-            lines.append(f"код подразделения {passport_department_code},")
-
-        lines.append(
-            f"с другой стороны, совместно именуемые «Стороны», заключили настоящий договор аренды на срок "
-            f"{rental_days} дней о нижеследующем:"
-        )
-        lines.append("")
-        lines.append("Остальной текст договора остаётся без изменений согласно шаблону.")
-
-        terms_text = "\n".join(lines)
-
         contract = Contract.objects.create(
             rental=rental,
             contract_number=contract_number,
-            terms=terms_text,
+            terms='',
             start_date=rental.start_date.date(),
             end_date=rental.end_date.date(),
             signed_date=today,
             status='active',
         )
-    else:
-        terms_text = contract.terms
 
-    # Отдаём договор как текстовый файл для скачивания.
-    filename = f"dogovor_arendy_{contract.contract_number}.txt"
-    response = HttpResponse(terms_text, content_type='text/plain; charset=utf-8')
-    response['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+    # Путь к шаблону договора: берём файл "договор аренды.docx" уровнем выше BASE_DIR (как у тебя на Desktop)
+    from pathlib import Path
+
+    template_path = (Path(settings.BASE_DIR).parent / 'договор аренды.docx')
+    if not template_path.exists():
+        messages.error(
+            request,
+            f'Файл шаблона договора не найден по пути: {template_path}. '
+            f'Положите туда файл "договор аренды.docx" или обновите логику пути.'
+        )
+        return redirect('rentals:detail', pk=pk)
+
+    try:
+        from docx import Document
+    except ImportError:
+        messages.error(
+            request,
+            'Не установлен пакет python-docx. Установите его командой "pip install python-docx".'
+        )
+        return redirect('rentals:detail', pk=pk)
+
+    # Открываем шаблон и подставляем данные
+    document = Document(str(template_path))
+
+    def replace_in_paragraphs(find_text: str, replace_text: str):
+        for paragraph in document.paragraphs:
+            if find_text in paragraph.text:
+                inline = paragraph.runs
+                for i in range(len(inline)):
+                    if find_text in inline[i].text:
+                        inline[i].text = inline[i].text.replace(find_text, replace_text)
+
+    rental_days = rental.rental_days
+
+    # 1) Номер договора: ищем заголовок с текстом "ДОГОВОР АРЕНДЫ" и перезаписываем его полностью
+    for paragraph in document.paragraphs:
+        if 'ДОГОВОР АРЕНДЫ' in paragraph.text.upper():
+            paragraph.text = f'ДОГОВОР АРЕНДЫ № {contract.contract_number}'
+            break
+
+    # 2) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Казань, DD.MM.YYYY г."
+    formatted_date = today.strftime('%d.%m.%Y')
+    for paragraph in document.paragraphs:
+        if 'г.' in paragraph.text and 'Казань' in paragraph.text:
+            paragraph.text = f'г. Казань, {formatted_date} г.'
+            break
+
+    # 3) ФИО менеджера: в шаблоне стоит "Петров Петр Петрович"
+    replace_in_paragraphs('Петров Петр Петрович', manager_full_name)
+
+    # 4) ФИО клиента: после слов "с одной стороны и" идут подчёркивания – просто заменим весь текст после них на ФИО
+    for paragraph in document.paragraphs:
+        if 'с одной стороны и' in paragraph.text:
+            # Оставляем фразу и добавляем ФИО клиента
+            paragraph.text = f'{paragraph.text.split("с одной стороны и")[0]}с одной стороны и {client_full_name}'
+            break
+
+    # 5) Паспортные данные клиента — абзац с "Паспорт"
+    for paragraph in document.paragraphs:
+        if 'Паспорт' in paragraph.text:
+            parts = [f'Паспорт: серия {passport_series} № {passport_number}']
+            if passport_issue_date:
+                parts.append(f'выдан {passport_issue_date.strftime("%d.%m.%Y")}')
+            if passport_department_code:
+                parts.append(f'код подразделения {passport_department_code}')
+            paragraph.text = ', '.join(parts)
+            break
+
+    # 6) Срок аренды — фраза "Настоящий договор заключен на срок"
+    for paragraph in document.paragraphs:
+        if 'Настоящий договор заключен на срок' in paragraph.text:
+            paragraph.text = f'Настоящий договор заключен на срок {rental_days} ( {rental_days} ) дней.'
+            break
+
+    # Сохраняем договор в память и отдаём как .docx
+    from io import BytesIO
+
+    buffer = BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+
+    filename = f'dogovor_arendy_{contract.contract_number}.docx'
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type=(
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ),
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
