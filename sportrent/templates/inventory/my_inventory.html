@@ -22,6 +22,7 @@
                     <select name="status" class="form-select">
                         <option value="">Все статусы</option>
                         <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Ожидает проверки</option>
+                        <option value="awaiting_contract" {% if selected_status == 'awaiting_contract' %}selected{% endif %}>Принят и ожидается подписание договора</option>
                         <option value="available" {% if selected_status == 'available' %}selected{% endif %}>Доступен</option>
                         <option value="rented" {% if selected_status == 'rented' %}selected{% endif %}>Арендован</option>
                         <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Отклонен</option>
@@ -53,6 +54,8 @@
                             <p class="mb-2"><strong>Статус:</strong> 
                                 {% if item.status == 'pending' %}
                                     <span class="badge bg-warning">Ожидает проверки</span>
+                                {% elif item.status == 'awaiting_contract' %}
+                                    <span class="badge bg-info">Принят и ожидается подписание договора</span>
                                 {% elif item.status == 'available' %}
                                     <span class="badge bg-success">Доступен</span>
                                 {% elif item.status == 'rented' %}

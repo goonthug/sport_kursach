@@ -12,6 +12,8 @@ urlpatterns = [
     path('inventory/<uuid:pk>/view/', views.admin_inventory_pending_detail, name='inventory_pending_detail'),
     path('inventory/<uuid:pk>/approve/', views.admin_inventory_approve, name='inventory_approve'),
     path('inventory/<uuid:pk>/reject/', views.admin_inventory_reject, name='inventory_reject'),
+    path('inventory/<uuid:pk>/publish/', views.admin_inventory_publish, name='inventory_publish'),
+    path('inventory/<uuid:pk>/contract/download/', views.inventory_contract_download, name='inventory_contract_download'),
 
     # Экспорт
     path('export/inventory/xlsx/', views.export_inventory_xlsx, name='export_inventory_xlsx'),

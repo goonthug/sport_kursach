@@ -16,6 +16,7 @@
                     <select name="status" class="form-select">
                         <option value="">Все статусы</option>
                         <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Ожидает проверки</option>
+                        <option value="awaiting_contract" {% if selected_status == 'awaiting_contract' %}selected{% endif %}>Принят и ожидается подписание договора</option>
                         <option value="available" {% if selected_status == 'available' %}selected{% endif %}>Доступен</option>
                         <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Отклонен</option>
                     </select>
@@ -55,6 +56,8 @@
                             <p class="mb-2">
                                 {% if item.status == 'pending' %}
                                     <span class="badge bg-warning">Ожидает</span>
+                                {% elif item.status == 'awaiting_contract' %}
+                                    <span class="badge bg-info">Принят и ожидается подписание договора</span>
                                 {% elif item.status == 'available' %}
                                     <span class="badge bg-success">Одобрен</span>
                                 {% elif item.status == 'rejected' %}
@@ -71,6 +74,10 @@
                                         <button type="submit" class="btn btn-success btn-sm w-100">Одобрить</button>
                                     </form>
                                     <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal{{ item.inventory_id }}">Отклонить</button>
+                                </div>
+                            {% elif item.status == 'awaiting_contract' %}
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'custom_admin:inventory_pending_detail' item.inventory_id %}" class="btn btn-outline-primary btn-sm w-100">Просмотреть заявку</a>
                                 </div>
                             {% else %}
                                 <a href="{% url 'inventory:detail' item.inventory_id %}" class="btn btn-outline-primary btn-sm w-100">Подробнее</a>

@@ -41,7 +41,11 @@
 
         <div class="col-lg-6">
             <div class="mb-3">
-                <span class="badge bg-warning">Ожидает проверки</span>
+                {% if inventory.status == 'pending' %}
+                    <span class="badge bg-warning">Ожидает проверки</span>
+                {% elif inventory.status == 'awaiting_contract' %}
+                    <span class="badge bg-info">Принят и ожидается подписание договора</span>
+                {% endif %}
                 <span class="badge bg-primary">{{ inventory.category.name }}</span>
                 <span class="badge bg-success">{{ inventory.get_condition_display }}</span>
             </div>
@@ -95,21 +99,35 @@
                     <h5 class="mb-0">Решение по заявке</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% url 'custom_admin:inventory_approve' inventory.inventory_id %}" class="mb-3" data-preserve-scroll="true">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="deposit_amount" class="form-label">Залог (руб.)</label>
-                            <input type="number" name="deposit_amount" id="deposit_amount" class="form-control" min="0" step="0.01" value="0">
-                            <small class="text-muted">Укажите сумму залога при одобрении</small>
-                        </div>
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="bi bi-check-circle"></i> Одобрить и опубликовать в каталоге
+                    {% if inventory.status == 'pending' %}
+                        <form method="post" action="{% url 'custom_admin:inventory_approve' inventory.inventory_id %}" class="mb-3" data-preserve-scroll="true">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="deposit_amount" class="form-label">Залог (руб.)</label>
+                                <input type="number" name="deposit_amount" id="deposit_amount" class="form-control" min="0" step="0.01" value="0">
+                                <small class="text-muted">Укажите сумму залога при одобрении</small>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check-circle"></i> Одобрить
+                            </button>
+                        </form>
+                        <hr>
+                        <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                            <i class="bi bi-x-circle"></i> Отклонить заявку
                         </button>
-                    </form>
-                    <hr>
-                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                        <i class="bi bi-x-circle"></i> Отклонить заявку
-                    </button>
+                    {% elif inventory.status == 'awaiting_contract' %}
+                        <div class="d-grid gap-2">
+                            <form method="post" action="{% url 'custom_admin:inventory_publish' inventory.inventory_id %}" data-preserve-scroll="true">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-check-circle"></i> Опубликовать в каталоге
+                                </button>
+                            </form>
+                            <a href="{% url 'custom_admin:inventory_contract_download' inventory.inventory_id %}" class="btn btn-outline-secondary w-100">
+                                <i class="bi bi-file-earmark-text"></i> Скачать договор
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

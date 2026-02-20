@@ -5,6 +5,7 @@ cd .\sportrent\
 mkdir -p logs
 python manage.py makemigrations
 python manage.py migrate rentals
+python manage.py migrate inventory
 python manage.py migrate
 python -m venv venv
 venv\Scripts\activate   или   .\venv\Scripts\Activate.ps1

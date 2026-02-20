@@ -32,6 +32,7 @@ class Inventory(models.Model):
 
     STATUS_CHOICES = [
         ('pending', 'Ожидает проверки'),
+        ('awaiting_contract', 'Принят и ожидается подписание договора'),
         ('available', 'Доступен'),
         ('rented', 'Арендован'),
         ('maintenance', 'На обслуживании'),

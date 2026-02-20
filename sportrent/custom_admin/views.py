@@ -256,18 +256,23 @@ def admin_inventory(request):
 def admin_inventory_pending_detail(request, pk):
     """
     Просмотр заявки на инвентарь (полная карточка как в каталоге).
-    Только для менеджера, только для статуса pending.
+    Только для менеджера, для статусов pending и awaiting_contract.
     """
     if request.user.role != 'manager':
         messages.error(request, 'Недостаточно прав')
         return redirect('custom_admin:inventory')
 
     inventory = get_object_or_404(
-        Inventory.objects.select_related('category', 'owner', 'owner__user').prefetch_related('photos'),
+        Inventory.objects.select_related('category', 'owner', 'owner__user', 'manager').prefetch_related('photos'),
         pk=pk
     )
-    if inventory.status != 'pending':
+    if inventory.status not in ['pending', 'awaiting_contract']:
         messages.warning(request, 'Эта заявка уже обработана')
+        return redirect('custom_admin:inventory')
+
+    # Проверяем, что менеджер работает с этим инвентарем (для статуса awaiting_contract)
+    if inventory.status == 'awaiting_contract' and inventory.manager != request.user.manager_profile:
+        messages.error(request, 'Вы не можете просматривать эту заявку')
         return redirect('custom_admin:inventory')
 
     return render(request, 'custom_admin/inventory_pending_detail.html', {'inventory': inventory})
@@ -298,13 +303,13 @@ def admin_inventory_approve(request, pk):
         except Exception:
             deposit_amount = Decimal('0')
 
-        inventory.status = 'available'
+        inventory.status = 'awaiting_contract'
         inventory.manager = request.user.manager_profile
         inventory.deposit_amount = deposit_amount
         inventory.save()
 
         logger.info(f'Инвентарь одобрен: {inventory.name}, залог {deposit_amount} менеджером {request.user.email}')
-        messages.success(request, 'Инвентарь одобрен и добавлен в каталог')
+        messages.success(request, 'Инвентарь одобрен. Ожидается подписание договора.')
 
     return redirect('custom_admin:inventory')
 
@@ -334,6 +339,192 @@ def admin_inventory_reject(request, pk):
         messages.info(request, 'Инвентарь отклонен')
 
     return redirect('custom_admin:inventory')
+
+
+@login_required
+@user_passes_test(is_staff)
+def admin_inventory_publish(request, pk):
+    """Публикация инвентаря в каталоге (изменение статуса на 'available')."""
+
+    if request.user.role != 'manager':
+        messages.error(request, 'Недостаточно прав')
+        return redirect('custom_admin:inventory')
+
+    inventory = get_object_or_404(Inventory, pk=pk)
+
+    if inventory.status != 'awaiting_contract':
+        messages.warning(request, 'Инвентарь должен быть в статусе "Принят и ожидается подписание договора"')
+        return redirect('custom_admin:inventory')
+
+    if request.method == 'POST':
+        # Проверяем, что менеджер работает с этим инвентарем
+        if inventory.manager != request.user.manager_profile:
+            messages.error(request, 'Вы не можете опубликовать этот инвентарь')
+            return redirect('custom_admin:inventory')
+
+        inventory.status = 'available'
+        inventory.save()
+
+        logger.info(f'Инвентарь опубликован в каталоге: {inventory.name} менеджером {request.user.email}')
+        messages.success(request, 'Инвентарь опубликован в каталоге')
+
+    return redirect('custom_admin:inventory')
+
+
+@login_required
+@user_passes_test(is_staff)
+def inventory_contract_download(request, pk):
+    """
+    Скачивание договора аренды между владельцем инвентаря и менеджером (магазином).
+    В договор подставляются данные из инвентаря и профилей владельца и менеджера.
+    """
+    inventory = get_object_or_404(
+        Inventory.objects.select_related(
+            'owner',
+            'owner__user',
+            'manager',
+            'manager__user',
+        ),
+        pk=pk,
+    )
+
+    user = request.user
+
+    # Доступ только менеджеру, который ведёт этот инвентарь, или администратору
+    if user.role == 'manager':
+        if not hasattr(user, 'manager_profile') or inventory.manager != user.manager_profile:
+            messages.error(request, 'Недостаточно прав для скачивания договора')
+            return redirect('custom_admin:inventory_pending_detail', pk=pk)
+    elif user.role != 'administrator':
+        messages.error(request, 'Недостаточно прав для скачивания договора')
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
+
+    if inventory.status != 'awaiting_contract':
+        messages.error(request, 'Договор доступен только для инвентаря в статусе "Принят и ожидается подписание договора"')
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
+
+    # Определяем менеджера, который попадает в договор
+    if user.role == 'manager' and hasattr(user, 'manager_profile'):
+        manager_profile = user.manager_profile
+    else:
+        manager_profile = inventory.manager
+
+    manager_full_name = manager_profile.full_name if manager_profile else ''
+
+    owner = inventory.owner
+    owner_full_name = owner.full_name
+
+    # Получаем банковские реквизиты владельца
+    bank_account = owner.bank_accounts.filter(is_default=True).first()
+    if not bank_account:
+        bank_account = owner.bank_accounts.first()
+
+    bank_name = bank_account.bank_name if bank_account else ''
+    account_number = bank_account.account_number if bank_account else ''
+    recipient_name = bank_account.recipient_name if bank_account else ''
+
+    today = timezone.now().date()
+
+    # Путь к шаблону договора
+    from pathlib import Path
+    from django.conf import settings
+
+    template_path = (Path(settings.BASE_DIR) / 'contracts' / 'dogovor_arendy_vladelec_magazin.docx')
+    if not template_path.exists():
+        messages.error(
+            request,
+            f'Файл шаблона договора не найден по пути: {template_path}. '
+            f'Положите туда файл "Договор аренды между владельцем инвентаря и магазином(менеджером).docx".'
+        )
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
+
+    try:
+        from docx import Document
+    except ImportError:
+        messages.error(
+            request,
+            'Не установлен пакет python-docx. Установите его командой "pip install python-docx".'
+        )
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
+
+    # Открываем шаблон и подставляем данные
+    document = Document(str(template_path))
+
+    def replace_in_paragraphs(find_text: str, replace_text: str):
+        for paragraph in document.paragraphs:
+            if find_text in paragraph.text:
+                inline = paragraph.runs
+                for i in range(len(inline)):
+                    if find_text in inline[i].text:
+                        inline[i].text = inline[i].text.replace(find_text, replace_text)
+
+    # 1) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Альметьевск, DD.MM.YYYY г."
+    formatted_date = today.strftime('%d.%m.%Y')
+    for paragraph in document.paragraphs:
+        if 'г.' in paragraph.text:
+            paragraph.text = f'г. Альметьевск, {formatted_date} г.'
+            break
+
+    # 2) ФИО владельца: после слов "Индивидуальный предприниматель"
+    for paragraph in document.paragraphs:
+        if 'Индивидуальный предприниматель' in paragraph.text:
+            # Заменяем текст после "Индивидуальный предприниматель"
+            text = paragraph.text
+            if 'Индивидуальный предприниматель' in text:
+                # Ищем место после "Индивидуальный предприниматель" и заменяем
+                parts = text.split('Индивидуальный предприниматель', 1)
+                if len(parts) > 1:
+                    paragraph.text = f'Индивидуальный предприниматель {owner_full_name}{parts[1].lstrip()}'
+                else:
+                    paragraph.text = f'Индивидуальный предприниматель {owner_full_name}'
+            break
+
+    # 3) ФИО менеджера: после слов "с одной стороны, и"
+    for paragraph in document.paragraphs:
+        if 'с одной стороны, и' in paragraph.text.lower():
+            # Оставляем фразу и добавляем ФИО менеджера
+            text = paragraph.text
+            if 'с одной стороны, и' in text.lower():
+                # Находим позицию "с одной стороны, и" (регистронезависимо)
+                idx = text.lower().find('с одной стороны, и')
+                if idx != -1:
+                    before = text[:idx + len('с одной стороны, и')]
+                    after = text[idx + len('с одной стороны, и'):].lstrip()
+                    paragraph.text = f'{before} {manager_full_name}{after}'
+            break
+
+    # 4) Адреса и реквизиты: ФИО владельца, номер счета, название банка, получатель
+    for paragraph in document.paragraphs:
+        if 'Адреса и реквизиты' in paragraph.text or 'Адреса и реквизиты:' in paragraph.text:
+            # Ищем следующий абзац с реквизитами
+            idx = document.paragraphs.index(paragraph)
+            if idx + 1 < len(document.paragraphs):
+                next_para = document.paragraphs[idx + 1]
+                parts = [owner_full_name]
+                if account_number:
+                    parts.append(f'Номер счета: {account_number}')
+                if bank_name:
+                    parts.append(f'Название банка: {bank_name}')
+                if recipient_name:
+                    parts.append(f'Получатель: {recipient_name}')
+                next_para.text = ', '.join(parts)
+            break
+
+    # Сохраняем договор в память и отдаём как .docx
+    from io import BytesIO
+    from django.http import HttpResponse
+
+    buffer = BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.read(),
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+    response['Content-Disposition'] = f'attachment; filename="dogovor_arendy_{inventory.inventory_id}.docx"'
+
+    return response
 
 
 @login_required
