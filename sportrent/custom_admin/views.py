@@ -230,7 +230,8 @@ def admin_inventory(request):
         inventory_qs = inventory_qs.filter(
             Q(name__icontains=search) |
             Q(brand__icontains=search) |
-            Q(model__icontains=search)
+            Q(model__icontains=search) |
+            Q(owner__full_name__icontains=search)
         )
 
     # Пагинация

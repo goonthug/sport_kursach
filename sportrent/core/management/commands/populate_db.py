@@ -220,32 +220,42 @@ class Command(BaseCommand):
              'excellent'),
             ('Городской велосипед Stels Navigator', 'Удобный городской велосипед', 'Stels', 'Navigator 300',
              Decimal('500'), 'good'),
+            ('Горный велосипед Specialized Rockhopper', 'Надёжный хардтейл для трасс', 'Specialized', 'Rockhopper', Decimal('750'), 'good'),
+            ('Городской велосипед Trek FX', 'Гибрид для города и парка', 'Trek', 'FX 2', Decimal('520'), 'good'),
 
             # Лыжи
             ('Горные лыжи Atomic Redster', 'Профессиональные горные лыжи', 'Atomic', 'Redster G9', Decimal('1500'),
              'excellent'),
             ('Беговые лыжи Fischer Speedmax', 'Быстрые беговые лыжи', 'Fischer', 'Speedmax', Decimal('900'), 'good'),
+            ('Горные лыжи Rossignol Hero', 'Карвинговые лыжи для склона', 'Rossignol', 'Hero Elite', Decimal('1300'), 'excellent'),
 
             # Сноуборды
             ('Сноуборд Burton Custom', 'Универсальный фристайл сноуборд', 'Burton', 'Custom', Decimal('1100'),
              'excellent'),
             ('Сноуборд Ride Agenda', 'Сноуборд для начинающих', 'Ride', 'Agenda', Decimal('700'), 'good'),
+            ('Сноуборд Salomon Assassin', 'Для парка и пайпа', 'Salomon', 'Assassin', Decimal('1000'), 'excellent'),
 
             # Ролики
             ('Роликовые коньки Rollerblade', 'Комфортные фитнес ролики', 'Rollerblade', 'Zetrablade', Decimal('400'),
              'good'),
+            ('Ролики K2 F.I.T. 84', 'Фитнес для взрослых', 'K2', 'F.I.T. 84', Decimal('450'), 'good'),
 
             # Самокаты
             ('Электросамокат Xiaomi Pro 2', 'Мощный электросамокат', 'Xiaomi', 'Mi Pro 2', Decimal('600'), 'excellent'),
             ('Самокат Razor A5 Lux', 'Складной самокат для взрослых', 'Razor', 'A5 Lux', Decimal('300'), 'good'),
+            ('Электросамокат Ninebot Max', 'Максимальная дальность', 'Ninebot', 'Max G30', Decimal('750'), 'excellent'),
 
             # Туристическое снаряжение
             ('Палатка Quechua Arpenaz 3', 'Трехместная палатка', 'Quechua', 'Arpenaz 3', Decimal('450'), 'good'),
             ('Рюкзак Osprey Atmos 65', 'Походный рюкзак 65л', 'Osprey', 'Atmos 65', Decimal('350'), 'excellent'),
+            ('Палатка Nordway Sphinx', 'Двухместная трёхсезонная', 'Nordway', 'Sphinx 2', Decimal('380'), 'good'),
+            ('Рюкзак Deuter Aircontact', 'С системой вентиляции', 'Deuter', 'Aircontact 55', Decimal('480'), 'excellent'),
 
             # Водный спорт
             ('SUP-борд Starboard', 'Надувной SUP для прогулок', 'Starboard', 'iGO Zen', Decimal('800'), 'excellent'),
             ('Каяк Intex Explorer', 'Надувной каяк', 'Intex', 'Explorer K2', Decimal('500'), 'good'),
+            ('SUP-борд Red Paddle Co', 'Жёсткий для волн', 'Red Paddle Co', 'Ride 10.6', Decimal('950'), 'excellent'),
+            ('Каяк надувной Sevylor Colorado', 'Двухместный', 'Sevylor', 'Colorado', Decimal('450'), 'good'),
         ]
 
         for i, (name, desc, brand, model, price, condition) in enumerate(inventory_data):
@@ -316,8 +326,21 @@ class Command(BaseCommand):
                 total_price=total_price,
                 deposit_paid=inventory.deposit_amount,
                 status=status,
-                payment_status='paid' if status != 'pending' else 'pending'
+                payment_status='paid' if status != 'pending' else 'pending',
+                actual_return_date=end_date if status == 'completed' else None,
             )
+
+            # Для завершённых аренд обновляем заработок владельца, чтобы аналитика не ломалась
+            if status == 'completed':
+                agreement = OwnerAgreement.objects.filter(
+                    owner=inventory.owner,
+                    is_accepted=True
+                ).order_by('-created_date').first()
+                owner_pct = (agreement.owner_percentage if agreement else 70) / 100
+                owner_amount = total_price * Decimal(str(owner_pct))
+                owner = inventory.owner
+                owner.total_earnings += owner_amount
+                owner.save(update_fields=['total_earnings'])
 
             # Создаем платеж
             Payment.objects.create(

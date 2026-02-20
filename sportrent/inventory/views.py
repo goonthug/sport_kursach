@@ -394,12 +394,20 @@ def owner_earnings_analytics(request):
     # Итого за период
     period_total = sum((r['earnings'] for r in earnings_by_day), Decimal('0'))
 
-    # По инвентарю: кто приносит больше всего и меньше всего (по сумме заработка и по количеству аренд)
+    # Фильтр по периоду для топ/аутсайдеров (те же даты, что и «Итого за период»)
+    period_filter = (
+        Q(rentals__status='completed') &
+        Q(rentals__actual_return_date__isnull=False) &
+        Q(rentals__actual_return_date__date__gte=date_from) &
+        Q(rentals__actual_return_date__date__lte=date_to)
+    )
+
+    # По инвентарю за выбранный период: кто приносит больше всего и меньше всего
     inventory_with_stats = Inventory.objects.filter(
         owner=owner
     ).annotate(
-        completed_rentals=Count('rentals', filter=Q(rentals__status='completed')),
-        total_revenue=Sum('rentals__total_price', filter=Q(rentals__status='completed')),
+        completed_rentals=Count('rentals', filter=period_filter),
+        total_revenue=Sum('rentals__total_price', filter=period_filter),
     ).filter(
         completed_rentals__gt=0
     ).order_by('-total_revenue')
@@ -411,11 +419,11 @@ def owner_earnings_analytics(request):
             'rentals_count': inv.completed_rentals,
             'earnings': total_rev * owner_pct,
         })
-    # Меньше всего спроса (по количеству аренд или по сумме)
+    # Меньше всего спроса за период (по количеству аренд или по сумме)
     least_inventory = list(
         Inventory.objects.filter(owner=owner).annotate(
-            completed_rentals=Count('rentals', filter=Q(rentals__status='completed')),
-            total_revenue=Sum('rentals__total_price', filter=Q(rentals__status='completed')),
+            completed_rentals=Count('rentals', filter=period_filter),
+            total_revenue=Sum('rentals__total_price', filter=period_filter),
         ).order_by('completed_rentals', 'total_revenue')[:10]
     )
     least_inventory_with_earnings = []
