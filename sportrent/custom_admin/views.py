@@ -409,10 +409,20 @@ def inventory_contract_download(request, pk):
     else:
         manager_profile = inventory.manager
 
+    if not manager_profile:
+        messages.error(request, 'Менеджер не назначен для этого инвентаря')
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
+
     manager_full_name = manager_profile.full_name if manager_profile else ''
+    if not manager_full_name:
+        messages.error(request, 'У менеджера не указано полное имя')
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
 
     owner = inventory.owner
-    owner_full_name = owner.full_name
+    owner_full_name = owner.full_name if owner else ''
+    if not owner_full_name:
+        messages.error(request, 'У владельца не указано полное имя')
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
 
     # Получаем банковские реквизиты владельца
     bank_account = owner.bank_accounts.filter(is_default=True).first()
@@ -447,84 +457,87 @@ def inventory_contract_download(request, pk):
         )
         return redirect('custom_admin:inventory_pending_detail', pk=pk)
 
-    # Открываем шаблон и подставляем данные
-    document = Document(str(template_path))
+    try:
+        # Открываем шаблон и подставляем данные
+        document = Document(str(template_path))
 
-    def replace_in_paragraphs(find_text: str, replace_text: str):
+        # 1) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Альметьевск, DD.MM.YYYY г."
+        formatted_date = today.strftime('%d.%m.%Y')
+        date_replaced = False
         for paragraph in document.paragraphs:
-            if find_text in paragraph.text:
-                inline = paragraph.runs
-                for i in range(len(inline)):
-                    if find_text in inline[i].text:
-                        inline[i].text = inline[i].text.replace(find_text, replace_text)
+            if 'г.' in paragraph.text and not date_replaced:
+                paragraph.text = f'г. Альметьевск, {formatted_date} г.'
+                date_replaced = True
+                break
 
-    # 1) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Альметьевск, DD.MM.YYYY г."
-    formatted_date = today.strftime('%d.%m.%Y')
-    for paragraph in document.paragraphs:
-        if 'г.' in paragraph.text:
-            paragraph.text = f'г. Альметьевск, {formatted_date} г.'
-            break
-
-    # 2) ФИО владельца: после слов "Индивидуальный предприниматель"
-    for paragraph in document.paragraphs:
-        if 'Индивидуальный предприниматель' in paragraph.text:
-            # Заменяем текст после "Индивидуальный предприниматель"
-            text = paragraph.text
-            if 'Индивидуальный предприниматель' in text:
-                # Ищем место после "Индивидуальный предприниматель" и заменяем
+        # 2) ФИО владельца: после слов "Индивидуальный предприниматель"
+        owner_replaced = False
+        for paragraph in document.paragraphs:
+            if 'Индивидуальный предприниматель' in paragraph.text and not owner_replaced:
+                text = paragraph.text
                 parts = text.split('Индивидуальный предприниматель', 1)
                 if len(parts) > 1:
                     paragraph.text = f'Индивидуальный предприниматель {owner_full_name}{parts[1].lstrip()}'
                 else:
                     paragraph.text = f'Индивидуальный предприниматель {owner_full_name}'
-            break
+                owner_replaced = True
+                break
 
-    # 3) ФИО менеджера: после слов "с одной стороны, и"
-    for paragraph in document.paragraphs:
-        if 'с одной стороны, и' in paragraph.text.lower():
-            # Оставляем фразу и добавляем ФИО менеджера
-            text = paragraph.text
-            if 'с одной стороны, и' in text.lower():
-                # Находим позицию "с одной стороны, и" (регистронезависимо)
-                idx = text.lower().find('с одной стороны, и')
+        # 3) ФИО менеджера: после слов "с одной стороны, и"
+        manager_replaced = False
+        for paragraph in document.paragraphs:
+            text_lower = paragraph.text.lower()
+            if 'с одной стороны, и' in text_lower and not manager_replaced:
+                idx = text_lower.find('с одной стороны, и')
                 if idx != -1:
-                    before = text[:idx + len('с одной стороны, и')]
-                    after = text[idx + len('с одной стороны, и'):].lstrip()
+                    before = paragraph.text[:idx + len('с одной стороны, и')]
+                    after = paragraph.text[idx + len('с одной стороны, и'):].lstrip()
                     paragraph.text = f'{before} {manager_full_name}{after}'
-            break
+                manager_replaced = True
+                break
 
-    # 4) Адреса и реквизиты: ФИО владельца, номер счета, название банка, получатель
-    for paragraph in document.paragraphs:
-        if 'Адреса и реквизиты' in paragraph.text or 'Адреса и реквизиты:' in paragraph.text:
-            # Ищем следующий абзац с реквизитами
-            idx = document.paragraphs.index(paragraph)
-            if idx + 1 < len(document.paragraphs):
-                next_para = document.paragraphs[idx + 1]
-                parts = [owner_full_name]
-                if account_number:
-                    parts.append(f'Номер счета: {account_number}')
-                if bank_name:
-                    parts.append(f'Название банка: {bank_name}')
-                if recipient_name:
-                    parts.append(f'Получатель: {recipient_name}')
-                next_para.text = ', '.join(parts)
-            break
+        # 4) Адреса и реквизиты: ФИО владельца, номер счета, название банка, получатель
+        requisites_replaced = False
+        paragraphs_list = list(document.paragraphs)
+        for i, paragraph in enumerate(paragraphs_list):
+            if ('Адреса и реквизиты' in paragraph.text or 'Адреса и реквизиты:' in paragraph.text) and not requisites_replaced:
+                # Ищем следующий абзац с реквизитами
+                if i + 1 < len(paragraphs_list):
+                    next_para = paragraphs_list[i + 1]
+                    parts = [owner_full_name]
+                    if account_number:
+                        parts.append(f'Номер счета: {account_number}')
+                    if bank_name:
+                        parts.append(f'Название банка: {bank_name}')
+                    if recipient_name:
+                        parts.append(f'Получатель: {recipient_name}')
+                    next_para.text = ', '.join(parts)
+                requisites_replaced = True
+                break
 
-    # Сохраняем договор в память и отдаём как .docx
-    from io import BytesIO
-    from django.http import HttpResponse
+        # Сохраняем договор в память и отдаём как .docx
+        from io import BytesIO
+        from django.http import HttpResponse
 
-    buffer = BytesIO()
-    document.save(buffer)
-    buffer.seek(0)
+        buffer = BytesIO()
+        document.save(buffer)
+        buffer.seek(0)
 
-    response = HttpResponse(
-        buffer.read(),
-        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    )
-    response['Content-Disposition'] = f'attachment; filename="dogovor_arendy_{inventory.inventory_id}.docx"'
+        response = HttpResponse(
+            buffer.read(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        response['Content-Disposition'] = f'attachment; filename="dogovor_arendy_{inventory.inventory_id}.docx"'
 
-    return response
+        return response
+
+    except Exception as e:
+        logger.error(f'Ошибка при генерации договора: {str(e)}', exc_info=True)
+        messages.error(
+            request,
+            f'Ошибка при генерации договора: {str(e)}. Проверьте логи для подробностей.'
+        )
+        return redirect('custom_admin:inventory_pending_detail', pk=pk)
 
 
 @login_required
