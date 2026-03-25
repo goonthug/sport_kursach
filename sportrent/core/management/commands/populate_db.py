@@ -60,27 +60,36 @@ class Command(BaseCommand):
         )
 
         # Менеджеры
-        manager_data = [
-            ('manager1@sportrent.ru', 'Петров Петр Петрович'),
-            ('manager2@sportrent.ru', 'Сидорова Анна Ивановна'),
-        ]
+        primary_manager_email = 'manager1@sportrent.ru'
+        primary_manager_name = 'Петров Петр Петрович'
 
-        for index, (email, name) in enumerate(manager_data, start=1):
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={'role': 'manager', 'is_staff': True}
-            )
-            if created:
-                user.set_password('manager123')
-                user.save()
-            Manager.objects.get_or_create(
-                user=user,
-                defaults={
-                    'full_name': name,
-                    'phone_work': f'+7(999)222-33-4{index}',
-                    'email_work': email
-                }
-            )
+        primary_user, created = User.objects.get_or_create(
+            email=primary_manager_email,
+            defaults={'role': 'manager', 'is_staff': True}
+        )
+        if created:
+            primary_user.set_password('manager123')
+            primary_user.save()
+        primary_manager, _ = Manager.objects.get_or_create(
+            user=primary_user,
+            defaults={
+                'full_name': primary_manager_name,
+                'phone_work': '+7(999)222-33-41',
+                'email_work': primary_manager_email,
+            }
+        )
+
+        # Если в БД уже есть второй менеджер от прошлых запусков, делаем его неиспользуемым:
+        # 1) Переназначаем инвентарь/аренды первому менеджеру
+        # 2) Удаляем лишние профили менеджеров
+        other_managers = Manager.objects.exclude(user__email=primary_manager_email)
+        if other_managers.exists():
+            Inventory.objects.filter(status='available', manager__in=other_managers).update(manager=primary_manager)
+            Rental.objects.filter(manager__in=other_managers).update(manager=primary_manager)
+
+            # Удаляем пользователей (Manager удалится каскадно)
+            other_managers_users = other_managers.values_list('user_id', flat=True)
+            User.objects.filter(user_id__in=other_managers_users).delete()
 
         # Владельцы
         owner_data = [
@@ -209,7 +218,9 @@ class Command(BaseCommand):
         self.stdout.write('Создаем инвентарь...')
 
         owners = Owner.objects.all()
-        managers = Manager.objects.all()
+        primary_manager = Manager.objects.filter(user__email='manager1@sportrent.ru').first()
+        if not primary_manager:
+            raise RuntimeError('Первый менеджер (manager1@sportrent.ru) не найден. Сначала запустите populate_db.')
         categories = SportCategory.objects.all()
 
         inventory_data = [
@@ -261,7 +272,6 @@ class Command(BaseCommand):
         for i, (name, desc, brand, model, price, condition) in enumerate(inventory_data):
             owner = random.choice(owners)
             category = random.choice(categories)
-            manager = random.choice(managers)
 
             # Создаем с разными статусами
             status = random.choices(
@@ -273,7 +283,7 @@ class Command(BaseCommand):
                 name=name,
                 defaults={
                     'owner': owner,
-                    'manager': manager if status == 'available' else None,
+                    'manager': primary_manager if status == 'available' else None,
                     'category': category,
                     'description': desc,
                     'brand': brand,
@@ -286,6 +296,15 @@ class Command(BaseCommand):
                     'deposit_amount': price * Decimal('0.3'),
                 }
             )
+            # На повторном запуске populate_db обновляем менеджера в соответствии с текущим статусом.
+            if inventory.status == 'available':
+                if inventory.manager_id != primary_manager.manager_id:
+                    inventory.manager = primary_manager
+                    inventory.save(update_fields=['manager'])
+            else:
+                if inventory.manager_id is not None:
+                    inventory.manager = None
+                    inventory.save(update_fields=['manager'])
             if not inventory.bank_account:
                 owner_account = BankAccount.objects.filter(owner=owner, is_default=True).first()
                 if not owner_account:
@@ -302,12 +321,13 @@ class Command(BaseCommand):
 
         clients = Client.objects.all()
         available_inventory = Inventory.objects.filter(status='available')
-        managers = Manager.objects.all()
+        primary_manager = Manager.objects.filter(user__email='manager1@sportrent.ru').first()
+        if not primary_manager:
+            raise RuntimeError('Первый менеджер (manager1@sportrent.ru) не найден. Сначала запустите populate_db.')
 
         for i in range(10):
             client = random.choice(clients)
             inventory = random.choice(available_inventory)
-            manager = random.choice(managers)
 
             start_date = timezone.now() - timedelta(days=random.randint(5, 30))
             end_date = start_date + timedelta(days=random.randint(2, 10))
@@ -320,7 +340,7 @@ class Command(BaseCommand):
             rental = Rental.objects.create(
                 inventory=inventory,
                 client=client,
-                manager=manager,
+                manager=primary_manager,
                 start_date=start_date,
                 end_date=end_date,
                 total_price=total_price,

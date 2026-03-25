@@ -95,17 +95,28 @@
                     <small class="text-muted">за день</small>
                 </div>
                 {% if inventory.status == 'available' and user.is_authenticated and user.role == 'client' %}
-                    <a href="{% url 'rentals:create' inventory.inventory_id %}" class="btn btn-primary btn-lg">
-                        <i class="bi bi-calendar-check"></i> Забронировать
-                    </a>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'rentals:create' inventory.inventory_id %}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-calendar-check"></i> Взять в аренду
+                        </a>
+                        <a href="{% url 'rentals:reserve_create' inventory.inventory_id %}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-calendar-event"></i> Забронировать
+                        </a>
+                    </div>
                 {% elif not user.is_authenticated %}
-                    <a href="{% url 'users:login' %}?next={% url 'rentals:create' inventory.inventory_id %}" class="btn btn-outline-primary btn-lg">
-                        Войти для бронирования
-                    </a>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'users:login' %}?next={% url 'rentals:create' inventory.inventory_id %}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-calendar-check"></i> Взять в аренду
+                        </a>
+                        <a href="{% url 'users:login' %}?next={% url 'rentals:reserve_create' inventory.inventory_id %}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-calendar-event"></i> Забронировать
+                        </a>
+                    </div>
                 {% elif inventory.status != 'available' %}
-                    <button class="btn btn-secondary btn-lg" disabled>
-                        Недоступно
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-secondary btn-lg" disabled>Недоступно</button>
+                        <button class="btn btn-secondary btn-lg" disabled>Недоступно</button>
+                    </div>
                 {% endif %}
             </div>
 

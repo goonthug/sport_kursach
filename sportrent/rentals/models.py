@@ -84,6 +84,46 @@ class Rental(models.Model):
         return False
 
 
+class Reservation(models.Model):
+    """
+    Бронь товара на время (без оплаты).
+
+    Пока бронь активна, другой пользователь не может оформить аренду на пересекающиеся даты.
+    """
+
+    STATUS_CHOICES = [
+        ('active', 'Активна'),
+        ('cancelled', 'Отменена'),
+        ('converted', 'Преобразована в аренду'),
+        ('expired', 'Истекла'),
+    ]
+
+    reservation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    inventory = models.ForeignKey(Inventory, on_delete=models.PROTECT, related_name='reservations', verbose_name='Инвентарь')
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name='reservations', verbose_name='Клиент')
+
+    start_date = models.DateTimeField(verbose_name='Дата начала')
+    end_date = models.DateTimeField(verbose_name='Дата окончания')
+
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='active', verbose_name='Статус')
+    created_date = models.DateTimeField(default=timezone.now, verbose_name='Дата создания')
+    notes = models.TextField(blank=True, verbose_name='Примечания')
+
+    class Meta:
+        db_table = 'reservations'
+        verbose_name = 'Бронь'
+        verbose_name_plural = 'Брони'
+        ordering = ['-created_date']
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['inventory', 'status']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+
+    def __str__(self):
+        return f"Бронь {self.inventory.name} - {self.client.full_name}"
+
+
 class Payment(models.Model):
     """Платежи за аренду."""
 

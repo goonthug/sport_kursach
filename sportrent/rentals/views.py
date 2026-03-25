@@ -17,11 +17,20 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .forms import RentalBankAccountForm, RentalCreateForm, RentalUpdateForm
-from .models import Contract, Payment, Rental
+from .forms import ReservationCreateForm
+from .models import Contract, Payment, Rental, Reservation
 from inventory.models import Inventory
 from users.models import Client, Manager
 
 logger = logging.getLogger('rentals')
+
+
+def get_primary_manager_profile() -> Manager:
+    """
+    Возвращает профиль единственного менеджера.
+    Мы используем manager1@sportrent.ru как источник истины.
+    """
+    return Manager.objects.filter(user__email='manager1@sportrent.ru').first() or Manager.objects.first()
 
 
 @login_required
@@ -191,7 +200,7 @@ def rental_create(request, inventory_id):
         return redirect('inventory:detail', pk=inventory_id)
 
     if request.method == 'POST':
-        form = RentalCreateForm(request.POST, inventory=inventory)
+        form = RentalCreateForm(request.POST, inventory=inventory, client=client)
 
         if form.is_valid():
             try:
@@ -201,8 +210,10 @@ def rental_create(request, inventory_id):
                     rental.inventory = inventory
 
                     # Назначаем менеджера (если есть)
-                    if inventory.manager:
-                        rental.manager = inventory.manager
+                    primary_manager = get_primary_manager_profile()
+                    if primary_manager is None:
+                        raise RuntimeError('Профиль менеджера не найден')
+                    rental.manager = inventory.manager or primary_manager
 
                     # Рассчитываем стоимость
                     rental_days = (rental.end_date - rental.start_date).days
@@ -234,7 +245,7 @@ def rental_create(request, inventory_id):
             'start_date': timezone.now().date(),
             'end_date': (timezone.now() + timedelta(days=inventory.min_rental_days)).date(),
         }
-        form = RentalCreateForm(initial=initial, inventory=inventory)
+        form = RentalCreateForm(initial=initial, inventory=inventory, client=client)
 
     context = {
         'form': form,
@@ -242,6 +253,172 @@ def rental_create(request, inventory_id):
     }
 
     return render(request, 'rentals/rental_create.html', context)
+
+
+@login_required
+def reservation_create(request, inventory_id):
+    """
+    Создание брони на время (без оплаты).
+    Пока бронь активна, другой пользователь не может оформить аренду на пересекающиеся даты.
+    """
+    if request.user.role != 'client':
+        messages.error(request, 'Только клиенты могут создавать бронь')
+        return redirect('inventory:detail', pk=inventory_id)
+
+    if not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Профиль клиента не найден')
+        return redirect('users:profile')
+
+    client = request.user.client_profile
+    inventory = get_object_or_404(Inventory, pk=inventory_id)
+
+    if inventory.status != 'available':
+        messages.error(request, 'Этот инвентарь недоступен')
+        return redirect('inventory:detail', pk=inventory_id)
+
+    if request.method == 'POST':
+        form = ReservationCreateForm(request.POST, inventory=inventory)
+        if form.is_valid():
+            reservation = form.save(commit=False)
+            reservation.client = client
+            reservation.inventory = inventory
+            reservation.status = 'active'
+            reservation.save()
+
+            messages.success(request, 'Бронь оформлена. Товар закреплён за вами на выбранный период.')
+            return redirect('rentals:reserve_detail', pk=reservation.reservation_id)
+    else:
+        initial = {
+            'start_date': timezone.now().date(),
+            'end_date': (timezone.now() + timedelta(days=inventory.min_rental_days)).date(),
+        }
+        form = ReservationCreateForm(initial=initial, inventory=inventory)
+
+    context = {
+        'form': form,
+        'inventory': inventory,
+    }
+    return render(request, 'rentals/reservation_create.html', context)
+
+
+@login_required
+def reservation_detail(request, pk):
+    reservation = get_object_or_404(
+        Reservation.objects.select_related('inventory', 'client', 'client__user'),
+        pk=pk,
+    )
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Недостаточно прав')
+        return redirect('core:home')
+
+    if reservation.client != request.user.client_profile:
+        messages.error(request, 'У вас нет доступа к этой брони')
+        return redirect('rentals:list')
+
+    context = {
+        'reservation': reservation,
+    }
+    return render(request, 'rentals/reservation_detail.html', context)
+
+
+@login_required
+def reservation_cancel(request, pk):
+    reservation = get_object_or_404(Reservation, pk=pk)
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Недостаточно прав')
+        return redirect('core:home')
+
+    if reservation.client != request.user.client_profile:
+        messages.error(request, 'У вас нет прав на отмену этой брони')
+        return redirect('rentals:list')
+
+    if reservation.status != 'active':
+        messages.warning(request, 'Эта бронь уже обработана')
+        return redirect('rentals:reserve_detail', pk=pk)
+
+    if request.method == 'POST':
+        reservation.status = 'cancelled'
+        reservation.save(update_fields=['status'])
+        messages.success(request, 'Бронь отменена')
+
+    return redirect('rentals:reserve_detail', pk=pk)
+
+
+@login_required
+def reservation_rent(request, pk):
+    """
+    Конвертация брони в аренду: создаём Rental + Payment и редиректим на оплату.
+    """
+    reservation = get_object_or_404(Reservation, pk=pk)
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Недостаточно прав')
+        return redirect('core:home')
+
+    if reservation.client != request.user.client_profile:
+        messages.error(request, 'У вас нет прав на выполнение этой операции')
+        return redirect('rentals:list')
+
+    if reservation.status != 'active':
+        messages.warning(request, 'Эта бронь уже неактуальна')
+        return redirect('rentals:reserve_detail', pk=pk)
+
+    if request.method != 'POST':
+        return redirect('rentals:reserve_detail', pk=pk)
+
+    inventory = reservation.inventory
+    if inventory.status != 'available':
+        messages.error(request, 'Инвентарь недоступен для аренды')
+        return redirect('rentals:reserve_detail', pk=pk)
+
+    # На всякий случай блокируем пересечение с бронями других клиентов.
+    conflict = Reservation.objects.filter(
+        inventory=inventory,
+        status='active',
+        start_date__lt=reservation.end_date,
+        end_date__gt=reservation.start_date,
+    ).exclude(client=reservation.client).exists()
+    if conflict:
+        messages.error(request, 'Не удалось оформить аренду: на эти даты появилась бронь другого клиента')
+        return redirect('rentals:reserve_detail', pk=pk)
+
+    with transaction.atomic():
+        primary_manager = get_primary_manager_profile()
+        if primary_manager is None:
+            raise RuntimeError('Профиль менеджера не найден')
+
+        rental_days = (reservation.end_date - reservation.start_date).days
+        if rental_days <= 0:
+            messages.error(request, 'Некорректный период брони')
+            return redirect('rentals:reserve_detail', pk=pk)
+
+        rental = Rental.objects.create(
+            inventory=inventory,
+            client=reservation.client,
+            manager=inventory.manager or primary_manager,
+            start_date=reservation.start_date,
+            end_date=reservation.end_date,
+            total_price=inventory.price_per_day * rental_days,
+            deposit_paid=inventory.deposit_amount,
+            notes=reservation.notes,
+            status='pending',
+            payment_status='pending',
+        )
+
+        Payment.objects.create(
+            rental=rental,
+            amount=rental.total_price + (rental.deposit_paid or 0),
+            payment_method='online',
+            status='pending',
+        )
+
+        reservation.status = 'converted'
+        reservation.save(update_fields=['status'])
+
+    messages.success(request, 'Аренда создана. Перейдите к оплате.')
+    return redirect('rentals:pay', pk=rental.rental_id)
 
 
 @login_required
@@ -270,6 +447,17 @@ def rental_confirm(request, pk):
     if request.method == 'POST':
         try:
             with transaction.atomic():
+                # Если появилась бронь другого клиента на пересекающиеся даты — не подтверждаем.
+                conflict_reservation = Reservation.objects.filter(
+                    inventory=rental.inventory,
+                    status='active',
+                    start_date__lt=rental.end_date,
+                    end_date__gt=rental.start_date,
+                ).exclude(client=rental.client).exists()
+                if conflict_reservation:
+                    messages.error(request, 'Подтверждение невозможно: на выбранный период появилась активная бронь другого клиента')
+                    return redirect('rentals:detail', pk=pk)
+
                 rental.status = 'confirmed'
                 rental.manager = request.user.manager_profile
                 rental.save()
@@ -277,6 +465,15 @@ def rental_confirm(request, pk):
                 inventory = rental.inventory
                 inventory.status = 'rented'
                 inventory.save()
+
+                # Конвертируем активные брони этого клиента в рамках периода аренды.
+                Reservation.objects.filter(
+                    inventory=rental.inventory,
+                    client=rental.client,
+                    status='active',
+                    start_date__lt=rental.end_date,
+                    end_date__gt=rental.start_date,
+                ).update(status='converted')
 
                 logger.info(f'Аренда подтверждена: {rental.rental_id} менеджером {request.user.email}')
                 messages.success(request, 'Аренда успешно подтверждена')
@@ -482,8 +679,21 @@ def rental_extend(request, pk):
         try:
             with transaction.atomic():
                 from datetime import timedelta
+                new_end = rental.end_date + timedelta(days=additional_days)
+
+                # Нельзя продлевать аренду так, чтобы она пересекалась с бронями других клиентов.
+                conflict_reservation = Reservation.objects.filter(
+                    inventory=rental.inventory,
+                    status='active',
+                    start_date__lt=new_end,
+                    end_date__gt=rental.start_date,
+                ).exclude(client=rental.client).exists()
+                if conflict_reservation:
+                    messages.error(request, 'Продление невозможно: на новый период появилась активная бронь другого клиента')
+                    return redirect('rentals:detail', pk=pk)
+
                 # Продлеваем дату окончания
-                rental.end_date = rental.end_date + timedelta(days=additional_days)
+                rental.end_date = new_end
                 
                 # Рассчитываем стоимость доплаты
                 additional_price = rental.inventory.price_per_day * additional_days

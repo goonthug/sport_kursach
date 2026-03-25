@@ -14,3 +14,8 @@ daphne -b 127.0.0.1 -p 8000 config.asgi:application
 python manage.py runserver
 daphne -b 127.0.0.1 -p 8000 config.asgi:application
 pip install python-docx
+
+
+python manage.py makemigrations rentals
+python manage.py migrate
+python manage.py populate_db
