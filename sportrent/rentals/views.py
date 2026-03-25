@@ -302,6 +302,88 @@ def reservation_create(request, inventory_id):
 
 
 @login_required
+def reservation_quick_create(request, inventory_id):
+    """
+    Быстрое бронирование на фиксированные 30 минут (без формы выбора дат).
+    По клику создаём бронь и показываем уведомление.
+    """
+    if request.method != 'POST':
+        return redirect('inventory:detail', pk=inventory_id)
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Только клиенты могут бронировать')
+        return redirect('core:home')
+
+    client = request.user.client_profile
+    inventory = get_object_or_404(Inventory, pk=inventory_id)
+
+    if inventory.status != 'available':
+        messages.error(request, 'Этот инвентарь недоступен')
+        return redirect('inventory:detail', pk=inventory_id)
+
+    start_dt = timezone.now()
+    end_dt = start_dt + timedelta(minutes=30)
+
+    existing = Reservation.objects.filter(
+        inventory=inventory,
+        client=client,
+        status='active',
+    ).filter(
+        start_date__lt=end_dt,
+        end_date__gt=start_dt,
+    ).first()
+
+    if existing:
+        return render(
+            request,
+            'rentals/reservation_quick_created.html',
+            {
+                'reservation': existing,
+                'already_existed': True,
+            },
+        )
+
+    overlapping_reservations = Reservation.objects.filter(
+        inventory=inventory,
+        status='active',
+    ).filter(
+        start_date__lt=end_dt,
+        end_date__gt=start_dt,
+    )
+
+    overlapping_rentals = Rental.objects.filter(
+        inventory=inventory,
+        status__in=['pending', 'confirmed', 'active'],
+    ).filter(
+        start_date__lt=end_dt,
+        end_date__gt=start_dt,
+    )
+
+    if overlapping_reservations.exists() or overlapping_rentals.exists():
+        messages.error(request, 'Невозможно забронировать: товар уже занят/забронирован на это время')
+        return redirect('inventory:detail', pk=inventory_id)
+
+    with transaction.atomic():
+        reservation = Reservation.objects.create(
+            inventory=inventory,
+            client=client,
+            start_date=start_dt,
+            end_date=end_dt,
+            status='active',
+        )
+
+    messages.success(request, 'Бронь на 30 минут создана')
+    return render(
+        request,
+        'rentals/reservation_quick_created.html',
+        {
+            'reservation': reservation,
+            'already_existed': False,
+        },
+    )
+
+
+@login_required
 def reservation_detail(request, pk):
     reservation = get_object_or_404(
         Reservation.objects.select_related('inventory', 'client', 'client__user'),
@@ -315,6 +397,10 @@ def reservation_detail(request, pk):
     if reservation.client != request.user.client_profile:
         messages.error(request, 'У вас нет доступа к этой брони')
         return redirect('rentals:list')
+
+    if reservation.status == 'active' and reservation.end_date <= timezone.now():
+        reservation.status = 'expired'
+        reservation.save(update_fields=['status'])
 
     context = {
         'reservation': reservation,
@@ -365,6 +451,12 @@ def reservation_rent(request, pk):
         messages.warning(request, 'Эта бронь уже неактуальна')
         return redirect('rentals:reserve_detail', pk=pk)
 
+    if reservation.end_date <= timezone.now():
+        reservation.status = 'expired'
+        reservation.save(update_fields=['status'])
+        messages.warning(request, 'Эта бронь истекла')
+        return redirect('rentals:reserve_detail', pk=pk)
+
     if request.method != 'POST':
         return redirect('rentals:reserve_detail', pk=pk)
 
@@ -374,11 +466,12 @@ def reservation_rent(request, pk):
         return redirect('rentals:reserve_detail', pk=pk)
 
     # На всякий случай блокируем пересечение с бронями других клиентов.
+    conflict_end_gt = max(timezone.now(), reservation.start_date)
     conflict = Reservation.objects.filter(
         inventory=inventory,
         status='active',
         start_date__lt=reservation.end_date,
-        end_date__gt=reservation.start_date,
+        end_date__gt=conflict_end_gt,
     ).exclude(client=reservation.client).exists()
     if conflict:
         messages.error(request, 'Не удалось оформить аренду: на эти даты появилась бронь другого клиента')
@@ -448,11 +541,12 @@ def rental_confirm(request, pk):
         try:
             with transaction.atomic():
                 # Если появилась бронь другого клиента на пересекающиеся даты — не подтверждаем.
+                conflict_end_gt = max(timezone.now(), rental.start_date)
                 conflict_reservation = Reservation.objects.filter(
                     inventory=rental.inventory,
                     status='active',
                     start_date__lt=rental.end_date,
-                    end_date__gt=rental.start_date,
+                    end_date__gt=conflict_end_gt,
                 ).exclude(client=rental.client).exists()
                 if conflict_reservation:
                     messages.error(request, 'Подтверждение невозможно: на выбранный период появилась активная бронь другого клиента')
@@ -472,7 +566,7 @@ def rental_confirm(request, pk):
                     client=rental.client,
                     status='active',
                     start_date__lt=rental.end_date,
-                    end_date__gt=rental.start_date,
+                    end_date__gt=conflict_end_gt,
                 ).update(status='converted')
 
                 logger.info(f'Аренда подтверждена: {rental.rental_id} менеджером {request.user.email}')
@@ -682,11 +776,12 @@ def rental_extend(request, pk):
                 new_end = rental.end_date + timedelta(days=additional_days)
 
                 # Нельзя продлевать аренду так, чтобы она пересекалась с бронями других клиентов.
+                conflict_end_gt = max(timezone.now(), rental.start_date)
                 conflict_reservation = Reservation.objects.filter(
                     inventory=rental.inventory,
                     status='active',
                     start_date__lt=new_end,
-                    end_date__gt=rental.start_date,
+                    end_date__gt=conflict_end_gt,
                 ).exclude(client=rental.client).exists()
                 if conflict_reservation:
                     messages.error(request, 'Продление невозможно: на новый период появилась активная бронь другого клиента')

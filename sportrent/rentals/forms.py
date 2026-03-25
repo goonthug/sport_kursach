@@ -5,7 +5,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 from .models import Rental, Reservation
 from users.models import BankAccount
 
@@ -72,6 +72,11 @@ class RentalCreateForm(forms.ModelForm):
             # Рассчитываем количество дней
             rental_days = (end_date - start_date).days
 
+            # Для корректного overlap с DateTimeField переводим выбранные даты в datetime.
+            # end_date трактуем как "граница окончания" (end-exclusive), поэтому берём время 00:00.
+            start_dt = timezone.make_aware(datetime.combine(start_date, time.min))
+            end_dt = timezone.make_aware(datetime.combine(end_date, time.min))
+
             # Проверка минимального и максимального срока
             if self.inventory:
                 if rental_days < self.inventory.min_rental_days:
@@ -89,16 +94,17 @@ class RentalCreateForm(forms.ModelForm):
                     inventory=self.inventory,
                     status__in=['pending', 'confirmed', 'active']
                 ).filter(
-                    start_date__lt=end_date,
-                    end_date__gt=start_date
+                    start_date__lt=end_dt,
+                    end_date__gt=start_dt
                 )
 
                 overlapping_reservations = Reservation.objects.filter(
                     inventory=self.inventory,
                     status='active',
+                    end_date__gt=timezone.now(),
                 ).filter(
-                    start_date__lt=end_date,
-                    end_date__gt=start_date
+                    start_date__lt=end_dt,
+                    end_date__gt=start_dt
                 )
                 # Блокируем пересечение только с активными бронями других клиентов.
                 if self.client is not None:
@@ -177,6 +183,11 @@ class ReservationCreateForm(forms.ModelForm):
                 raise ValidationError('Дата окончания должна быть после даты начала')
 
             rental_days = (end_date - start_date).days
+
+            # Аналогично RentalCreateForm: корректный overlap для DateTimeField
+            start_dt = timezone.make_aware(datetime.combine(start_date, time.min))
+            end_dt = timezone.make_aware(datetime.combine(end_date, time.min))
+
             if rental_days < self.inventory.min_rental_days:
                 raise ValidationError(
                     f'Минимальный срок брони для этого инвентаря: {self.inventory.min_rental_days} дней'
@@ -191,16 +202,17 @@ class ReservationCreateForm(forms.ModelForm):
                 inventory=self.inventory,
                 status__in=['pending', 'confirmed', 'active']
             ).filter(
-                start_date__lt=end_date,
-                end_date__gt=start_date
+                start_date__lt=end_dt,
+                end_date__gt=start_dt
             )
 
             overlapping_reservations = Reservation.objects.filter(
                 inventory=self.inventory,
                 status='active',
+                end_date__gt=timezone.now(),
             ).filter(
-                start_date__lt=end_date,
-                end_date__gt=start_date
+                start_date__lt=end_dt,
+                end_date__gt=start_dt
             )
 
             occupied_ranges = []

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Бронь на 30 минут - СпортРент{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-calendar-event"></i>
+                        {% if already_existed %}
+                            Бронь подтверждена
+                        {% else %}
+                            Бронь на 30 минут создана
+                        {% endif %}
+                    </h3>
+                </div>
+
+                <div class="card-body">
+                    <div class="alert alert-success mb-3">
+                        Товар <strong>{{ reservation.inventory.name }}</strong> забронирован на <strong>30 минут</strong>.
+                    </div>
+
+                    <p class="text-muted mb-3">
+                        Период: {{ reservation.start_date|date:"d.m.Y H:i" }} – {{ reservation.end_date|date:"d.m.Y H:i" }}
+                    </p>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'rentals:reserve_detail' reservation.reservation_id %}" class="btn btn-primary">
+                            <i class="bi bi-card-list"></i> Открыть бронь
+                        </a>
+                        <a href="{% url 'inventory:detail' reservation.inventory.inventory_id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Назад к товару
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

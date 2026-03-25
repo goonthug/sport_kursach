@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.rental_list, name='list'),
     path('<uuid:pk>/', views.rental_detail, name='detail'),
     path('create/<uuid:inventory_id>/', views.rental_create, name='create'),
+    path('reserve/quick/create/<uuid:inventory_id>/', views.reservation_quick_create, name='reserve_quick'),
     path('reserve/create/<uuid:inventory_id>/', views.reservation_create, name='reserve_create'),
     path('reserve/<uuid:pk>/', views.reservation_detail, name='reserve_detail'),
     path('reserve/<uuid:pk>/cancel/', views.reservation_cancel, name='reserve_cancel'),
