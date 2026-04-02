@@ -11,7 +11,7 @@
                     <h3 class="mb-0">
                         <i class="bi bi-calendar-event"></i>
                         {% if already_existed %}
-                            Бронь подтверждена
+                            У вас уже есть бронь
                         {% else %}
                             Бронь на 30 минут создана
                         {% endif %}
@@ -19,9 +19,16 @@
                 </div>
 
                 <div class="card-body">
-                    <div class="alert alert-success mb-3">
-                        Товар <strong>{{ reservation.inventory.name }}</strong> забронирован на <strong>30 минут</strong>.
-                    </div>
+                    {% if already_existed %}
+                        <div class="alert alert-warning mb-3">
+                            Вы <strong>уже забронировали</strong> товар <strong>{{ reservation.inventory.name }}</strong> на <strong>30 минут</strong>.
+                            Повторная бронь не нужна — используйте текущую.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success mb-3">
+                            Товар <strong>{{ reservation.inventory.name }}</strong> забронирован на <strong>30 минут</strong>.
+                        </div>
+                    {% endif %}
 
                     <p class="text-muted mb-3">
                         Период: {{ reservation.start_date|date:"d.m.Y H:i" }} – {{ reservation.end_date|date:"d.m.Y H:i" }}

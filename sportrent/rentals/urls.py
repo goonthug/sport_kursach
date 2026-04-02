@@ -5,13 +5,12 @@ app_name = 'rentals'
 
 urlpatterns = [
     path('', views.rental_list, name='list'),
-    path('<uuid:pk>/', views.rental_detail, name='detail'),
     path('create/<uuid:inventory_id>/', views.rental_create, name='create'),
     path('reserve/quick/create/<uuid:inventory_id>/', views.reservation_quick_create, name='reserve_quick'),
     path('reserve/create/<uuid:inventory_id>/', views.reservation_create, name='reserve_create'),
-    path('reserve/<uuid:pk>/', views.reservation_detail, name='reserve_detail'),
     path('reserve/<uuid:pk>/cancel/', views.reservation_cancel, name='reserve_cancel'),
     path('reserve/<uuid:pk>/rent/', views.reservation_rent, name='reserve_rent'),
+    path('reserve/<uuid:pk>/', views.reservation_detail, name='reserve_detail'),
     path('<uuid:pk>/pay/', views.rental_pay, name='pay'),
     path('<uuid:pk>/confirm/', views.rental_confirm, name='confirm'),
     path('<uuid:pk>/reject/', views.rental_reject, name='reject'),
@@ -19,4 +18,6 @@ urlpatterns = [
     path('<uuid:pk>/extend/', views.rental_extend, name='extend'),
     path('<uuid:pk>/cancel/', views.rental_cancel, name='cancel'),
     path('<uuid:pk>/contract/download/', views.contract_download, name='contract_download'),
+    # Общий маршрут аренды — в конце, чтобы не пересекаться с create/reserve/...
+    path('<uuid:pk>/', views.rental_detail, name='detail'),
 ]

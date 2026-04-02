@@ -318,50 +318,88 @@ def reservation_quick_create(request, inventory_id):
     inventory = get_object_or_404(Inventory, pk=inventory_id)
 
     if inventory.status != 'available':
-        messages.error(request, 'Этот инвентарь недоступен')
-        return redirect('inventory:detail', pk=inventory_id)
+        return render(
+            request,
+            'rentals/reservation_quick_blocked.html',
+            {
+                'inventory': inventory,
+                'reason': 'unavailable',
+                'until': None,
+            },
+        )
+
+    # Просроченные брони больше не должны блокировать товар
+    Reservation.objects.filter(status='active', end_date__lte=timezone.now()).update(status='expired')
 
     start_dt = timezone.now()
     end_dt = start_dt + timedelta(minutes=30)
 
-    existing = Reservation.objects.filter(
-        inventory=inventory,
-        client=client,
-        status='active',
-    ).filter(
-        start_date__lt=end_dt,
-        end_date__gt=start_dt,
-    ).first()
+    # Уже есть ваша активная бронь на этот товар, пересекающаяся с новым окном
+    own_active = (
+        Reservation.objects.filter(
+            inventory=inventory,
+            client=client,
+            status='active',
+        )
+        .filter(start_date__lt=end_dt, end_date__gt=start_dt)
+        .order_by('-created_date')
+        .first()
+    )
 
-    if existing:
+    if own_active:
         return render(
             request,
             'rentals/reservation_quick_created.html',
             {
-                'reservation': existing,
+                'reservation': own_active,
                 'already_existed': True,
             },
         )
 
-    overlapping_reservations = Reservation.objects.filter(
-        inventory=inventory,
-        status='active',
-    ).filter(
-        start_date__lt=end_dt,
-        end_date__gt=start_dt,
+    # Другой клиент уже держит бронь на это время
+    other_reservation = (
+        Reservation.objects.filter(
+            inventory=inventory,
+            status='active',
+        )
+        .exclude(client=client)
+        .filter(start_date__lt=end_dt, end_date__gt=start_dt)
+        .order_by('-created_date')
+        .first()
     )
 
-    overlapping_rentals = Rental.objects.filter(
-        inventory=inventory,
-        status__in=['pending', 'confirmed', 'active'],
-    ).filter(
-        start_date__lt=end_dt,
-        end_date__gt=start_dt,
+    if other_reservation:
+        return render(
+            request,
+            'rentals/reservation_quick_blocked.html',
+            {
+                'inventory': inventory,
+                'reason': 'reserved_by_other',
+                'until': other_reservation.end_date,
+            },
+        )
+
+    # Пересечение с заявкой/арендой
+    blocking_rental = (
+        Rental.objects.filter(
+            inventory=inventory,
+            status__in=['pending', 'confirmed', 'active'],
+        )
+        .filter(start_date__lt=end_dt, end_date__gt=start_dt)
+        .order_by('-created_date')
+        .first()
     )
 
-    if overlapping_reservations.exists() or overlapping_rentals.exists():
-        messages.error(request, 'Невозможно забронировать: товар уже занят/забронирован на это время')
-        return redirect('inventory:detail', pk=inventory_id)
+    if blocking_rental:
+        return render(
+            request,
+            'rentals/reservation_quick_blocked.html',
+            {
+                'inventory': inventory,
+                'reason': 'rental_overlap',
+                'until': blocking_rental.end_date,
+            },
+        )
 
     with transaction.atomic():
         reservation = Reservation.objects.create(
@@ -372,7 +410,6 @@ def reservation_quick_create(request, inventory_id):
             status='active',
         )
 
-    messages.success(request, 'Бронь на 30 минут создана')
     return render(
         request,
         'rentals/reservation_quick_created.html',

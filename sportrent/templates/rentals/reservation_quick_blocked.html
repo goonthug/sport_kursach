@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Бронь недоступна - СпортРент{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h3 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Не удалось забронировать</h3>
+                </div>
+                <div class="card-body">
+                    {% if reason == 'reserved_by_other' %}
+                        <div class="alert alert-warning mb-3">
+                            Товар <strong>{{ inventory.name }}</strong> уже забронирован другим клиентом на 30 минут.
+                            {% if until %}
+                                <span class="d-block mt-2 small">Бронь действует примерно до <strong>{{ until|date:"d.m.Y H:i" }}</strong>.</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-muted mb-0">Попробуйте снова после окончания брони или выберите другой товар.</p>
+                    {% elif reason == 'rental_overlap' %}
+                        <div class="alert alert-warning mb-3">
+                            На это время товар уже занят активной заявкой или арендой.
+                            {% if until %}
+                                <span class="d-block mt-2 small">Период занятости до <strong>{{ until|date:"d.m.Y H:i" }}</strong>.</span>
+                            {% endif %}
+                        </div>
+                    {% elif reason == 'unavailable' %}
+                        <div class="alert alert-secondary mb-3">
+                            Этот товар сейчас недоступен для бронирования.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            Сейчас нельзя оформить бронь на этот товар.
+                        </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'inventory:detail' inventory.inventory_id %}" class="btn btn-primary">
+                            <i class="bi bi-arrow-left"></i> Назад к товару
+                        </a>
+                        <a href="{% url 'inventory:list' %}" class="btn btn-outline-secondary">
+                            В каталог
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
