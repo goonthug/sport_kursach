@@ -7,11 +7,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Avg
 from django.core.paginator import Paginator
 
 from .models import Review
 from .forms import ReviewForm
+from .utils import update_inventory_rating
 from rentals.models import Rental
 from inventory.models import Inventory
 
@@ -205,32 +205,3 @@ def review_reject(request, pk):
             messages.error(request, 'Ошибка при отклонении')
 
     return redirect('reviews:list')
-
-
-def update_inventory_rating(inventory):
-    """
-    Обновление среднего рейтинга инвентаря.
-    """
-    try:
-        avg_rating = Review.objects.filter(
-            reviewed_id=inventory.inventory_id,
-            target_type='inventory',
-            status='published'
-        ).aggregate(avg=Avg('rating'))['avg']
-
-        if avg_rating:
-            inventory.avg_rating = round(avg_rating, 2)
-        else:
-            inventory.avg_rating = None
-
-        # Обновляем количество отзывов
-        inventory.reviews_count = Review.objects.filter(
-            reviewed_id=inventory.inventory_id,
-            target_type='inventory',
-            status='published'
-        ).count()
-
-        inventory.save(update_fields=['avg_rating', 'reviews_count'])
-
-    except Exception as e:
-        logger.error(f'Ошибка при обновлении рейтинга инвентаря: {str(e)}')

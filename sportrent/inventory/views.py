@@ -80,7 +80,7 @@ def inventory_list(request):
     page_obj = paginator.get_page(page_number)
 
     # Обновляем рейтинги для инвентаря на текущей странице
-    from reviews.views import update_inventory_rating
+    from reviews.utils import update_inventory_rating
     for item in page_obj.object_list:
         if item.reviews_count > 0:
             update_inventory_rating(item)

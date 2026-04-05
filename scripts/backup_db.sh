@@ -1,24 +1,38 @@
 #!/usr/bin/env bash
-# Делает безопасную копию базы данных SQLite.
-# Копия сохраняется в папку sportrent/backups с временной меткой.
+# Резервная копия PostgreSQL (pg_dump custom format).
+# Читает DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT из .env в корне репозитория.
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_DIR="$ROOT_DIR/sportrent"
-DB_FILE="$PROJECT_DIR/db.sqlite3"
-BACKUP_DIR="$PROJECT_DIR/backups"
+ENV_FILE="$ROOT_DIR/.env"
+BACKUP_DIR="$ROOT_DIR/sportrent/backups"
 
-if [[ ! -f "$DB_FILE" ]]; then
-  echo "Файл базы не найден: $DB_FILE"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Нет файла .env: $ENV_FILE"
   exit 1
 fi
 
+# Безопасная подстановка переменных из .env (только строки DB_*)
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
+: "${DB_NAME:?В .env задайте DB_NAME}"
+: "${DB_USER:?В .env задайте DB_USER}"
+
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5432}"
+
 mkdir -p "$BACKUP_DIR"
-
 TIMESTAMP="$(date +"%Y%m%d-%H%M%S")"
-BACKUP_FILE="$BACKUP_DIR/db-$TIMESTAMP.sqlite3"
+BACKUP_FILE="$BACKUP_DIR/pg-$DB_NAME-$TIMESTAMP.dump"
 
-cp "$DB_FILE" "$BACKUP_FILE"
+export PGPASSWORD="${DB_PASSWORD:-}"
 
-echo "Резервная копия создана: $BACKUP_FILE"
+pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -F c -f "$BACKUP_FILE"
+
+echo "Резервная копия PostgreSQL создана: $BACKUP_FILE"
+
+unset PGPASSWORD

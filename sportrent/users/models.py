@@ -54,7 +54,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(max_length=255, unique=True, verbose_name='Email')
-    phone = models.CharField(max_length=15, blank=True, null=True, unique=True, verbose_name='Телефон')
+    phone = models.CharField(max_length=30, blank=True, null=True, unique=True, verbose_name='Телефон')
 
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='client', verbose_name='Роль')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', verbose_name='Статус')
@@ -260,7 +260,7 @@ class Manager(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='manager_profile')
 
     full_name = models.CharField(max_length=200, verbose_name='Полное имя')
-    phone_work = models.CharField(max_length=15, blank=True, verbose_name='Рабочий телефон')
+    phone_work = models.CharField(max_length=30, blank=True, verbose_name='Рабочий телефон')
     email_work = models.EmailField(max_length=255, blank=True, verbose_name='Рабочий email')
 
     assigned_items = models.IntegerField(default=0, verbose_name='Назначенных предметов')

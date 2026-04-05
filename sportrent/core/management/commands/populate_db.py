@@ -3,7 +3,9 @@ Management команда для заполнения БД тестовыми д
 Использование: python manage.py populate_db
 """
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
+from django.db import connection
+from django.db.utils import OperationalError
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
@@ -20,6 +22,15 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Начинаем заполнение БД...'))
+
+        try:
+            connection.ensure_connection()
+        except OperationalError as exc:
+            raise CommandError(
+                'Не удалось подключиться к PostgreSQL. Запустите службу PostgreSQL и '
+                'проверьте sportrent/.env: DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT.\n'
+                f'Детали: {exc}'
+            ) from exc
 
         # Создаем пользователей
         self.create_users()
@@ -87,9 +98,9 @@ class Command(BaseCommand):
             Inventory.objects.filter(status='available', manager__in=other_managers).update(manager=primary_manager)
             Rental.objects.filter(manager__in=other_managers).update(manager=primary_manager)
 
-            # Удаляем пользователей (Manager удалится каскадно)
-            other_managers_users = other_managers.values_list('user_id', flat=True)
-            User.objects.filter(user_id__in=other_managers_users).delete()
+            # Удаляем пользователей (Manager удалится каскадно). Список id до любых дальнейших запросов.
+            other_managers_user_ids = list(other_managers.values_list('user_id', flat=True))
+            User.objects.filter(user_id__in=other_managers_user_ids).delete()
 
         # Владельцы
         owner_data = [
@@ -217,11 +228,15 @@ class Command(BaseCommand):
         """Создание инвентаря."""
         self.stdout.write('Создаем инвентарь...')
 
-        owners = Owner.objects.all()
+        owners = list(Owner.objects.all())
         primary_manager = Manager.objects.filter(user__email='manager1@sportrent.ru').first()
         if not primary_manager:
             raise RuntimeError('Первый менеджер (manager1@sportrent.ru) не найден. Сначала запустите populate_db.')
-        categories = SportCategory.objects.all()
+        categories = list(SportCategory.objects.all())
+        if not owners:
+            raise RuntimeError('Нет владельцев в БД. Сначала выполните create_users.')
+        if not categories:
+            raise RuntimeError('Нет категорий. Сначала выполните create_categories.')
 
         inventory_data = [
             # Велосипеды
@@ -271,7 +286,7 @@ class Command(BaseCommand):
 
         for i, (name, desc, brand, model, price, condition) in enumerate(inventory_data):
             owner = random.choice(owners)
-            category = random.choice(categories)
+            category = random.choice(categories)  # list, не QuerySet — для random.choice
 
             # Создаем с разными статусами
             status = random.choices(
@@ -319,11 +334,23 @@ class Command(BaseCommand):
         """Создание тестовых аренд."""
         self.stdout.write('Создаем аренды...')
 
-        clients = Client.objects.all()
-        available_inventory = Inventory.objects.filter(status='available')
+        clients = list(Client.objects.all())
+        available_inventory = list(Inventory.objects.filter(status='available'))
         primary_manager = Manager.objects.filter(user__email='manager1@sportrent.ru').first()
         if not primary_manager:
             raise RuntimeError('Первый менеджер (manager1@sportrent.ru) не найден. Сначала запустите populate_db.')
+
+        if not clients:
+            self.stdout.write(self.style.WARNING('Нет клиентов — пропуск создания аренд.'))
+            return
+        if not available_inventory:
+            self.stdout.write(
+                self.style.WARNING(
+                    'Нет инвентаря со статусом «доступен» — пропуск создания аренд. '
+                    'Запустите populate_db на чистой БД или добавьте доступные позиции.'
+                )
+            )
+            return
 
         for i in range(10):
             client = random.choice(clients)
@@ -404,7 +431,8 @@ class Command(BaseCommand):
             )
 
         # Обновляем рейтинг по всем отзывам
-        from reviews.views import update_inventory_rating
+        from reviews.utils import update_inventory_rating
+
         for inventory in Inventory.objects.all():
             update_inventory_rating(inventory)
 

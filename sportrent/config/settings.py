@@ -14,11 +14,26 @@ Django settings for SportRent project.
 """
 
 from pathlib import Path
-from decouple import config
 import os
+
+from decouple import Config, RepositoryEnv
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# .env: сначала sportrent/.env (рядом с manage.py), иначе корень репозитория
+_env_file = None
+for _candidate in (BASE_DIR / '.env', BASE_DIR.parent / '.env'):
+    if _candidate.is_file():
+        _env_file = _candidate
+        break
+
+if _env_file is not None:
+    config = Config(RepositoryEnv(str(_env_file)))
+else:
+    from decouple import config as auto_config
+
+    config = auto_config
 
 # Security settings
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
@@ -82,11 +97,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Database
+# Database — PostgreSQL (адаптер: psycopg2, пакет psycopg2-binary)
+# Параметры задаются в .env (см. .env.example в корне репозитория).
 DATABASES = {
     'default': {
-        'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
-        'NAME': config('DB_NAME', default=BASE_DIR / 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='sportrent'),
+        'USER': config('DB_USER', default='sportrent'),
+        'PASSWORD': config('DB_PASSWORD', default='sportrent'),
+        'HOST': config('DB_HOST', default='127.0.0.1'),
+        'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=0, cast=int),
     }
 }
 
