@@ -54,6 +54,18 @@ services:
       mongo:
         condition: service_started
 
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+    environment:
+      VITE_YANDEX_MAPS_KEY: ${YANDEX_MAPS_KEY:-}
+    depends_on:
+      - web
+
   nginx:
     image: nginx:alpine
     ports:
@@ -64,6 +76,7 @@ services:
       - media_volume:/app/sportrent/media
     depends_on:
       - web
+      - frontend
 
 volumes:
   postgres_data:
