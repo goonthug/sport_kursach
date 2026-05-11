@@ -998,11 +998,16 @@ def contract_download(request, pk):
             paragraph.text = f'ДОГОВОР АРЕНДЫ № {contract.contract_number}'
             break
 
-    # 2) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Альметьевск, DD.MM.YYYY г."
+    # 2) Дата договора: город берём из точки выдачи инвентаря
+    contract_city = (
+        rental.inventory.pickup_point.city.name
+        if rental.inventory.pickup_point_id and rental.inventory.pickup_point.city
+        else 'Не указан'
+    )
     formatted_date = today.strftime('%d.%m.%Y')
     for paragraph in document.paragraphs:
         if 'г.' in paragraph.text:
-            paragraph.text = f'г. Альметьевск, {formatted_date} г.'
+            paragraph.text = f'г. {contract_city}, {formatted_date} г.'
             break
 
     # 3) ФИО менеджера: в шаблоне стоит "Петров Петр Петрович"

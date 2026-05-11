@@ -22,6 +22,12 @@ def search_inventory(parsed: ParsedSearchQuery):
     Выполняет поиск доступного инвентаря по полям ParsedSearchQuery.
     Возвращает QuerySet (не более MAX_RESULTS записей).
     """
+    # Если LLM не распознал ничего осмысленного — не отдаём весь каталог
+    if not any([parsed.category_query, parsed.keywords, parsed.city_name,
+                parsed.max_price, parsed.start_date]):
+        logger.info('Пустой parsed-запрос — возвращаем пустой результат')
+        return Inventory.objects.none()
+
     qs = Inventory.objects.select_related(
         'category', 'owner', 'pickup_point__city',
     ).prefetch_related('photos').filter(status='available')

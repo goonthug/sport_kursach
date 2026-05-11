@@ -123,9 +123,14 @@
                             </div>
                             <div class="mb-3">
                                 <label for="pickup_phone" class="form-label">Телефон точки</label>
-                                <input type="text" name="pickup_phone" id="pickup_phone" class="form-control"
-                                    placeholder="+7 (XXX) XXX-XX-XX"
-                                    value="{{ inventory.pickup_point.phone|default:'' }}">
+                                <div class="input-group">
+                                    <span class="input-group-text">+7</span>
+                                    <input type="text" name="pickup_phone" id="pickup_phone"
+                                        class="form-control" placeholder="917 922 54 66"
+                                        maxlength="13"
+                                        value="{{ inventory.pickup_point.phone|default:''|slice:'3:' }}">
+                                </div>
+                                <div class="form-text">Только цифры, 10 знаков</div>
                             </div>
                             {% endif %}
 
@@ -178,3 +183,41 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const phoneInput = document.getElementById('pickup_phone');
+    if (!phoneInput) return;
+
+    phoneInput.addEventListener('input', function (e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 10) value = value.slice(0, 10);
+
+        let formatted = '';
+        if (value.length > 0) {
+            formatted = value.slice(0, 3);
+            if (value.length > 3) formatted += ' ' + value.slice(3, 6);
+            if (value.length > 6) formatted += ' ' + value.slice(6, 8);
+            if (value.length > 8) formatted += ' ' + value.slice(8, 10);
+        }
+        e.target.value = formatted;
+    });
+
+    phoneInput.addEventListener('keypress', function (e) {
+        if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab') {
+            e.preventDefault();
+        }
+    });
+
+    /* Перед отправкой формы склеиваем +7 с цифрами */
+    phoneInput.closest('form').addEventListener('submit', function () {
+        const digits = phoneInput.value.replace(/\D/g, '');
+        if (digits.length === 10) {
+            phoneInput.value = '+7' + digits;
+        }
+    });
+})();
+</script>
+{% endblock %}
+

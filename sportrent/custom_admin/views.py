@@ -308,6 +308,11 @@ def admin_inventory_approve(request, pk):
         # Менеджер заполняет адрес и телефон точки выдачи
         pickup_address = request.POST.get('pickup_address', '').strip()
         pickup_phone = request.POST.get('pickup_phone', '').strip()
+        # Нормализуем телефон: добавляем +7 если его нет
+        if pickup_phone and not pickup_phone.startswith('+7'):
+            digits = ''.join(c for c in pickup_phone if c.isdigit())
+            if len(digits) == 10:
+                pickup_phone = f'+7{digits}'
         if pickup_address and inventory.pickup_point_id:
             pp = inventory.pickup_point
             pp.address = pickup_address
@@ -464,16 +469,23 @@ def inventory_contract_download(request, pk):
         )
         return redirect('custom_admin:inventory_pending_detail', pk=pk)
 
+    # Город из точки выдачи инвентаря (или дефолт если не указан)
+    contract_city = (
+        inventory.pickup_point.city.name
+        if inventory.pickup_point_id and inventory.pickup_point.city
+        else 'Не указан'
+    )
+
     try:
         # Открываем шаблон и подставляем данные
         document = Document(str(template_path))
 
-        # 1) Дата договора: ищем первую строку, где есть "г." (город) и подменяем на "г. Альметьевск, DD.MM.YYYY г."
+        # 1) Дата договора: ищем первую строку, где есть "г." (город) и подменяем
         formatted_date = today.strftime('%d.%m.%Y')
         date_replaced = False
         for paragraph in document.paragraphs:
             if 'г.' in paragraph.text and not date_replaced:
-                paragraph.text = f'г. Альметьевск, {formatted_date} г.'
+                paragraph.text = f'г. {contract_city}, {formatted_date} г.'
                 date_replaced = True
                 break
 
