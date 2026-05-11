@@ -36,8 +36,15 @@ def _save_pickup_point(inventory, form, owner):
     if not city_name:
         return
 
-    # Найти или создать город, геокодируем координаты
-    city, city_created = City.objects.get_or_create(name=city_name)
+    # Нормализуем регистр: "казань" → "Казань", "санкт-петербург" → "Санкт-Петербург"
+    city_name = city_name.title()
+
+    # Найти или создать город; iexact чтобы не дублировать при опечатках регистра
+    city = City.objects.filter(name__iexact=city_name).first()
+    city_created = False
+    if not city:
+        city = City.objects.create(name=city_name)
+        city_created = True
     if city_created or (not city.lat and not city.lon):
         try:
             from ai_search.geocoder import get_city_coordinates
