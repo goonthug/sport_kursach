@@ -12,3 +12,13 @@ crispy-bootstrap5>=2023.0
 django-filter>=23.0
 openpyxl>=3.0
 reportlab>=4.0
+
+# REST API
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.3
+
+# AI-поиск
+langchain>=0.3
+langchain-groq>=0.2
+requests>=2.31

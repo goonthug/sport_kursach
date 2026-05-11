@@ -9,6 +9,58 @@ from django.utils import timezone
 from users.models import Owner, Manager, Client, BankAccount
 
 
+class City(models.Model):
+    """Город присутствия платформы (справочник для геолокационного поиска)."""
+
+    city_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True, verbose_name='Название')
+    region = models.CharField(max_length=150, blank=True, verbose_name='Регион/область')
+    lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Широта')
+    lon = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Долгота')
+
+    class Meta:
+        db_table = 'cities'
+        verbose_name = 'Город'
+        verbose_name_plural = 'Города'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class PickupPoint(models.Model):
+    """Точка выдачи инвентаря (адрес + координаты для Yandex Maps)."""
+
+    point_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='pickup_points', verbose_name='Город')
+    owner = models.ForeignKey(
+        Owner, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pickup_points', verbose_name='Владелец'
+    )
+    manager = models.ForeignKey(
+        Manager, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pickup_points', verbose_name='Менеджер'
+    )
+    name = models.CharField(max_length=200, verbose_name='Название точки')
+    address = models.CharField(max_length=500, verbose_name='Адрес')
+    lat = models.DecimalField(max_digits=9, decimal_places=6, verbose_name='Широта')
+    lon = models.DecimalField(max_digits=9, decimal_places=6, verbose_name='Долгота')
+    phone = models.CharField(max_length=30, blank=True, verbose_name='Телефон точки')
+    is_active = models.BooleanField(default=True, verbose_name='Активна')
+
+    class Meta:
+        db_table = 'pickup_points'
+        verbose_name = 'Точка выдачи'
+        verbose_name_plural = 'Точки выдачи'
+        ordering = ['city', 'name']
+        indexes = [
+            models.Index(fields=['city', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.city.name})'
+
+
 class SportCategory(models.Model):
     """Категории спортивного инвентаря."""
 
@@ -78,6 +130,12 @@ class Inventory(models.Model):
     # Банковский счет для выплат владельцу
     bank_account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL, null=True, blank=True,
                                      related_name='inventory_items', verbose_name='Банковский счет для выплаты')
+
+    # Точка выдачи — привязывает инвентарь к городу и конкретному адресу
+    pickup_point = models.ForeignKey(
+        PickupPoint, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='inventory_items', verbose_name='Точка выдачи'
+    )
 
     class Meta:
         db_table = 'inventory'
