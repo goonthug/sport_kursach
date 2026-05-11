@@ -263,6 +263,7 @@ CORS_ALLOWED_ORIGINS = config(
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
 
-# AI-поиск
+# AI-поиск и карты
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
 YANDEX_GEOCODER_KEY = config('YANDEX_GEOCODER_KEY', default='')
+YANDEX_MAPS_KEY = config('YANDEX_MAPS_KEY', default='')

@@ -3,10 +3,14 @@ Views для управления инвентарем.
 Включает список, детали, создание, редактирование и удаление.
 """
 
+import json
 import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.conf import settings
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -108,6 +112,7 @@ def inventory_list(request):
         'current_sort': sort_by,
         'total_count': paginator.count,
         'favorite_ids': favorite_ids,
+        'yandex_maps_key': settings.YANDEX_MAPS_KEY,
     }
 
     return render(request, 'inventory/inventory_list.html', context)
@@ -500,3 +505,65 @@ def favorite_toggle(request, pk):
     if next_url:
         return redirect(next_url)
     return redirect('inventory:detail', pk=pk)
+
+
+@require_POST
+def ai_search_view(request):
+    """
+    AJAX-эндпоинт AI-поиска. Принимает JSON с полем "q",
+    возвращает список инвентаря с координатами точек выдачи.
+    """
+    try:
+        body = json.loads(request.body)
+        query = body.get('q', '').strip()
+    except (json.JSONDecodeError, AttributeError):
+        query = request.POST.get('q', '').strip()
+
+    if not query:
+        return JsonResponse({'error': 'Запрос не может быть пустым'}, status=400)
+
+    try:
+        from ai_search.parser import parse_query
+        from ai_search.search import search_inventory
+
+        parsed = parse_query(query)
+        results_qs = search_inventory(parsed)
+
+        items = []
+        for item in results_qs:
+            photo = item.photos.first()
+            pp = item.pickup_point
+            items.append({
+                'id': str(item.inventory_id),
+                'name': item.name,
+                'brand': item.brand or '',
+                'price_per_day': float(item.price_per_day),
+                'category': item.category.name if item.category else '',
+                'condition': item.condition,
+                'avg_rating': float(item.avg_rating) if item.avg_rating else None,
+                'photo_url': photo.photo_url.url if photo and photo.photo_url else '',
+                'url': f'/inventory/{item.inventory_id}/',
+                'pickup_point': {
+                    'name': pp.name,
+                    'address': pp.address,
+                    'city': pp.city.name,
+                    'lat': float(pp.lat),
+                    'lon': float(pp.lon),
+                    'phone': pp.phone or '',
+                } if pp else None,
+            })
+
+        parsed_info = {
+            'category_query': parsed.category_query,
+            'city_name': parsed.city_name,
+            'max_price': parsed.max_price,
+            'start_date': parsed.start_date,
+            'end_date': parsed.end_date,
+        }
+
+        logger.info('AI-поиск "%s": найдено %d', query, len(items))
+        return JsonResponse({'results': items, 'count': len(items), 'parsed': parsed_info})
+
+    except Exception as exc:
+        logger.error('Ошибка AI-поиска: %s', exc)
+        return JsonResponse({'error': 'Ошибка поиска, попробуйте позже'}, status=500)

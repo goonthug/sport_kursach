@@ -2,6 +2,59 @@
 
 {% block title %}Каталог инвентаря - СпортРент{% endblock %}
 
+{% block extra_css %}
+<style>
+    #ai-search-section {
+        background: linear-gradient(135deg, #0d1b2a 0%, #1a2e44 100%);
+        border-radius: 16px;
+        padding: 28px 32px;
+        margin-bottom: 24px;
+    }
+    #ai-map {
+        height: 380px;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-top: 16px;
+        display: none;
+    }
+    .ai-result-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: box-shadow .2s;
+    }
+    .ai-result-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+    .ai-result-img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        background: #f3f4f6;
+    }
+    .ai-result-img-placeholder {
+        width: 100%;
+        height: 160px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        background: #f3f4f6;
+    }
+    .ai-parsed-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255,255,255,.1);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: .75rem;
+        color: #a5c8ff;
+        margin: 4px 4px 0 0;
+    }
+    #ai-results-section { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="frzn-section frzn-section--slate frzn-section--tight">
     <div class="container">
@@ -18,6 +71,43 @@
             {% endif %}
         </div>
 
+        {# ── AI-поиск ───────────────────────────────────────────────── #}
+        <div id="ai-search-section">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span style="font-size:1.4rem;">🤖</span>
+                <div>
+                    <div class="text-white fw-semibold" style="font-size:1rem;">Умный поиск</div>
+                    <div class="text-secondary" style="font-size:.8rem;">Напишите запрос на русском — AI найдёт подходящий инвентарь</div>
+                </div>
+            </div>
+            <div class="input-group">
+                <input
+                    type="text"
+                    id="ai-query"
+                    class="form-control form-control-lg"
+                    placeholder="Например: недорогие лыжи в Казани на выходные..."
+                    style="border-radius: 10px 0 0 10px; border: none;"
+                >
+                <button class="btn btn-primary btn-lg" id="ai-search-btn" style="border-radius: 0 10px 10px 0; min-width:110px;">
+                    <span id="ai-btn-text">Найти</span>
+                    <span id="ai-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            </div>
+            <div id="ai-parsed-badges" class="mt-2"></div>
+            <div id="ai-error" class="text-danger mt-2 small d-none"></div>
+        </div>
+
+        {# ── Результаты AI-поиска ──────────────────────────────────── #}
+        <div id="ai-results-section" class="mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="mb-0" style="color:#fff;">Результаты умного поиска: <span id="ai-count" class="text-primary">0</span></h5>
+                <button class="btn btn-sm btn-outline-secondary" id="ai-clear-btn">✕ Очистить</button>
+            </div>
+            <div id="ai-map"></div>
+            <div class="row g-3 mt-1" id="ai-results-grid"></div>
+        </div>
+
+        {# ── Обычные фильтры ───────────────────────────────────────── #}
         <div class="frzn-filter mb-4">
             <form method="get" class="row g-3" id="filterForm" data-preserve-scroll="true">
                 <div class="col-md-4">
@@ -163,4 +253,177 @@
         {% endif %}
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+{% if yandex_maps_key %}
+<script src="https://api-maps.yandex.ru/2.1/?apikey={{ yandex_maps_key }}&lang=ru_RU" type="text/javascript"></script>
+{% endif %}
+<script>
+(function () {
+    const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    const AI_URL = '{% url "inventory:ai_search" %}';
+    const MAPS_AVAILABLE = {{ yandex_maps_key|yesno:"true,false" }};
+
+    let yaMap = null;
+
+    const queryInput  = document.getElementById('ai-query');
+    const searchBtn   = document.getElementById('ai-search-btn');
+    const btnText     = document.getElementById('ai-btn-text');
+    const spinner     = document.getElementById('ai-spinner');
+    const errorDiv    = document.getElementById('ai-error');
+    const badges      = document.getElementById('ai-parsed-badges');
+    const resultsSection = document.getElementById('ai-results-section');
+    const resultsGrid    = document.getElementById('ai-results-grid');
+    const countEl        = document.getElementById('ai-count');
+    const mapDiv         = document.getElementById('ai-map');
+    const clearBtn       = document.getElementById('ai-clear-btn');
+
+    function setLoading(on) {
+        searchBtn.disabled = on;
+        btnText.textContent = on ? '' : 'Найти';
+        spinner.classList.toggle('d-none', !on);
+    }
+
+    function renderBadges(parsed) {
+        badges.innerHTML = '';
+        const items = [
+            parsed.category_query && ['🎿', parsed.category_query],
+            parsed.city_name      && ['📍', parsed.city_name],
+            parsed.max_price      && ['💰', 'до ' + parsed.max_price + ' ₽/день'],
+            parsed.start_date     && ['📅', parsed.start_date + (parsed.end_date ? ' — ' + parsed.end_date : '')],
+        ].filter(Boolean);
+        items.forEach(([icon, text]) => {
+            const b = document.createElement('span');
+            b.className = 'ai-parsed-badge';
+            b.textContent = icon + ' ' + text;
+            badges.appendChild(b);
+        });
+    }
+
+    function renderCard(item) {
+        const imgHtml = item.photo_url
+            ? `<img src="${item.photo_url}" class="ai-result-img" alt="${item.name}">`
+            : `<div class="ai-result-img-placeholder">🏋️</div>`;
+
+        const stars = item.avg_rating
+            ? `<span class="text-warning small">★</span> <span class="small">${item.avg_rating.toFixed(1)}</span>`
+            : '';
+
+        const ppHtml = item.pickup_point
+            ? `<div class="text-muted" style="font-size:.75rem; margin-top:4px;">📍 ${item.pickup_point.city}, ${item.pickup_point.address}</div>`
+            : '';
+
+        return `
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <a href="${item.url}" class="text-decoration-none">
+                <div class="ai-result-card h-100">
+                    ${imgHtml}
+                    <div class="p-3">
+                        <div class="fw-semibold text-dark" style="font-size:.95rem;">${item.name}</div>
+                        <div class="text-muted small">${item.brand || item.category}</div>
+                        <div class="d-flex align-items-center justify-content-between mt-2">
+                            <span class="fw-bold text-primary">${item.price_per_day.toLocaleString('ru-RU')} ₽<span class="text-muted fw-normal">/день</span></span>
+                            ${stars}
+                        </div>
+                        ${ppHtml}
+                    </div>
+                </div>
+            </a>
+        </div>`;
+    }
+
+    function initMap(items) {
+        if (!MAPS_AVAILABLE) return;
+        const points = items.filter(i => i.pickup_point);
+        if (!points.length) return;
+
+        mapDiv.style.display = 'block';
+
+        const doInit = () => {
+            if (yaMap) { yaMap.destroy(); yaMap = null; }
+            ymaps.ready(() => {
+                const center = [points[0].pickup_point.lat, points[0].pickup_point.lon];
+                yaMap = new ymaps.Map('ai-map', { center, zoom: 10, controls: ['zoomControl', 'fullscreenControl'] });
+                points.forEach(item => {
+                    const pp = item.pickup_point;
+                    const placemark = new ymaps.Placemark(
+                        [pp.lat, pp.lon],
+                        {
+                            balloonContentHeader: item.name,
+                            balloonContentBody: `<b>${pp.name}</b><br>${pp.address}${pp.phone ? '<br>' + pp.phone : ''}`,
+                            hintContent: item.name,
+                        },
+                        { preset: 'islands#blueCircleDotIcon' }
+                    );
+                    yaMap.geoObjects.add(placemark);
+                });
+                if (points.length > 1) {
+                    yaMap.setBounds(yaMap.geoObjects.getBounds(), { checkZoomRange: true, zoomMargin: 40 });
+                }
+            });
+        };
+
+        if (typeof ymaps !== 'undefined') {
+            doInit();
+        } else {
+            const script = document.createElement('script');
+            script.src = `https://api-maps.yandex.ru/2.1/?apikey={{ yandex_maps_key }}&lang=ru_RU`;
+            script.onload = doInit;
+            document.head.appendChild(script);
+        }
+    }
+
+    async function doSearch() {
+        const q = queryInput.value.trim();
+        if (!q) return;
+
+        setLoading(true);
+        errorDiv.classList.add('d-none');
+        badges.innerHTML = '';
+
+        try {
+            const resp = await fetch(AI_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ q }),
+            });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                errorDiv.textContent = data.error || 'Ошибка поиска';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            renderBadges(data.parsed || {});
+            countEl.textContent = data.count;
+            resultsGrid.innerHTML = data.results.map(renderCard).join('');
+            resultsSection.style.display = 'block';
+            initMap(data.results);
+
+            if (data.count === 0) {
+                resultsGrid.innerHTML = '<div class="col-12"><div class="alert alert-warning">По вашему запросу ничего не найдено. Попробуйте другой запрос.</div></div>';
+            }
+        } catch (e) {
+            errorDiv.textContent = 'Сетевая ошибка, попробуйте ещё раз';
+            errorDiv.classList.remove('d-none');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    searchBtn.addEventListener('click', doSearch);
+    queryInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+    clearBtn.addEventListener('click', () => {
+        resultsSection.style.display = 'none';
+        mapDiv.style.display = 'none';
+        resultsGrid.innerHTML = '';
+        badges.innerHTML = '';
+        queryInput.value = '';
+        if (yaMap) { yaMap.destroy(); yaMap = null; }
+    });
+})();
+</script>
 {% endblock %}
