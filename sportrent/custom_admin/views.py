@@ -305,6 +305,16 @@ def admin_inventory_approve(request, pk):
         inventory.deposit_amount = deposit_amount
         inventory.save()
 
+        # Менеджер заполняет адрес и телефон точки выдачи
+        pickup_address = request.POST.get('pickup_address', '').strip()
+        pickup_phone = request.POST.get('pickup_phone', '').strip()
+        if pickup_address and inventory.pickup_point_id:
+            pp = inventory.pickup_point
+            pp.address = pickup_address
+            pp.phone = pickup_phone
+            pp.name = f'{pp.city.name} — {inventory.owner.full_name}'
+            pp.save(update_fields=['address', 'phone', 'name'])
+
         logger.info(f'Инвентарь одобрен: {inventory.name}, залог {deposit_amount} менеджером {request.user.email}')
         messages.success(request, 'Инвентарь одобрен. Ожидается подписание договора.')
 

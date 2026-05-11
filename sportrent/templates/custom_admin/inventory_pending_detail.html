@@ -107,6 +107,28 @@
                                 <input type="number" name="deposit_amount" id="deposit_amount" class="form-control" min="0" step="0.01" value="0">
                                 <small class="text-muted">Укажите сумму залога при одобрении</small>
                             </div>
+
+                            {% if inventory.pickup_point %}
+                            <hr class="my-3">
+                            <h6 class="text-muted mb-3">
+                                <i class="bi bi-geo-alt"></i> Точка выдачи
+                                <span class="badge bg-secondary ms-1">{{ inventory.pickup_point.city.name }}</span>
+                            </h6>
+                            <div class="mb-3">
+                                <label for="pickup_address" class="form-label">Адрес выдачи</label>
+                                <input type="text" name="pickup_address" id="pickup_address" class="form-control"
+                                    placeholder="Улица, дом, ориентир"
+                                    value="{{ inventory.pickup_point.address|default:'' }}">
+                                <small class="text-muted">Точный адрес, по которому клиент заберёт инвентарь</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="pickup_phone" class="form-label">Телефон точки</label>
+                                <input type="text" name="pickup_phone" id="pickup_phone" class="form-control"
+                                    placeholder="+7 (XXX) XXX-XX-XX"
+                                    value="{{ inventory.pickup_point.phone|default:'' }}">
+                            </div>
+                            {% endif %}
+
                             <button type="submit" class="btn btn-success w-100">
                                 <i class="bi bi-check-circle"></i> Одобрить
                             </button>

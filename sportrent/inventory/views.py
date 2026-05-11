@@ -28,15 +28,15 @@ logger = logging.getLogger('inventory')
 
 
 def _save_pickup_point(inventory, form, owner):
-    """Создаёт или обновляет точку выдачи по данным из формы."""
+    """
+    Создаёт или обновляет точку выдачи по данным из формы владельца.
+    Владелец указывает только город — адрес и телефон заполняет менеджер при одобрении.
+    """
     city_name = form.cleaned_data.get('city_name', '').strip()
-    pickup_address = form.cleaned_data.get('pickup_address', '').strip()
-    pickup_phone = form.cleaned_data.get('pickup_phone', '').strip()
-
-    if not city_name or not pickup_address:
+    if not city_name:
         return
 
-    # Найти или создать город
+    # Найти или создать город, геокодируем координаты
     city, city_created = City.objects.get_or_create(name=city_name)
     if city_created or (not city.lat and not city.lon):
         try:
@@ -52,23 +52,22 @@ def _save_pickup_point(inventory, form, owner):
     lon = city.lon or 0
 
     if inventory.pickup_point_id:
-        # Обновляем существующую точку
+        # Обновляем только город (адрес трогать не надо — его пишет менеджер)
         pp = inventory.pickup_point
-        pp.city = city
-        pp.address = pickup_address
-        pp.phone = pickup_phone
-        pp.lat = lat
-        pp.lon = lon
-        pp.save()
+        if pp.city_id != city.pk:
+            pp.city = city
+            pp.lat = lat
+            pp.lon = lon
+            pp.save(update_fields=['city', 'lat', 'lon'])
     else:
+        # Создаём placeholder-точку; менеджер заполнит адрес при одобрении
         pp = PickupPoint.objects.create(
             city=city,
             owner=owner,
             name=f'{city_name} — {owner.full_name}',
-            address=pickup_address,
+            address='Уточняется',
             lat=lat,
             lon=lon,
-            phone=pickup_phone,
         )
         inventory.pickup_point = pp
         inventory.save(update_fields=['pickup_point'])
