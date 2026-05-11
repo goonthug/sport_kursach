@@ -150,15 +150,19 @@
                                         <i class="bi bi-chevron-down"></i> Читать текст соглашения
                                     </a>
 
-                                    <div class="form-check">
-                                        {{ form.passport_nda_accepted }}
-                                        <label class="form-check-label" for="{{ form.passport_nda_accepted.id_for_label }}">
+                                    <div class="d-flex align-items-start gap-2 mt-1">
+                                        <input type="checkbox"
+                                               name="passport_nda_accepted"
+                                               id="id_passport_nda_accepted"
+                                               {% if form.passport_nda_accepted.value %}checked{% endif %}
+                                               style="width:18px;height:18px;flex-shrink:0;margin-top:3px;cursor:pointer;accent-color:#0d6efd;">
+                                        <label for="id_passport_nda_accepted" style="cursor:pointer;">
                                             {{ form.passport_nda_accepted.label }} <span class="text-danger">*</span>
                                         </label>
-                                        {% if form.passport_nda_accepted.errors %}
-                                            <div class="text-danger small mt-1">{{ form.passport_nda_accepted.errors.0 }}</div>
-                                        {% endif %}
                                     </div>
+                                    {% if form.passport_nda_accepted.errors %}
+                                        <div class="text-danger small mt-1">{{ form.passport_nda_accepted.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

@@ -217,7 +217,7 @@ sport_kursach/
 - Conventional Commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
 - На английском, кратко
 - После каждой логически завершённой задачи — коммит
-- Push в ветку `diploma` (не в `master`)
+- Push в ветку `master`
 
 ### Комментарии в коде
 
