@@ -11,9 +11,9 @@ from django.core.paginator import Paginator
 
 from .models import Review
 from .forms import ReviewForm
-from .utils import update_inventory_rating
 from rentals.models import Rental
 from inventory.models import Inventory
+from users.decorators import role_required
 
 logger = logging.getLogger('reviews')
 
@@ -114,9 +114,6 @@ def review_create(request, rental_id):
                     review.status = 'pending'  # Модерация администратором
                     review.save()
 
-                    # Обновляем рейтинг инвентаря
-                    update_inventory_rating(rental.inventory)
-
                     # Обновляем счетчик отзывов клиента
                     client = rental.client
                     client.user.save()
@@ -140,14 +137,11 @@ def review_create(request, rental_id):
 
 
 @login_required
+@role_required('administrator')
 def review_approve(request, pk):
     """
     Одобрение отзыва администратором.
     """
-    if request.user.role != 'administrator':
-        messages.error(request, 'Недостаточно прав')
-        return redirect('reviews:list')
-
     review = get_object_or_404(Review, pk=pk)
 
     if review.status != 'pending':
@@ -157,12 +151,7 @@ def review_approve(request, pk):
     if request.method == 'POST':
         try:
             review.status = 'published'
-            review.save()
-
-            # Обновляем рейтинг
-            if review.target_type == 'inventory':
-                inventory = Inventory.objects.get(inventory_id=review.reviewed_id)
-                update_inventory_rating(inventory)
+            review.save()  # сигнал post_save → recalculate_rating_on_review_save
 
             logger.info(f'Отзыв одобрен: {review.review_id} администратором {request.user.email}')
             messages.success(request, 'Отзыв опубликован')
@@ -175,14 +164,11 @@ def review_approve(request, pk):
 
 
 @login_required
+@role_required('administrator')
 def review_reject(request, pk):
     """
     Отклонение отзыва администратором.
     """
-    if request.user.role != 'administrator':
-        messages.error(request, 'Недостаточно прав')
-        return redirect('reviews:list')
-
     review = get_object_or_404(Review, pk=pk)
 
     if review.status != 'pending':

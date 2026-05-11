@@ -6,13 +6,14 @@ Views для кастомной административной панели.
 import logging
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Sum, Avg, Q
 from django.core.paginator import Paginator
 from django.utils import timezone
 
 from users.models import User, Client, Owner, Manager
+from users.decorators import role_required
 from inventory.models import Inventory, SportCategory
 from rentals.models import Rental, Payment
 from reviews.models import Review
@@ -20,13 +21,8 @@ from reviews.models import Review
 logger = logging.getLogger('custom_admin')
 
 
-def is_staff(user):
-    """Проверка прав доступа к админ-панели."""
-    return user.is_authenticated and user.role in ['manager', 'administrator']
-
-
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_dashboard(request):
     """Главная страница административной панели с статистикой."""
     user = request.user
@@ -105,7 +101,7 @@ def admin_dashboard(request):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_users(request):
     """Управление пользователями."""
 
@@ -146,7 +142,7 @@ def admin_users(request):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_user_block(request, user_id):
     """Блокировка пользователя."""
 
@@ -187,7 +183,7 @@ def admin_user_block(request, user_id):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_user_unblock(request, user_id):
     """Разблокировка пользователя."""
 
@@ -209,7 +205,7 @@ def admin_user_unblock(request, user_id):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_inventory(request):
     """Управление инвентарем (для менеджеров)."""
 
@@ -253,7 +249,7 @@ def admin_inventory(request):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_inventory_pending_detail(request, pk):
     """
     Просмотр заявки на инвентарь (полная карточка как в каталоге).
@@ -280,7 +276,7 @@ def admin_inventory_pending_detail(request, pk):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_inventory_approve(request, pk):
     """Одобрение инвентаря менеджером с указанием залога."""
 
@@ -316,7 +312,7 @@ def admin_inventory_approve(request, pk):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_inventory_reject(request, pk):
     """Отклонение инвентаря менеджером."""
 
@@ -343,7 +339,7 @@ def admin_inventory_reject(request, pk):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def admin_inventory_publish(request, pk):
     """Публикация инвентаря в каталоге (изменение статуса на 'available')."""
 
@@ -373,7 +369,7 @@ def admin_inventory_publish(request, pk):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def inventory_contract_download(request, pk):
     """
     Скачивание договора аренды между владельцем инвентаря и менеджером (магазином).
@@ -542,7 +538,7 @@ def inventory_contract_download(request, pk):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def export_inventory_xlsx(request):
     """Экспорт инвентаря в XLSX."""
     try:
@@ -562,7 +558,7 @@ def export_inventory_xlsx(request):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def export_inventory_pdf(request):
     """Экспорт инвентаря в PDF."""
     try:
@@ -581,7 +577,7 @@ def export_inventory_pdf(request):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def export_rentals_xlsx(request):
     """Экспорт аренд в XLSX."""
     try:
@@ -600,7 +596,7 @@ def export_rentals_xlsx(request):
 
 
 @login_required
-@user_passes_test(is_staff)
+@role_required('manager', 'administrator')
 def export_stats_pdf(request):
     """Экспорт статистики в PDF."""
     try:
