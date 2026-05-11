@@ -20,11 +20,58 @@ from django.db.models.functions import TruncDate
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Inventory, SportCategory, InventoryPhoto, Favorite
+from .models import Inventory, SportCategory, InventoryPhoto, Favorite, City, PickupPoint
 from .forms import InventoryForm, InventoryPhotoFormSet
 from users.models import Owner
 
 logger = logging.getLogger('inventory')
+
+
+def _save_pickup_point(inventory, form, owner):
+    """Создаёт или обновляет точку выдачи по данным из формы."""
+    city_name = form.cleaned_data.get('city_name', '').strip()
+    pickup_address = form.cleaned_data.get('pickup_address', '').strip()
+    pickup_phone = form.cleaned_data.get('pickup_phone', '').strip()
+
+    if not city_name or not pickup_address:
+        return
+
+    # Найти или создать город
+    city, city_created = City.objects.get_or_create(name=city_name)
+    if city_created or (not city.lat and not city.lon):
+        try:
+            from ai_search.geocoder import get_city_coordinates
+            coords = get_city_coordinates(city_name)
+            if coords:
+                city.lat, city.lon = coords
+                city.save(update_fields=['lat', 'lon'])
+        except Exception:
+            pass
+
+    lat = city.lat or 0
+    lon = city.lon or 0
+
+    if inventory.pickup_point_id:
+        # Обновляем существующую точку
+        pp = inventory.pickup_point
+        pp.city = city
+        pp.address = pickup_address
+        pp.phone = pickup_phone
+        pp.lat = lat
+        pp.lon = lon
+        pp.save()
+    else:
+        pp = PickupPoint.objects.create(
+            city=city,
+            owner=owner,
+            name=f'{city_name} — {owner.full_name}',
+            address=pickup_address,
+            lat=lat,
+            lon=lon,
+            phone=pickup_phone,
+        )
+        inventory.pickup_point = pp
+        inventory.save(update_fields=['pickup_point'])
 
 
 def inventory_list(request):
@@ -34,7 +81,7 @@ def inventory_list(request):
     # Базовый queryset только для доступного инвентаря
     inventory_qs = Inventory.objects.filter(
         status='available'
-    ).select_related('category', 'owner', 'owner__user').prefetch_related('photos')
+    ).select_related('category', 'owner', 'owner__user', 'pickup_point__city').prefetch_related('photos')
 
     # Поиск
     search_query = request.GET.get('search', '').strip()
@@ -179,6 +226,9 @@ def inventory_create(request):
                     inventory.status = 'pending'  # Ожидает проверки менеджером
                     inventory.save()
 
+                    # Сохраняем точку выдачи
+                    _save_pickup_point(inventory, form, owner)
+
                     # Сохраняем фотографии
                     for photo_form in photo_formset:
                         if photo_form.cleaned_data and not photo_form.cleaned_data.get('DELETE'):
@@ -234,6 +284,9 @@ def inventory_update(request, pk):
                 with transaction.atomic():
                     inventory = form.save()
 
+                    # Обновляем точку выдачи
+                    _save_pickup_point(inventory, form, inventory.owner)
+
                     # Обработка фотографий
                     for photo_form in photo_formset:
                         if photo_form.cleaned_data:
@@ -254,7 +307,6 @@ def inventory_update(request, pk):
                 messages.error(request, 'Произошла ошибка при сохранении.')
     else:
         form = InventoryForm(instance=inventory, owner=inventory.owner)
-        form = InventoryForm(instance=inventory)
         photo_formset = InventoryPhotoFormSet(queryset=inventory.photos.all())
 
     context = {

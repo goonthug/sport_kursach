@@ -257,6 +257,21 @@
                 </div>
             </div>
 
+            {% if inventory.pickup_point %}
+                <div class="card mt-3">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-geo-alt-fill text-primary"></i> Точка выдачи</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1 fw-semibold">{{ inventory.pickup_point.city.name }}</p>
+                        <p class="text-muted small mb-1">{{ inventory.pickup_point.address }}</p>
+                        {% if inventory.pickup_point.phone %}
+                            <p class="mb-2"><i class="bi bi-telephone small"></i> {{ inventory.pickup_point.phone }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
             {% if inventory.manager %}
                 <div class="card mt-3">
                     <div class="card-header bg-white">

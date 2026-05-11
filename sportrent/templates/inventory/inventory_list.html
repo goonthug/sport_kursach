@@ -209,6 +209,12 @@
                                     <span class="product-price">{{ item.price_per_day }} ₽</span>
                                     <span class="text-muted">{{ item.category.name }}</span>
                                 </div>
+                                {% if item.pickup_point %}
+                                    <div class="text-muted mt-1" style="font-size:.75rem;">
+                                        <i class="bi bi-geo-alt-fill text-primary"></i>
+                                        {{ item.pickup_point.city.name }}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

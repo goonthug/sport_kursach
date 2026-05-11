@@ -14,6 +14,23 @@ class InventoryForm(forms.ModelForm):
     Залог не указывается владельцем, его задает менеджер при одобрении заявки.
     """
 
+    # Дополнительные поля для точки выдачи (не модельные, обрабатываются в view)
+    city_name = forms.CharField(
+        max_length=100, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например: Казань'}),
+        label='Город выдачи',
+    )
+    pickup_address = forms.CharField(
+        max_length=500, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Улица, дом, ориентир'}),
+        label='Адрес выдачи',
+    )
+    pickup_phone = forms.CharField(
+        max_length=30, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+7 (XXX) XXX-XX-XX'}),
+        label='Телефон точки выдачи',
+    )
+
     class Meta:
         model = Inventory
         fields = [
@@ -59,6 +76,13 @@ class InventoryForm(forms.ModelForm):
                 if not owner_accounts.filter(pk=self.instance.bank_account_id).exists():
                     self.initial['bank_account'] = None
                     self.instance.bank_account = None
+
+        # Подставляем существующую точку выдачи в поля формы при редактировании
+        if self.instance and self.instance.pk and self.instance.pickup_point_id:
+            pp = self.instance.pickup_point
+            self.initial.setdefault('city_name', pp.city.name)
+            self.initial.setdefault('pickup_address', pp.address)
+            self.initial.setdefault('pickup_phone', pp.phone)
 
     def clean(self):
         """Дополнительная валидация."""

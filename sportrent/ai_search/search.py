@@ -38,17 +38,28 @@ def search_inventory(parsed: ParsedSearchQuery):
 
     # Фильтр по городу: ищем в БД, иначе геокодируем и добавляем в справочник
     if parsed.city_name:
-        city = City.objects.filter(name__icontains=parsed.city_name).first()
+        # Нормализуем название для поиска (убираем множественные пробелы и лишние символы)
+        city_query = parsed.city_name.strip()
+        # Сначала ищем точное совпадение (без учёта регистра), потом подстроку
+        city = (
+            City.objects.filter(name__iexact=city_query).first()
+            or City.objects.filter(name__icontains=city_query).first()
+        )
         if not city:
-            coords = get_city_coordinates(parsed.city_name)
+            coords = get_city_coordinates(city_query)
             if coords:
                 lat, lon = coords
+                # Нормализуем название: первая буква заглавная
+                normalized_name = city_query.title()
                 city, created = City.objects.get_or_create(
-                    name=parsed.city_name,
+                    name=normalized_name,
                     defaults={'lat': lat, 'lon': lon},
                 )
+                if not created and (not city.lat or not city.lon):
+                    city.lat, city.lon = lat, lon
+                    city.save(update_fields=['lat', 'lon'])
                 if created:
-                    logger.info('Добавлен новый город в справочник: %s', parsed.city_name)
+                    logger.info('Добавлен новый город в справочник: %s', normalized_name)
 
         if city:
             qs = qs.filter(pickup_point__city=city)

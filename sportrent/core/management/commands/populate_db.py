@@ -12,7 +12,7 @@ from decimal import Decimal
 import random
 
 from users.models import User, Client, Owner, Manager, Administrator, BankAccount, OwnerAgreement
-from inventory.models import SportCategory, Inventory, InventoryPhoto
+from inventory.models import SportCategory, Inventory, InventoryPhoto, City, PickupPoint
 from rentals.models import Rental, Payment, Contract
 from reviews.models import Review
 
@@ -53,6 +53,9 @@ class Command(BaseCommand):
 
         # Создаем категории
         self.create_categories()
+
+        # Создаем города и точки выдачи
+        self.create_cities()
 
         # Создаем инвентарь
         self.create_inventory()
@@ -230,6 +233,66 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f'Создано пользователей: {User.objects.count()}'))
 
+    def create_cities(self):
+        """Создание городов и точек выдачи для тестовых владельцев."""
+        self.stdout.write('Создаем города и точки выдачи...')
+
+        city_data = [
+            ('Казань',     'Республика Татарстан',    '55.796127', '49.106414'),
+            ('Москва',     'Москва',                  '55.755864', '37.617698'),
+            ('Санкт-Петербург', 'Ленинградская область', '59.938951', '30.315635'),
+            ('Екатеринбург', 'Свердловская область',  '56.838011', '60.597474'),
+            ('Новосибирск', 'Новосибирская область',  '54.989347', '82.904632'),
+        ]
+
+        cities = {}
+        for name, region, lat, lon in city_data:
+            from decimal import Decimal
+            city, _ = City.objects.get_or_create(
+                name=name,
+                defaults={'region': region, 'lat': Decimal(lat), 'lon': Decimal(lon)},
+            )
+            # Удаляем дубли с другим регистром (например 'казань' при наличии 'Казань')
+            City.objects.filter(name__iexact=name).exclude(pk=city.pk).delete()
+            cities[name] = city
+
+        owners = list(Owner.objects.all())
+        city_list = list(cities.values())
+
+        # Каждому владельцу назначаем точку выдачи в своём городе
+        owner_city_map = {
+            'owner1@mail.ru': cities['Казань'],
+            'owner2@mail.ru': cities['Москва'],
+            'owner3@mail.ru': cities['Санкт-Петербург'],
+        }
+        owner_address_map = {
+            'owner1@mail.ru': ('ул. Баумана, 44', '+7 (843) 100-10-01'),
+            'owner2@mail.ru': ('ул. Арбат, 12', '+7 (495) 200-20-02'),
+            'owner3@mail.ru': ('Невский проспект, 30', '+7 (812) 300-30-03'),
+        }
+
+        for owner in owners:
+            email = owner.user.email
+            city = owner_city_map.get(email, random.choice(city_list))
+            address, phone = owner_address_map.get(email, ('ул. Ленина, 1', ''))
+
+            PickupPoint.objects.get_or_create(
+                owner=owner,
+                city=city,
+                defaults={
+                    'name': f'{city.name} — {owner.full_name}',
+                    'address': address,
+                    'lat': city.lat,
+                    'lon': city.lon,
+                    'phone': phone,
+                    'is_active': True,
+                }
+            )
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Городов: {City.objects.count()}, точек выдачи: {PickupPoint.objects.count()}'
+        ))
+
     def create_categories(self):
         """Создание категорий спортивного инвентаря."""
         self.stdout.write('Создаем категории...')
@@ -316,6 +379,9 @@ class Command(BaseCommand):
             owner = random.choice(owners)
             category = random.choice(categories)  # list, не QuerySet — для random.choice
 
+            # Находим точку выдачи владельца (создана в create_cities)
+            pickup_point = PickupPoint.objects.filter(owner=owner, is_active=True).first()
+
             # Создаем с разными статусами
             status = random.choices(
                 ['available', 'pending', 'rented'],
@@ -337,17 +403,23 @@ class Command(BaseCommand):
                     'min_rental_days': random.randint(1, 3),
                     'max_rental_days': random.randint(7, 30),
                     'deposit_amount': price * Decimal('0.3'),
+                    'pickup_point': pickup_point,
                 }
             )
-            # На повторном запуске populate_db обновляем менеджера в соответствии с текущим статусом.
-            if inventory.status == 'available':
-                if inventory.manager_id != primary_manager.manager_id:
-                    inventory.manager = primary_manager
-                    inventory.save(update_fields=['manager'])
-            else:
-                if inventory.manager_id is not None:
-                    inventory.manager = None
-                    inventory.save(update_fields=['manager'])
+            # На повторном запуске populate_db обновляем менеджера и pickup_point.
+            update_fields = []
+            if inventory.status == 'available' and inventory.manager_id != primary_manager.manager_id:
+                inventory.manager = primary_manager
+                update_fields.append('manager')
+            elif inventory.status != 'available' and inventory.manager_id is not None:
+                inventory.manager = None
+                update_fields.append('manager')
+            if not inventory.pickup_point_id and pickup_point:
+                inventory.pickup_point = pickup_point
+                update_fields.append('pickup_point')
+            if update_fields:
+                inventory.save(update_fields=update_fields)
+
             if not inventory.bank_account:
                 owner_account = BankAccount.objects.filter(owner=owner, is_default=True).first()
                 if not owner_account:
