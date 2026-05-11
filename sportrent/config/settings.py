@@ -199,25 +199,30 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'mongo': {
+            'level': 'WARNING',
+            'class': 'core.mongo_logger.MongoDBHandler',
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
+            'handlers': ['file', 'console', 'mongo'],
             'level': 'INFO',
             'propagate': True,
         },
         'users': {
-            'handlers': ['file', 'console'],
+            'handlers': ['file', 'console', 'mongo'],
             'level': 'INFO',
             'propagate': False,
         },
         'inventory': {
-            'handlers': ['file', 'console'],
+            'handlers': ['file', 'console', 'mongo'],
             'level': 'INFO',
             'propagate': False,
         },
         'rentals': {
-            'handlers': ['file', 'console'],
+            'handlers': ['file', 'console', 'mongo'],
             'level': 'INFO',
             'propagate': False,
         },

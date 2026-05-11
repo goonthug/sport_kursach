@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -57,6 +58,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message = await self._create_message(message_text)
         payload = await self._serialize_message(message)
 
+        # Дублируем сообщение в MongoDB (fire-and-forget, не блокируем WebSocket)
+        asyncio.create_task(self._save_message_to_mongo(self.rental_id, payload))
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -88,6 +92,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'notify.message',
             'message': event['message'],
         }))
+
+    async def _save_message_to_mongo(self, rental_id, payload):
+        """Асинхронно дублирует сообщение в MongoDB. Ошибки не прерывают чат."""
+        try:
+            await asyncio.to_thread(self._sync_save_to_mongo, str(rental_id), payload)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _sync_save_to_mongo(rental_id, payload):
+        from django.conf import settings
+        from pymongo import MongoClient
+        client = MongoClient(settings.MONGO_URL, serverSelectionTimeoutMS=2000)
+        try:
+            db = client[settings.MONGO_DB]
+            db['chat_messages'].insert_one({
+                'message_id': payload['message_id'],
+                'rental_id': rental_id,
+                'sender_id': payload['sender_id'],
+                'sender_name': payload['sender_name'],
+                'text': payload['text'],
+                'sent_at': payload['sent_date'],
+                'inventory_name': payload['inventory_name'],
+            })
+        finally:
+            client.close()
 
     @database_sync_to_async
     def _check_access(self):
