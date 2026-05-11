@@ -145,12 +145,14 @@ def inventory_list(request):
             ).values_list('inventory_id', flat=True)
         )
 
-    # Получаем категории для фильтра
+    # Получаем категории и города для фильтров
     categories = SportCategory.objects.all()
+    cities = list(City.objects.filter(pickup_points__is_active=True).distinct().values('name').order_by('name'))
 
     context = {
         'page_obj': page_obj,
         'categories': categories,
+        'cities': cities,
         'search_query': search_query,
         'selected_category': category_id,
         'selected_condition': condition,

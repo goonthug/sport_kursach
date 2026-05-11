@@ -8,50 +8,43 @@
         background: linear-gradient(135deg, #0d1b2a 0%, #1a2e44 100%);
         border-radius: 16px;
         padding: 28px 32px;
-        margin-bottom: 24px;
+        margin-bottom: 16px;
+    }
+    #auto-geo-section {
+        background: linear-gradient(135deg, #0a2218 0%, #0f3020 100%);
+        border-radius: 16px;
+        padding: 20px 28px;
+        margin-bottom: 16px;
+        display: none;
     }
     #ai-map {
-        height: 380px;
+        height: 360px;
         border-radius: 12px;
         overflow: hidden;
         margin-top: 16px;
         display: none;
     }
-    .ai-result-card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        overflow: hidden;
-        transition: box-shadow .2s;
-    }
-    .ai-result-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); }
-    .ai-result-img {
-        width: 100%;
-        height: 160px;
-        object-fit: cover;
-        background: #f3f4f6;
-    }
-    .ai-result-img-placeholder {
-        width: 100%;
-        height: 160px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2rem;
-        background: #f3f4f6;
-    }
     .ai-parsed-badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(255,255,255,.1);
+        background: rgba(255,255,255,.12);
         border-radius: 20px;
         padding: 4px 12px;
         font-size: .75rem;
         color: #a5c8ff;
         margin: 4px 4px 0 0;
     }
+    .ai-understood-bar {
+        background: rgba(255,255,255,.07);
+        border-radius: 8px;
+        padding: 8px 14px;
+        margin-top: 10px;
+        font-size: .8rem;
+        color: #7dd3b0;
+    }
     #ai-results-section { display: none; }
+    #geo-status { font-size: .8rem; color: #7dd3b0; margin-top: 6px; }
 </style>
 {% endblock %}
 
@@ -71,13 +64,39 @@
             {% endif %}
         </div>
 
-        {# ── AI-поиск ───────────────────────────────────────────────── #}
+        {# ── Автоопределение города ─────────────────────────────────── #}
+        <div id="auto-geo-section">
+            <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+                <div>
+                    <div class="text-white fw-semibold mb-1" style="font-size:.95rem;">
+                        🤖 ИИ-рекомендации для вашего города
+                    </div>
+                    <div id="geo-status">Определяем ваше местоположение...</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" id="geo-close-btn" style="min-width:90px;">Скрыть</button>
+            </div>
+            <div id="geo-city-selector" class="mt-2 d-none">
+                <div class="text-secondary small mb-1">Не удалось определить город автоматически. Выберите вручную:</div>
+                <div class="d-flex gap-2 flex-wrap">
+                    {% for city in cities %}
+                        <button class="btn btn-sm btn-outline-primary geo-city-btn" data-city="{{ city.name }}">
+                            📍 {{ city.name }}
+                        </button>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="geo-results-grid" class="row g-3 mt-1"></div>
+        </div>
+
+        {# ── Умный поиск ────────────────────────────────────────────── #}
         <div id="ai-search-section">
             <div class="d-flex align-items-center gap-2 mb-3">
                 <span style="font-size:1.4rem;">🤖</span>
                 <div>
-                    <div class="text-white fw-semibold" style="font-size:1rem;">Умный поиск</div>
-                    <div class="text-secondary" style="font-size:.8rem;">Напишите запрос на русском — AI найдёт подходящий инвентарь</div>
+                    <div class="text-white fw-semibold" style="font-size:1rem;">Умный поиск с ИИ</div>
+                    <div class="text-secondary" style="font-size:.8rem;">
+                        Нейросеть (LLM) разберёт ваш запрос, поймёт город и фильтры — и найдёт подходящее
+                    </div>
                 </div>
             </div>
             <div class="input-group">
@@ -85,7 +104,7 @@
                     type="text"
                     id="ai-query"
                     class="form-control form-control-lg"
-                    placeholder="Например: недорогие лыжи в Казани на выходные..."
+                    placeholder="Например: беговые лыжи в Казани до 1000 ₽ на выходных..."
                     style="border-radius: 10px 0 0 10px; border: none;"
                 >
                 <button class="btn btn-primary btn-lg" id="ai-search-btn" style="border-radius: 0 10px 10px 0; min-width:110px;">
@@ -93,18 +112,23 @@
                     <span id="ai-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                 </button>
             </div>
-            <div id="ai-parsed-badges" class="mt-2"></div>
             <div id="ai-error" class="text-danger mt-2 small d-none"></div>
         </div>
 
-        {# ── Результаты AI-поиска ──────────────────────────────────── #}
+        {# ── Что понял ИИ + результаты поиска ──────────────────────── #}
         <div id="ai-results-section" class="mb-4">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-                <h5 class="mb-0" style="color:#fff;">Результаты умного поиска: <span id="ai-count" class="text-primary">0</span></h5>
-                <button class="btn btn-sm btn-outline-secondary" id="ai-clear-btn">✕ Очистить</button>
+            <div id="ai-understood-bar" class="ai-understood-bar d-none">
+                <span class="text-white opacity-75 me-2">🧠 ИИ понял запрос:</span>
+                <span id="ai-parsed-badges"></span>
+            </div>
+            <div class="d-flex align-items-center justify-content-between mt-3 mb-2">
+                <h5 class="mb-0" style="color:#fff;">
+                    Результаты поиска: <span id="ai-count" class="text-primary">0</span>
+                </h5>
+                <button class="btn btn-sm btn-outline-secondary" id="ai-clear-btn">✕ Сбросить</button>
             </div>
             <div id="ai-map"></div>
-            <div class="row g-3 mt-1" id="ai-results-grid"></div>
+            <div class="row g-4 mt-0" id="ai-results-grid"></div>
         </div>
 
         {# ── Обычные фильтры ───────────────────────────────────────── #}
@@ -158,6 +182,7 @@
             </form>
         </div>
 
+        {# ── Обычный каталог ───────────────────────────────────────── #}
         {% if page_obj %}
             <div class="row g-4 mb-4">
                 {% for item in page_obj %}
@@ -267,23 +292,133 @@
 {% endif %}
 <script>
 (function () {
-    const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-    const AI_URL = '{% url "inventory:ai_search" %}';
-    const MAPS_AVAILABLE = {{ yandex_maps_key|yesno:"true,false" }};
+    'use strict';
 
+    const CSRF  = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    const AI_URL = '{% url "inventory:ai_search" %}';
+    const MAPS_KEY = '{{ yandex_maps_key|escapejs }}';
     let yaMap = null;
 
-    const queryInput  = document.getElementById('ai-query');
-    const searchBtn   = document.getElementById('ai-search-btn');
-    const btnText     = document.getElementById('ai-btn-text');
-    const spinner     = document.getElementById('ai-spinner');
-    const errorDiv    = document.getElementById('ai-error');
-    const badges      = document.getElementById('ai-parsed-badges');
+    /* ── Вспомогательные функции ──────────────────────────────────── */
+
+    /* Строит HTML-карточку в стиле product-card проекта */
+    function renderProductCard(item) {
+        const imgHtml = item.photo_url
+            ? `<img src="${escHtml(item.photo_url)}" alt="${escHtml(item.name)}" style="object-fit:contain;">`
+            : `<div class="h-100 d-flex align-items-center justify-content-center text-muted">
+                 <i class="bi bi-image" style="font-size:2rem;"></i>
+               </div>`;
+
+        const stars = item.avg_rating
+            ? Array.from({length: 5}, (_, i) =>
+                `<i class="bi bi-star${i < Math.round(item.avg_rating) ? '-fill' : ''} small"></i>`
+              ).join('') + ` <span class="text-muted small ms-1">${item.avg_rating.toFixed(1)}</span>`
+            : '';
+
+        const cityHtml = item.pickup_point
+            ? `<div class="text-muted mt-1" style="font-size:.75rem;">
+                 <i class="bi bi-geo-alt-fill text-primary"></i> ${escHtml(item.pickup_point.city)}
+               </div>`
+            : '';
+
+        return `
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <div class="product-card h-100">
+                <a href="${escHtml(item.url)}">
+                    <div class="product-image">${imgHtml}</div>
+                </a>
+                <div class="product-info">
+                    <div class="product-name">${escHtml(truncate(item.name, 4))}</div>
+                    <div class="product-meta">${escHtml(item.brand)}</div>
+                    ${stars ? `<div class="mb-2 text-warning">${stars}</div>` : ''}
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="product-price">${item.price_per_day.toLocaleString('ru-RU')} ₽</span>
+                        <span class="text-muted">${escHtml(item.category)}</span>
+                    </div>
+                    ${cityHtml}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function escHtml(s) {
+        return String(s)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function truncate(str, words) {
+        const parts = String(str).split(' ');
+        return parts.length > words ? parts.slice(0, words).join(' ') + '…' : str;
+    }
+
+    /* ── Карта Яндекс ─────────────────────────────────────────────── */
+    function renderMap(items, containerId) {
+        if (!MAPS_KEY) return;
+        const points = items.filter(i => i.pickup_point);
+        if (!points.length) return;
+
+        const mapEl = document.getElementById(containerId);
+        if (!mapEl) return;
+        mapEl.style.display = 'block';
+
+        const doInit = () => {
+            if (yaMap) { yaMap.destroy(); yaMap = null; }
+            ymaps.ready(() => {
+                const c = points[0].pickup_point;
+                yaMap = new ymaps.Map(containerId, {
+                    center: [c.lat, c.lon], zoom: 10,
+                    controls: ['zoomControl', 'fullscreenControl']
+                });
+                points.forEach(item => {
+                    const pp = item.pickup_point;
+                    yaMap.geoObjects.add(new ymaps.Placemark(
+                        [pp.lat, pp.lon],
+                        {
+                            balloonContentHeader: item.name,
+                            balloonContentBody: `<b>${pp.name}</b><br>${pp.address}${pp.phone ? '<br>' + pp.phone : ''}`,
+                            hintContent: item.name,
+                        },
+                        { preset: 'islands#blueCircleDotIcon' }
+                    ));
+                });
+                if (points.length > 1) {
+                    yaMap.setBounds(yaMap.geoObjects.getBounds(), {checkZoomRange:true, zoomMargin:40});
+                }
+            });
+        };
+        typeof ymaps !== 'undefined' ? doInit() : (() => {
+            const s = document.createElement('script');
+            s.src = `https://api-maps.yandex.ru/2.1/?apikey=${MAPS_KEY}&lang=ru_RU`;
+            s.onload = doInit;
+            document.head.appendChild(s);
+        })();
+    }
+
+    /* ── Запрос к AI-поиску ───────────────────────────────────────── */
+    async function callAISearch(query) {
+        const resp = await fetch(AI_URL, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRFToken':CSRF},
+            body: JSON.stringify({q: query}),
+        });
+        if (!resp.ok) throw new Error((await resp.json()).error || 'Ошибка поиска');
+        return resp.json();
+    }
+
+    /* ── РУЧНОЙ ПОИСК ─────────────────────────────────────────────── */
+    const queryInput   = document.getElementById('ai-query');
+    const searchBtn    = document.getElementById('ai-search-btn');
+    const btnText      = document.getElementById('ai-btn-text');
+    const spinner      = document.getElementById('ai-spinner');
+    const errorDiv     = document.getElementById('ai-error');
     const resultsSection = document.getElementById('ai-results-section');
-    const resultsGrid    = document.getElementById('ai-results-grid');
-    const countEl        = document.getElementById('ai-count');
-    const mapDiv         = document.getElementById('ai-map');
-    const clearBtn       = document.getElementById('ai-clear-btn');
+    const resultsGrid  = document.getElementById('ai-results-grid');
+    const countEl      = document.getElementById('ai-count');
+    const mapDiv       = document.getElementById('ai-map');
+    const clearBtn     = document.getElementById('ai-clear-btn');
+    const badgesEl     = document.getElementById('ai-parsed-badges');
+    const understoodBar= document.getElementById('ai-understood-bar');
 
     function setLoading(on) {
         searchBtn.disabled = on;
@@ -292,92 +427,16 @@
     }
 
     function renderBadges(parsed) {
-        badges.innerHTML = '';
-        const items = [
+        const map = [
             parsed.category_query && ['🎿', parsed.category_query],
             parsed.city_name      && ['📍', parsed.city_name],
             parsed.max_price      && ['💰', 'до ' + parsed.max_price + ' ₽/день'],
             parsed.start_date     && ['📅', parsed.start_date + (parsed.end_date ? ' — ' + parsed.end_date : '')],
         ].filter(Boolean);
-        items.forEach(([icon, text]) => {
-            const b = document.createElement('span');
-            b.className = 'ai-parsed-badge';
-            b.textContent = icon + ' ' + text;
-            badges.appendChild(b);
-        });
-    }
-
-    function renderCard(item) {
-        const imgHtml = item.photo_url
-            ? `<img src="${item.photo_url}" class="ai-result-img" alt="${item.name}">`
-            : `<div class="ai-result-img-placeholder">🏋️</div>`;
-
-        const stars = item.avg_rating
-            ? `<span class="text-warning small">★</span> <span class="small">${item.avg_rating.toFixed(1)}</span>`
-            : '';
-
-        const ppHtml = item.pickup_point
-            ? `<div class="text-muted" style="font-size:.75rem; margin-top:4px;">📍 ${item.pickup_point.city}, ${item.pickup_point.address}</div>`
-            : '';
-
-        return `
-        <div class="col-md-6 col-lg-4 col-xl-3">
-            <a href="${item.url}" class="text-decoration-none">
-                <div class="ai-result-card h-100">
-                    ${imgHtml}
-                    <div class="p-3">
-                        <div class="fw-semibold text-dark" style="font-size:.95rem;">${item.name}</div>
-                        <div class="text-muted small">${item.brand || item.category}</div>
-                        <div class="d-flex align-items-center justify-content-between mt-2">
-                            <span class="fw-bold text-primary">${item.price_per_day.toLocaleString('ru-RU')} ₽<span class="text-muted fw-normal">/день</span></span>
-                            ${stars}
-                        </div>
-                        ${ppHtml}
-                    </div>
-                </div>
-            </a>
-        </div>`;
-    }
-
-    function initMap(items) {
-        if (!MAPS_AVAILABLE) return;
-        const points = items.filter(i => i.pickup_point);
-        if (!points.length) return;
-
-        mapDiv.style.display = 'block';
-
-        const doInit = () => {
-            if (yaMap) { yaMap.destroy(); yaMap = null; }
-            ymaps.ready(() => {
-                const center = [points[0].pickup_point.lat, points[0].pickup_point.lon];
-                yaMap = new ymaps.Map('ai-map', { center, zoom: 10, controls: ['zoomControl', 'fullscreenControl'] });
-                points.forEach(item => {
-                    const pp = item.pickup_point;
-                    const placemark = new ymaps.Placemark(
-                        [pp.lat, pp.lon],
-                        {
-                            balloonContentHeader: item.name,
-                            balloonContentBody: `<b>${pp.name}</b><br>${pp.address}${pp.phone ? '<br>' + pp.phone : ''}`,
-                            hintContent: item.name,
-                        },
-                        { preset: 'islands#blueCircleDotIcon' }
-                    );
-                    yaMap.geoObjects.add(placemark);
-                });
-                if (points.length > 1) {
-                    yaMap.setBounds(yaMap.geoObjects.getBounds(), { checkZoomRange: true, zoomMargin: 40 });
-                }
-            });
-        };
-
-        if (typeof ymaps !== 'undefined') {
-            doInit();
-        } else {
-            const script = document.createElement('script');
-            script.src = `https://api-maps.yandex.ru/2.1/?apikey={{ yandex_maps_key }}&lang=ru_RU`;
-            script.onload = doInit;
-            document.head.appendChild(script);
-        }
+        badgesEl.innerHTML = map.map(([ic, t]) =>
+            `<span class="ai-parsed-badge">${ic} ${escHtml(t)}</span>`
+        ).join('');
+        understoodBar.classList.toggle('d-none', !map.length);
     }
 
     async function doSearch() {
@@ -386,33 +445,18 @@
 
         setLoading(true);
         errorDiv.classList.add('d-none');
-        badges.innerHTML = '';
 
         try {
-            const resp = await fetch(AI_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ q }),
-            });
-            const data = await resp.json();
-
-            if (!resp.ok) {
-                errorDiv.textContent = data.error || 'Ошибка поиска';
-                errorDiv.classList.remove('d-none');
-                return;
-            }
-
+            const data = await callAISearch(q);
             renderBadges(data.parsed || {});
             countEl.textContent = data.count;
-            resultsGrid.innerHTML = data.results.map(renderCard).join('');
+            resultsGrid.innerHTML = data.count
+                ? data.results.map(renderProductCard).join('')
+                : '<div class="col-12"><div class="alert alert-warning">По вашему запросу ничего не найдено. Попробуйте другой запрос.</div></div>';
             resultsSection.style.display = 'block';
-            initMap(data.results);
-
-            if (data.count === 0) {
-                resultsGrid.innerHTML = '<div class="col-12"><div class="alert alert-warning">По вашему запросу ничего не найдено. Попробуйте другой запрос.</div></div>';
-            }
+            if (data.count) renderMap(data.results, 'ai-map');
         } catch (e) {
-            errorDiv.textContent = 'Сетевая ошибка, попробуйте ещё раз';
+            errorDiv.textContent = e.message || 'Сетевая ошибка';
             errorDiv.classList.remove('d-none');
         } finally {
             setLoading(false);
@@ -424,12 +468,92 @@
 
     clearBtn.addEventListener('click', () => {
         resultsSection.style.display = 'none';
-        mapDiv.style.display = 'none';
+        if (mapDiv) mapDiv.style.display = 'none';
         resultsGrid.innerHTML = '';
-        badges.innerHTML = '';
+        badgesEl.innerHTML = '';
+        understoodBar.classList.add('d-none');
         queryInput.value = '';
         if (yaMap) { yaMap.destroy(); yaMap = null; }
     });
+
+    /* ── АВТООПРЕДЕЛЕНИЕ ГОРОДА ───────────────────────────────────── */
+    const geoSection   = document.getElementById('auto-geo-section');
+    const geoStatus    = document.getElementById('geo-status');
+    const geoGrid      = document.getElementById('geo-results-grid');
+    const geoSelector  = document.getElementById('geo-city-selector');
+    const geoCloseBtn  = document.getElementById('geo-close-btn');
+
+    geoCloseBtn.addEventListener('click', () => { geoSection.style.display = 'none'; });
+
+    document.querySelectorAll('.geo-city-btn').forEach(btn => {
+        btn.addEventListener('click', () => autoSearchCity(btn.dataset.city));
+    });
+
+    async function autoSearchCity(cityName) {
+        geoStatus.textContent = `📍 Ваш город: ${cityName} — ищем доступный инвентарь...`;
+        geoSelector.classList.add('d-none');
+        geoGrid.innerHTML = '';
+        try {
+            const data = await callAISearch(cityName);
+            if (data.count > 0) {
+                geoStatus.textContent = `📍 ${cityName} — найдено ${data.count} предложений рядом с вами`;
+                geoGrid.innerHTML = data.results.slice(0, 4).map(renderProductCard).join('');
+            } else {
+                geoStatus.textContent = `📍 ${cityName} — пока нет инвентаря в вашем городе`;
+            }
+        } catch (e) {
+            geoStatus.textContent = 'Не удалось загрузить рекомендации';
+        }
+    }
+
+    async function detectCityAndSearch() {
+        geoSection.style.display = 'block';
+        geoStatus.textContent = 'Определяем ваш город...';
+
+        let cityName = null;
+
+        /* 1. IP-геолокация (работает при реальном IP) */
+        try {
+            const r = await fetch('https://ip-api.com/json/?lang=ru&fields=city,status', {signal: AbortSignal.timeout(4000)});
+            const d = await r.json();
+            if (d.status === 'success' && d.city) cityName = d.city;
+        } catch (_) {}
+
+        /* 2. Браузерная геолокация + Yandex обратное геокодирование */
+        if (!cityName && navigator.geolocation && MAPS_KEY) {
+            try {
+                const pos = await new Promise((res, rej) => {
+                    navigator.geolocation.getCurrentPosition(res, rej, {timeout: 6000});
+                });
+                const {latitude: lat, longitude: lon} = pos.coords;
+                const geoResp = await fetch(
+                    `https://geocode-maps.yandex.ru/1.x/?apikey=${MAPS_KEY}&geocode=${lon},${lat}&results=1&format=json`,
+                    {signal: AbortSignal.timeout(5000)}
+                );
+                const geoData = await geoResp.json();
+                const comp = geoData?.response?.GeoObjectCollection?.featureMember?.[0]
+                    ?.GeoObject?.metaDataProperty?.GeocoderMetaData?.AddressDetails
+                    ?.Country?.AdministrativeArea?.Locality?.LocalityName;
+                if (comp) cityName = comp;
+            } catch (_) {}
+        }
+
+        if (cityName) {
+            await autoSearchCity(cityName);
+        } else {
+            /* Fallback: показываем кнопки с городами из БД */
+            geoStatus.textContent = 'Не удалось определить город автоматически:';
+            geoSelector.classList.remove('d-none');
+        }
+    }
+
+    /* Запускаем автоопределение только при первом посещении (не при каждом фильтре) */
+    const GEO_KEY = 'sportrent_geo_shown';
+    if (!sessionStorage.getItem(GEO_KEY)) {
+        sessionStorage.setItem(GEO_KEY, '1');
+        detectCityAndSearch();
+    }
+
 })();
 </script>
 {% endblock %}
