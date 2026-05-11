@@ -260,7 +260,9 @@ def admin_inventory_pending_detail(request, pk):
         return redirect('custom_admin:inventory')
 
     inventory = get_object_or_404(
-        Inventory.objects.select_related('category', 'owner', 'owner__user', 'manager').prefetch_related('photos'),
+        Inventory.objects.select_related(
+            'category', 'owner', 'owner__user', 'manager', 'pickup_point__city',
+        ).prefetch_related('photos'),
         pk=pk
     )
     if inventory.status not in ['pending', 'awaiting_contract']:
@@ -396,6 +398,7 @@ def inventory_contract_download(request, pk):
             'owner__user',
             'manager',
             'manager__user',
+            'pickup_point__city',
         ),
         pk=pk,
     )

@@ -732,8 +732,6 @@ def rental_complete(request, pk):
         return redirect('rentals:detail', pk=pk)
 
     if request.method == 'POST':
-        pay_owner = True
-        
         try:
             with transaction.atomic():
                 rental.status = 'completed'
@@ -753,29 +751,25 @@ def rental_complete(request, pk):
                 client.save()
 
                 # Выплата владельцу — счёт берём из профиля владельца
-                if pay_owner:
-                    from users.models import BankAccount, OwnerAgreement
-                    bank_account = BankAccount.objects.filter(owner=inventory.owner).order_by('-is_default').first()
-                    agreement = OwnerAgreement.objects.filter(
-                        owner=inventory.owner,
-                        is_accepted=True
-                    ).order_by('-created_date').first()
-                    owner_pct = agreement.owner_percentage if agreement else 70
-                    owner_amount = (rental.total_price * owner_pct) / 100
-                    owner = inventory.owner
-                    owner.total_earnings += owner_amount
-                    owner.save()
-                    logger.info(f'Выплата владельцу: {owner_amount} руб. для {owner.full_name}')
-                    if bank_account:
-                        messages.success(
-                            request,
-                            f'Аренда завершена. Владельцу выплачено {owner_amount:.2f} ₽ на счет {bank_account.bank_name}.'
-                        )
-                    else:
-                        messages.success(request, f'Аренда завершена. Владельцу начислено {owner_amount:.2f} ₽.')
+                from users.models import BankAccount, OwnerAgreement
+                bank_account = BankAccount.objects.filter(owner=inventory.owner).order_by('-is_default').first()
+                agreement = OwnerAgreement.objects.filter(
+                    owner=inventory.owner,
+                    is_accepted=True
+                ).order_by('-created_date').first()
+                owner_pct = agreement.owner_percentage if agreement else 70
+                owner_amount = (rental.total_price * owner_pct) / 100
+                owner = inventory.owner
+                owner.total_earnings += owner_amount
+                owner.save()
+                logger.info(f'Выплата владельцу: {owner_amount} руб. для {owner.full_name}')
+                if bank_account:
+                    messages.success(
+                        request,
+                        f'Аренда завершена. Владельцу выплачено {owner_amount:.2f} ₽ на счет {bank_account.bank_name}.'
+                    )
                 else:
-                    logger.info(f'Аренда завершена: {rental.rental_id}')
-                    messages.success(request, 'Аренда успешно завершена')
+                    messages.success(request, f'Аренда завершена. Владельцу начислено {owner_amount:.2f} ₽.')
 
         except Exception as e:
             logger.error(f'Ошибка при завершении аренды: {str(e)}')
@@ -801,8 +795,12 @@ def rental_extend(request, pk):
         return redirect('rentals:detail', pk=pk)
 
     if request.method == 'POST':
-        additional_days = int(request.POST.get('additional_days', 0))
-        
+        try:
+            additional_days = int(request.POST.get('additional_days', 0))
+        except (ValueError, TypeError):
+            messages.error(request, 'Некорректное значение количества дней')
+            return redirect('rentals:detail', pk=pk)
+
         if additional_days <= 0:
             messages.error(request, 'Количество дней должно быть больше 0')
             return redirect('rentals:detail', pk=pk)
@@ -894,6 +892,7 @@ def contract_download(request, pk):
     rental = get_object_or_404(
         Rental.objects.select_related(
             'inventory',
+            'inventory__pickup_point__city',
             'client',
             'client__user',
             'manager',

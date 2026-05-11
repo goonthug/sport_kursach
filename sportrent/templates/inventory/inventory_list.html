@@ -355,7 +355,7 @@
     /* ── Карта Яндекс ─────────────────────────────────────────────── */
     function renderMap(items, containerId) {
         if (!MAPS_KEY) return;
-        const points = items.filter(i => i.pickup_point);
+        const points = items.filter(i => i.pickup_point && i.pickup_point.lat && i.pickup_point.lon);
         if (!points.length) return;
 
         const mapEl = document.getElementById(containerId);

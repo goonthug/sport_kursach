@@ -114,10 +114,6 @@ def review_create(request, rental_id):
                     review.status = 'pending'  # Модерация администратором
                     review.save()
 
-                    # Обновляем счетчик отзывов клиента
-                    client = rental.client
-                    client.user.save()
-
                     logger.info(f'Создан отзыв: {review.review_id} от {request.user.email}')
                     messages.success(request, 'Отзыв отправлен на модерацию. Спасибо за ваше мнение!')
                     return redirect('rentals:detail', pk=rental_id)
