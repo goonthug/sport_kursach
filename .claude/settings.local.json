@@ -2,6 +2,8 @@
   "enabledMcpjsonServers": [
     "context7",
     "sequential-thinking",
-    "github"
-  ]
+    "github",
+    "postgres"
+  ],
+  "enableAllProjectMcpServers": true
 }
