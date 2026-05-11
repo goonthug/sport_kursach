@@ -60,6 +60,10 @@
                         <div id="clientPassportFields">
                             <hr class="my-4">
                             <h5 class="mb-3">Паспортные данные</h5>
+                            <div class="alert alert-info py-2 small mb-3">
+                                <i class="bi bi-shield-lock"></i>
+                                Паспортные данные используются только для оформления договора аренды.
+                            </div>
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -113,8 +117,52 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- Соглашение на обработку паспортных данных (152-ФЗ) -->
+                            <div class="card border-warning mb-3">
+                                <div class="card-body py-3">
+                                    <h6 class="card-title mb-2">
+                                        <i class="bi bi-file-text"></i> Согласие на обработку персональных данных
+                                    </h6>
+
+                                    <div class="collapse" id="ndaText">
+                                        <div class="border rounded p-3 mb-3 bg-light small" style="max-height:200px; overflow-y:auto;">
+                                            <strong>Согласие на обработку персональных данных (ФЗ-152)</strong><br><br>
+                                            Настоящим я, субъект персональных данных, в соответствии с Федеральным законом
+                                            от 27.07.2006 № 152-ФЗ «О персональных данных», даю согласие ООО «СпортРент»
+                                            (далее — Оператор) на обработку следующих персональных данных:<br><br>
+                                            — серия и номер паспорта;<br>
+                                            — дата выдачи паспорта;<br>
+                                            — код подразделения, выдавшего паспорт.<br><br>
+                                            <strong>Цель обработки:</strong> исполнение договора аренды спортивного инвентаря,
+                                            идентификация личности арендатора.<br><br>
+                                            <strong>Срок хранения:</strong> в течение 5 лет с момента последней аренды,
+                                            либо до отзыва настоящего согласия.<br><br>
+                                            <strong>Право на отзыв:</strong> я вправе отозвать настоящее согласие,
+                                            направив письменное заявление на адрес Оператора. Отзыв согласия не влияет
+                                            на законность обработки, осуществлённой до его отзыва.<br><br>
+                                            Версия документа: v1.0 от 11.05.2026.
+                                        </div>
+                                    </div>
+
+                                    <a class="small text-decoration-none d-block mb-2"
+                                       data-bs-toggle="collapse" href="#ndaText"
+                                       role="button" aria-expanded="false">
+                                        <i class="bi bi-chevron-down"></i> Читать текст соглашения
+                                    </a>
+
+                                    <div class="form-check">
+                                        {{ form.passport_nda_accepted }}
+                                        <label class="form-check-label" for="{{ form.passport_nda_accepted.id_for_label }}">
+                                            {{ form.passport_nda_accepted.label }} <span class="text-danger">*</span>
+                                        </label>
+                                        {% if form.passport_nda_accepted.errors %}
+                                            <div class="text-danger small mt-1">{{ form.passport_nda_accepted.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="{{ form.role.id_for_label }}" class="form-label">
                                 <i class="bi bi-person-badge"></i> {{ form.role.label }}

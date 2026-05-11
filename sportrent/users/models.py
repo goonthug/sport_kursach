@@ -292,3 +292,29 @@ class Administrator(models.Model):
 
     def __str__(self):
         return self.full_name
+
+
+class PassportNDA(models.Model):
+    """
+    Запись о принятии пользователем соглашения на обработку паспортных данных (152-ФЗ).
+    Создаётся при регистрации клиента и хранит версию документа, дату и IP.
+    """
+
+    nda_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE,
+        related_name='passport_ndas',
+        verbose_name='Пользователь'
+    )
+    version = models.CharField(max_length=10, default='v1.0', verbose_name='Версия соглашения')
+    accepted_at = models.DateTimeField(default=timezone.now, verbose_name='Дата принятия')
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP-адрес')
+
+    class Meta:
+        db_table = 'passport_nda'
+        verbose_name = 'Соглашение на паспортные данные'
+        verbose_name_plural = 'Соглашения на паспортные данные'
+        ordering = ['-accepted_at']
+
+    def __str__(self):
+        return f"NDA {self.user.email} — {self.version} ({self.accepted_at.strftime('%d.%m.%Y')})"

@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.db import transaction
 
 from .forms import UserRegistrationForm, UserLoginForm, UserUpdateForm, ClientProfileForm, OwnerProfileForm, BankAccountForm
-from .models import User, BankAccount
+from .models import User, BankAccount, PassportNDA
 
 logger = logging.getLogger('users')
 
@@ -29,6 +29,13 @@ def register(request):
             try:
                 with transaction.atomic():
                     user = form.save()
+
+                    # Сохраняем NDA для клиента: берём реальный IP (учитываем nginx X-Forwarded-For)
+                    if user.role == 'client':
+                        xff = request.META.get('HTTP_X_FORWARDED_FOR')
+                        ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR')
+                        PassportNDA.objects.create(user=user, version='v1.0', ip_address=ip)
+
                     logger.info(f'Новый пользователь зарегистрирован: {user.email}, роль: {user.role}')
 
                     # Автоматический вход после регистрации

@@ -113,6 +113,16 @@ class UserRegistrationForm(UserCreationForm):
         })
     )
 
+    # Соглашение на обработку паспортных данных (152-ФЗ) — только для клиента
+    passport_nda_accepted = forms.BooleanField(
+        label='Согласен на обработку паспортных данных в соответствии с 152-ФЗ',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'id_passport_nda_accepted',
+        })
+    )
+
     # Поля для владельца
     agreement_accepted = forms.BooleanField(
         label='Принимаю условия соглашения (70% владельцу, 30% магазину)',
@@ -335,6 +345,12 @@ class UserRegistrationForm(UserCreationForm):
         """Валидация полей для владельца и клиента."""
         cleaned_data = super().clean()
         role = cleaned_data.get('role')
+
+        if role == 'client':
+            if not cleaned_data.get('passport_nda_accepted'):
+                raise ValidationError(
+                    'Необходимо принять соглашение на обработку паспортных данных (152-ФЗ)'
+                )
 
         if role == 'owner':
             # Проверка соглашения
