@@ -20,6 +20,13 @@ from reviews.models import Review
 class Command(BaseCommand):
     help = 'Заполняет базу данных тестовыми данными'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--flush',
+            action='store_true',
+            help='Очистить аренды/отзывы перед созданием (для повторного запуска на чистом листе)',
+        )
+
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Начинаем заполнение БД...'))
 
@@ -32,6 +39,15 @@ class Command(BaseCommand):
                 f'Детали: {exc}'
             ) from exc
 
+        if kwargs['flush']:
+            self.stdout.write('--flush: удаляем аренды, платежи и отзывы...')
+            from reviews.models import Review
+            from rentals.models import Payment
+            Review.objects.all().delete()
+            Payment.objects.all().delete()
+            Rental.objects.all().delete()
+            self.stdout.write(self.style.WARNING('Аренды, платежи и отзывы удалены.'))
+
         # Создаем пользователей
         self.create_users()
 
@@ -41,13 +57,25 @@ class Command(BaseCommand):
         # Создаем инвентарь
         self.create_inventory()
 
-        # Создаем аренды
-        self.create_rentals()
+        # Создаем аренды (только если их ещё нет — для идемпотентности)
+        if Rental.objects.exists() and not kwargs['flush']:
+            self.stdout.write(self.style.WARNING(
+                f'Аренды уже существуют ({Rental.objects.count()} шт.) — пропуск. '
+                'Используй --flush для пересоздания.'
+            ))
+        else:
+            self.create_rentals()
 
         # Создаем отзывы
         self.create_reviews()
 
         self.stdout.write(self.style.SUCCESS('База данных успешно заполнена!'))
+        self.stdout.write(self.style.SUCCESS('Открыть сайт: http://localhost/'))
+        self.stdout.write('Тестовые аккаунты:')
+        self.stdout.write('  admin@sportrent.ru   / admin123')
+        self.stdout.write('  manager1@sportrent.ru / manager123')
+        self.stdout.write('  owner1@mail.ru        / owner123')
+        self.stdout.write('  client1@mail.ru       / client123')
 
     def create_users(self):
         """Создание тестовых пользователей."""
