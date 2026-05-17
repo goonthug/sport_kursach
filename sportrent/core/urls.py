@@ -10,4 +10,6 @@ app_name = 'core'
 urlpatterns = [
     path('', views.home, name='home'),
     path('about/', views.about, name='about'),
+    path('geo/save/', views.save_geo_session, name='geo_save'),
+    path('geo/clear/', views.clear_geo_session, name='geo_clear'),
 ]

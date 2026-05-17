@@ -477,11 +477,11 @@
     });
 
     /* ── АВТООПРЕДЕЛЕНИЕ ГОРОДА ───────────────────────────────────── */
-    const geoSection   = document.getElementById('auto-geo-section');
-    const geoStatus    = document.getElementById('geo-status');
-    const geoGrid      = document.getElementById('geo-results-grid');
-    const geoSelector  = document.getElementById('geo-city-selector');
-    const geoCloseBtn  = document.getElementById('geo-close-btn');
+    const geoSection  = document.getElementById('auto-geo-section');
+    const geoStatus   = document.getElementById('geo-status');
+    const geoGrid     = document.getElementById('geo-results-grid');
+    const geoSelector = document.getElementById('geo-city-selector');
+    const geoCloseBtn = document.getElementById('geo-close-btn');
 
     geoCloseBtn.addEventListener('click', () => { geoSection.style.display = 'none'; });
 
@@ -490,6 +490,7 @@
     });
 
     async function autoSearchCity(cityName) {
+        geoSection.style.display = 'block';
         geoStatus.textContent = `📍 Ваш город: ${cityName} — ищем доступный инвентарь...`;
         geoSelector.classList.add('d-none');
         geoGrid.innerHTML = '';
@@ -506,52 +507,29 @@
         }
     }
 
-    async function detectCityAndSearch() {
-        geoSection.style.display = 'block';
-        geoStatus.textContent = 'Определяем ваш город...';
-
-        let cityName = null;
-
-        /* 1. IP-геолокация (работает при реальном IP) */
-        try {
-            const r = await fetch('https://ip-api.com/json/?lang=ru&fields=city,status', {signal: AbortSignal.timeout(4000)});
-            const d = await r.json();
-            if (d.status === 'success' && d.city) cityName = d.city;
-        } catch (_) {}
-
-        /* 2. Браузерная геолокация + Yandex обратное геокодирование */
-        if (!cityName && navigator.geolocation && MAPS_KEY) {
-            try {
-                const pos = await new Promise((res, rej) => {
-                    navigator.geolocation.getCurrentPosition(res, rej, {timeout: 6000});
-                });
-                const {latitude: lat, longitude: lon} = pos.coords;
-                const geoResp = await fetch(
-                    `https://geocode-maps.yandex.ru/1.x/?apikey=${MAPS_KEY}&geocode=${lon},${lat}&results=1&format=json`,
-                    {signal: AbortSignal.timeout(5000)}
-                );
-                const geoData = await geoResp.json();
-                const comp = geoData?.response?.GeoObjectCollection?.featureMember?.[0]
-                    ?.GeoObject?.metaDataProperty?.GeocoderMetaData?.AddressDetails
-                    ?.Country?.AdministrativeArea?.Locality?.LocalityName;
-                if (comp) cityName = comp;
-            } catch (_) {}
-        }
-
-        if (cityName) {
-            await autoSearchCity(cityName);
+    /* Слушаем событие от geo.js — он сам определяет город и сообщает нам.
+       Показываем блок только один раз за сессию браузера. */
+    const GEO_CATALOG_KEY = 'sportrent_geo_catalog_shown';
+    document.addEventListener('geo:detected', (e) => {
+        if (sessionStorage.getItem(GEO_CATALOG_KEY)) return;
+        sessionStorage.setItem(GEO_CATALOG_KEY, '1');
+        const city = e.detail?.city;
+        if (city) {
+            autoSearchCity(city);
         } else {
-            /* Fallback: показываем кнопки с городами из БД */
+            geoSection.style.display = 'block';
             geoStatus.textContent = 'Не удалось определить город автоматически:';
             geoSelector.classList.remove('d-none');
         }
-    }
+    });
 
-    /* Запускаем автоопределение только при первом посещении (не при каждом фильтре) */
-    const GEO_KEY = 'sportrent_geo_shown';
-    if (!sessionStorage.getItem(GEO_KEY)) {
-        sessionStorage.setItem(GEO_KEY, '1');
-        detectCityAndSearch();
+    /* Если geo.js уже определил город ранее (кэш) — проверяем localStorage */
+    if (!sessionStorage.getItem(GEO_CATALOG_KEY)) {
+        const cachedCity = localStorage.getItem('sportrent_geo_city');
+        if (cachedCity) {
+            sessionStorage.setItem(GEO_CATALOG_KEY, '1');
+            autoSearchCity(cachedCity);
+        }
     }
 
 })();

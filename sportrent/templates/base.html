@@ -110,10 +110,56 @@
                             </a>
                         </li>
                     {% endif %}
+
+                    {# ── Геолокация: показываем всегда, скрыт до определения ── #}
+                    <li class="nav-item ms-2 d-none" id="geo-nav-item">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                    type="button" id="geoDropdown"
+                                    data-bs-toggle="dropdown" aria-expanded="false"
+                                    style="font-size:.78rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                📍 <span id="geo-nav-label">{% if user_city %}{{ user_city }}{% if user_address %}, {{ user_address }}{% endif %}{% endif %}</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="geoDropdown"
+                                style="min-width:220px;">
+                                <li>
+                                    <button class="dropdown-item" onclick="GEO.refresh()">
+                                        <i class="bi bi-arrow-clockwise"></i> Обновить местоположение
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <div class="px-3 py-1">
+                                        <div class="text-muted small mb-1">Сменить город вручную:</div>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" id="geo-manual-input"
+                                                   class="form-control form-control-sm"
+                                                   placeholder="Введите город...">
+                                            <button class="btn btn-primary btn-sm" id="geo-manual-btn">→</button>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
                 </ul>
             </div>
         </div>
     </nav>
+
+    <!-- Баннер разрешения геолокации (браузер) -->
+    <div id="geo-permission-banner" class="d-none"
+         style="background:#0a2218; border-bottom:1px solid #1a4030; padding:10px 0;">
+        <div class="container d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <div class="text-white" style="font-size:.88rem;">
+                📍 Разрешить определение местоположения для подбора ближайших магазинов?
+            </div>
+            <div class="d-flex gap-2">
+                <button id="geo-allow-btn" class="btn btn-sm btn-success">Разрешить</button>
+                <button id="geo-deny-btn" class="btn btn-sm btn-outline-secondary">Не сейчас</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Сообщения -->
     {% if messages %}
@@ -245,6 +291,54 @@
                 sessionStorage.setItem(scrollKey, window.scrollY.toString());
             });
         });
+    });
+    </script>
+
+    <!-- Геолокация -->
+    <script src="{% static 'js/geo.js' %}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        /* Если город уже в сессии — сразу показываем виджет */
+        {% if user_city %}
+            const navItem = document.getElementById('geo-nav-item');
+            if (navItem) navItem.classList.remove('d-none');
+        {% endif %}
+
+        /* Ручная смена города через dropdown */
+        const manualBtn   = document.getElementById('geo-manual-btn');
+        const manualInput = document.getElementById('geo-manual-input');
+        if (manualBtn && manualInput) {
+            async function applyManualCity() {
+                const city = manualInput.value.trim();
+                if (!city) return;
+                try {
+                    const resp = await fetch('/geo/save/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+                        },
+                        body: JSON.stringify({ lat: 0, lon: 0, city, source: 'manual', address: '' }),
+                    });
+                    const data = await resp.json();
+                    if (data.ok) {
+                        localStorage.setItem('sportrent_geo_ts',   Date.now().toString());
+                        localStorage.setItem('sportrent_geo_city', data.city || city);
+                        localStorage.setItem('sportrent_geo_addr', '');
+                        const label = document.getElementById('geo-nav-label');
+                        if (label) label.textContent = data.city || city;
+                        document.getElementById('geo-nav-item')?.classList.remove('d-none');
+                        /* Закрываем dropdown */
+                        bootstrap.Dropdown.getInstance(document.getElementById('geoDropdown'))?.hide();
+                        document.dispatchEvent(new CustomEvent('geo:detected', {
+                            detail: { city: data.city || city, address: '', source: 'manual' },
+                        }));
+                    }
+                } catch (_) {}
+            }
+            manualBtn.addEventListener('click', applyManualCity);
+            manualInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyManualCity(); });
+        }
     });
     </script>
 
