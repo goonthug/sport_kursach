@@ -167,7 +167,7 @@ class Client(models.Model):
 
 
 class Owner(models.Model):
-    """Профиль владельца инвентаря."""
+    """Профиль владельца инвентаря (частное лицо, сдаёт свой инвентарь через точки платформы)."""
 
     owner_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='owner_profile')
@@ -175,6 +175,16 @@ class Owner(models.Model):
     full_name = models.CharField(max_length=200, verbose_name='Полное имя')
     tax_number = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name='ИНН')
     bank_details = models.TextField(blank=True, verbose_name='Банковские реквизиты')
+
+    # Город проживания — инвентарь выдаётся через точки платформы в этом городе
+    home_city = models.ForeignKey(
+        'inventory.City',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owners',
+        verbose_name='Город',
+    )
 
     total_earnings = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Общий заработок')
     active_items = models.IntegerField(default=0, verbose_name='Активных предметов')

@@ -6,7 +6,7 @@ import uuid
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
-from users.models import Owner, Manager, Client, BankAccount
+from users.models import Manager, Client, BankAccount, Owner
 
 
 class City(models.Model):
@@ -33,10 +33,6 @@ class PickupPoint(models.Model):
 
     point_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     city = models.ForeignKey(City, on_delete=models.PROTECT, related_name='pickup_points', verbose_name='Город')
-    owner = models.ForeignKey(
-        Owner, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='pickup_points', verbose_name='Владелец'
-    )
     manager = models.ForeignKey(
         Manager, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='pickup_points', verbose_name='Менеджер'

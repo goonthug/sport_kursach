@@ -41,7 +41,6 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True, verbose_name='Активна')),
                 ('city', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='pickup_points', to='inventory.city', verbose_name='Город')),
                 ('manager', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='pickup_points', to='users.manager', verbose_name='Менеджер')),
-                ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='pickup_points', to='users.owner', verbose_name='Владелец')),
             ],
             options={
                 'verbose_name': 'Точка выдачи',
