@@ -19,19 +19,29 @@ def home(request):
     """
     Главная страница с каталогом доступного инвентаря.
     """
-    # Получаем только доступный инвентарь с оптимизацией запросов
     inventories = Inventory.objects.filter(
         status='available'
     ).select_related('category', 'owner', 'owner__user').prefetch_related('photos')[:8]
 
-    # Получаем категории с количеством доступных предметов
     categories = SportCategory.objects.annotate(
         item_count=Count('items', filter=Q(items__status='available'))
     )
 
+    # Ближайшие точки выдачи — показываем если геолокация известна
+    nearest_points = []
+    user_lat = request.session.get('user_lat')
+    user_lon = request.session.get('user_lon')
+    if user_lat and user_lon:
+        try:
+            from inventory.services.proximity import get_nearest_points
+            nearest_points = get_nearest_points(user_lat, user_lon, limit=4, max_km=100)
+        except Exception as exc:
+            logger.warning('get_nearest_points ошибка: %s', exc)
+
     context = {
         'inventories': inventories,
         'categories': categories,
+        'nearest_points': nearest_points,
     }
     return render(request, 'core/home.html', context)
 

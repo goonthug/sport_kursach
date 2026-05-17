@@ -168,6 +168,19 @@
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary w-100">Применить</button>
                 </div>
+                {% if geo_available %}
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="nearby" value="1"
+                               id="nearbyCheck" {% if nearby %}checked{% endif %}
+                               onchange="this.form.submit()">
+                        <label class="form-check-label small" for="nearbyCheck">
+                            <i class="bi bi-geo-alt-fill text-primary me-1"></i>
+                            Только рядом со мной (до 20 км)
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="col-md-6">
                     <label class="form-label small">Цена за день:</label>
                     <div class="row g-2">

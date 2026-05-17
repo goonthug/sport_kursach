@@ -70,7 +70,6 @@ def _save_pickup_point(inventory, form, owner):
         # Создаём placeholder-точку; менеджер заполнит адрес при одобрении
         pp = PickupPoint.objects.create(
             city=city,
-            owner=owner,
             name=f'{city_name} — {owner.full_name}',
             address='Уточняется',
             lat=lat,
@@ -117,6 +116,19 @@ def inventory_list(request):
         inventory_qs = inventory_qs.filter(price_per_day__gte=min_price)
     if max_price:
         inventory_qs = inventory_qs.filter(price_per_day__lte=max_price)
+
+    # Фильтр «Только рядом со мной»
+    nearby = request.GET.get('nearby') == '1'
+    user_lat = request.session.get('user_lat')
+    user_lon = request.session.get('user_lon')
+    geo_available = bool(user_lat and user_lon)
+    if nearby and geo_available:
+        try:
+            from inventory.services.proximity import get_nearby_pickup_point_ids
+            nearby_ids = get_nearby_pickup_point_ids(user_lat, user_lon, radius_km=20)
+            inventory_qs = inventory_qs.filter(pickup_point_id__in=nearby_ids)
+        except Exception:
+            nearby = False
 
     # Сортировка
     sort_by = request.GET.get('sort', '-added_date')
@@ -168,6 +180,8 @@ def inventory_list(request):
         'total_count': paginator.count,
         'favorite_ids': favorite_ids,
         'yandex_maps_key': settings.YANDEX_MAPS_KEY,
+        'nearby': nearby,
+        'geo_available': geo_available,
     }
 
     return render(request, 'inventory/inventory_list.html', context)
