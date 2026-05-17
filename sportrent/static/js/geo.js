@@ -82,7 +82,7 @@
     async function detectByIP() {
         try {
             const r = await fetch(
-                'https://ip-api.com/json/?lang=ru&fields=city,lat,lon,status',
+                'http://ip-api.com/json/?lang=ru&fields=city,lat,lon,status',
                 { signal: AbortSignal.timeout(4000) }
             );
             const d = await r.json();

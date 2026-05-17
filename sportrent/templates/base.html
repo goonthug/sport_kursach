@@ -121,19 +121,22 @@
                                 📍 <span id="geo-nav-label">{% if user_city %}{{ user_city }}{% if user_address %}, {{ user_address }}{% endif %}{% endif %}</span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="geoDropdown"
-                                style="min-width:220px;">
+                                data-bs-theme="dark"
+                                style="min-width:240px; background:#0d1f14; border:1px solid #1e4028;">
                                 <li>
-                                    <button class="dropdown-item" onclick="GEO.refresh()">
-                                        <i class="bi bi-arrow-clockwise"></i> Обновить местоположение
+                                    <button class="dropdown-item text-white" onclick="GEO.refresh()"
+                                            style="font-size:.85rem;">
+                                        <i class="bi bi-arrow-clockwise me-1"></i> Обновить местоположение
                                     </button>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li><hr class="dropdown-divider" style="border-color:#1e4028;"></li>
                                 <li>
-                                    <div class="px-3 py-1">
-                                        <div class="text-muted small mb-1">Сменить город вручную:</div>
+                                    <div class="px-3 py-2">
+                                        <div class="text-secondary small mb-2">Сменить город вручную:</div>
                                         <div class="input-group input-group-sm">
                                             <input type="text" id="geo-manual-input"
                                                    class="form-control form-control-sm"
+                                                   style="background:#1a2e20; border-color:#2d5038; color:#fff;"
                                                    placeholder="Введите город...">
                                             <button class="btn btn-primary btn-sm" id="geo-manual-btn">→</button>
                                         </div>

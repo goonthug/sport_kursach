@@ -110,8 +110,8 @@ def inventory_list(request):
         inventory_qs = inventory_qs.filter(condition=condition)
 
     # Фильтрация по цене
-    min_price = request.GET.get('min_price')
-    max_price = request.GET.get('max_price')
+    min_price = request.GET.get('min_price') or ''
+    max_price = request.GET.get('max_price') or ''
     if min_price:
         inventory_qs = inventory_qs.filter(price_per_day__gte=min_price)
     if max_price:

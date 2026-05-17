@@ -9,12 +9,14 @@ import logging
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db.models import Count, Q
 from inventory.models import Inventory, SportCategory
 
 logger = logging.getLogger('sportrent')
 
 
+@ensure_csrf_cookie
 def home(request):
     """
     Главная страница с каталогом доступного инвентаря.
@@ -67,6 +69,17 @@ def save_geo_session(request):
         source = str(data.get('source') or 'ip')
         address = str(data.get('address') or '').strip()
 
+        # При ручном вводе города подставляем координаты из справочника городов
+        if source == 'manual' and city and (not lat or not lon):
+            try:
+                from inventory.models import City as CityModel
+                city_obj = CityModel.objects.filter(name__iexact=city).first()
+                if city_obj and city_obj.lat and city_obj.lon:
+                    lat = float(city_obj.lat)
+                    lon = float(city_obj.lon)
+            except Exception as exc:
+                logger.warning('Поиск координат города при manual: %s', exc)
+
         # Для browser-источника уточняем адрес через Yandex reverse geocoding
         if source == 'browser' and lat and lon:
             try:
@@ -101,3 +114,5 @@ def clear_geo_session(request):
     for key in ('user_lat', 'user_lon', 'user_city', 'user_address', 'geo_source', 'geo_ts'):
         request.session.pop(key, None)
     return JsonResponse({'ok': True})
+
+
