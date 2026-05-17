@@ -40,7 +40,6 @@ def register(request):
 
                     # Автоматический вход после регистрации
                     login(request, user)
-                    messages.success(request, f'Добро пожаловать, {user.get_full_name()}! Регистрация прошла успешно.')
                     return redirect('core:home')
 
             except Exception as e:
@@ -83,7 +82,6 @@ def user_login(request):
                 else:
                     login(request, user)
                     logger.info(f'Пользователь вошел в систему: {user.email}')
-                    messages.success(request, f'Добро пожаловать, {user.get_full_name()}!')
 
                     # Перенаправление в зависимости от роли
                     next_url = request.GET.get('next')
@@ -111,7 +109,6 @@ def user_logout(request):
     user_email = request.user.email
     logout(request)
     logger.info(f'Пользователь вышел из системы: {user_email}')
-    messages.info(request, 'Вы успешно вышли из системы.')
     return redirect('core:home')
 
 
