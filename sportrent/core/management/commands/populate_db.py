@@ -1,539 +1,807 @@
 """
 Management команда для заполнения БД тестовыми данными.
+Стратегия: upsert для пользователей, clean-and-seed для всего остального.
 Использование: python manage.py populate_db
 """
+
+import random
+from datetime import timedelta
+from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.db.utils import OperationalError
 from django.utils import timezone
-from datetime import timedelta
-from decimal import Decimal
-import random
 
-from users.models import User, Client, Owner, Manager, Administrator, BankAccount, OwnerAgreement
-from inventory.models import SportCategory, Inventory, InventoryPhoto, City, PickupPoint
-from rentals.models import Rental, Payment, Contract
+from chat.models import ChatMessage
+from inventory.models import City, Inventory, PickupPoint, SportCategory
+from rentals.models import Contract, DamageReport, Payment, Rental, Reservation
 from reviews.models import Review
+from users.models import (
+    Administrator, BankAccount, Client, Manager, Owner, OwnerAgreement, User,
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Справочные данные
+# ─────────────────────────────────────────────────────────────────────────────
+
+CITY_DATA = [
+    # (name, region, lat, lon, district, points_count)
+    ('Москва',          'Москва',                   '55.755864', '37.617698', 'ЦФО',  3),
+    ('Воронеж',         'Воронежская область',       '51.661535', '39.200287', 'ЦФО',  2),
+    ('Ярославль',       'Ярославская область',       '57.626568', '39.893787', 'ЦФО',  2),
+    ('Тула',            'Тульская область',          '54.193122', '37.617348', 'ЦФО',  2),
+    ('Санкт-Петербург', 'Ленинградская область',     '59.938951', '30.315635', 'СЗФО', 3),
+    ('Казань',          'Республика Татарстан',      '55.796127', '49.106414', 'ПФО',  3),
+    ('Нижний Новгород', 'Нижегородская область',     '56.326887', '44.005986', 'ПФО',  3),
+    ('Самара',          'Самарская область',         '53.195878', '50.100202', 'ПФО',  3),
+    ('Уфа',             'Республика Башкортостан',   '54.735152', '55.958736', 'ПФО',  2),
+    ('Пермь',           'Пермский край',             '57.990986', '56.229443', 'ПФО',  2),
+    ('Саратов',         'Саратовская область',       '51.533562', '46.034266', 'ПФО',  2),
+    ('Екатеринбург',    'Свердловская область',      '56.838011', '60.597474', 'УФО',  3),
+    ('Челябинск',       'Челябинская область',       '55.154927', '61.401079', 'УФО',  2),
+    ('Тюмень',          'Тюменская область',         '57.153033', '65.534328', 'УФО',  2),
+    ('Новосибирск',     'Новосибирская область',     '54.989347', '82.904632', 'СФО',  3),
+    ('Омск',            'Омская область',            '54.989342', '73.368212', 'СФО',  2),
+    ('Красноярск',      'Красноярский край',         '56.010569', '92.852545', 'СФО',  2),
+    ('Краснодар',       'Краснодарский край',        '45.035470', '38.975313', 'ЮФО',  3),
+    ('Ростов-на-Дону',  'Ростовская область',        '47.222078', '39.720349', 'ЮФО',  2),
+    ('Волгоград',       'Волгоградская область',     '48.707103', '44.516939', 'ЮФО',  2),
+]
+
+CITY_DISTRICT = {row[0]: row[4] for row in CITY_DATA}
+
+ALL_CATS      = ['Велосипеды', 'Лыжи', 'Сноуборды', 'Ролики', 'Самокаты', 'Туристическое снаряжение', 'Водный спорт']
+UFO_SFO_CATS  = ['Велосипеды', 'Лыжи', 'Сноуборды', 'Ролики', 'Самокаты', 'Туристическое снаряжение']
+YUFO_CATS     = ['Велосипеды', 'Ролики', 'Самокаты', 'Туристическое снаряжение', 'Водный спорт']
+
+DISTRICT_CATS = {
+    'ЦФО': ALL_CATS, 'СЗФО': ALL_CATS, 'ПФО': ALL_CATS,
+    'УФО': UFO_SFO_CATS, 'СФО': UFO_SFO_CATS,
+    'ЮФО': YUFO_CATS,
+}
+
+MANAGER_DATA = [
+    # (email, password, full_name, district, phone)
+    ('manager1@sportrent.ru',     'manager123', 'Петров Пётр Петрович',        'ЦФО',  '+7(499)100-10-01'),
+    ('manager_szfo@sportrent.ru', 'manager123', 'Иванченко Виктор Николаевич', 'СЗФО', '+7(812)200-20-02'),
+    ('manager_pfo@sportrent.ru',  'manager123', 'Галимов Ильдар Рифатович',    'ПФО',  '+7(843)300-30-03'),
+    ('manager_ufo@sportrent.ru',  'manager123', 'Соколов Дмитрий Андреевич',   'УФО',  '+7(343)400-40-04'),
+    ('manager_sfo@sportrent.ru',  'manager123', 'Власов Алексей Геннадьевич',  'СФО',  '+7(383)500-50-05'),
+    ('manager_yufo@sportrent.ru', 'manager123', 'Степанова Наталья Олеговна',  'ЮФО',  '+7(861)600-60-06'),
+]
+
+OWNER_DATA = [
+    # (email, full_name, city, tax_number)
+    ('owner1@mail.ru',  'Владимиров Владимир Владимирович', 'Москва',          '770112345601'),
+    ('owner2@mail.ru',  'Александрова Мария Сергеевна',    'Воронеж',         '360112345602'),
+    ('owner3@mail.ru',  'Николаев Николай Николаевич',     'Ярославль',       '760112345603'),
+    ('owner4@mail.ru',  'Беляев Сергей Петрович',          'Тула',            '710112345604'),
+    ('owner5@mail.ru',  'Соколова Анна Дмитриевна',        'Санкт-Петербург', '780112345605'),
+    ('owner6@mail.ru',  'Миронов Артём Игоревич',          'Казань',          '160112345606'),
+    ('owner7@mail.ru',  'Зайцева Екатерина Витальевна',    'Нижний Новгород', '520112345607'),
+    ('owner8@mail.ru',  'Борисов Павел Николаевич',        'Самара',          '630112345608'),
+    ('owner9@mail.ru',  'Фёдорова Ирина Анатольевна',      'Уфа',             '020112345609'),
+    ('owner10@mail.ru', 'Громов Илья Сергеевич',           'Пермь',           '590112345610'),
+    ('owner11@mail.ru', 'Тихонова Светлана Романовна',     'Саратов',         '640112345611'),
+    ('owner12@mail.ru', 'Сидоров Андрей Вячеславович',     'Екатеринбург',    '660112345612'),
+    ('owner13@mail.ru', 'Кузьмина Ольга Игоревна',         'Челябинск',       '740112345613'),
+    ('owner14@mail.ru', 'Тарасов Максим Дмитриевич',       'Тюмень',          '720112345614'),
+    ('owner15@mail.ru', 'Панова Юлия Алексеевна',          'Новосибирск',     '540112345615'),
+    ('owner16@mail.ru', 'Орлов Станислав Викторович',      'Омск',            '550112345616'),
+    ('owner17@mail.ru', 'Волков Денис Андреевич',          'Красноярск',      '240112345617'),
+    ('owner18@mail.ru', 'Захарова Алина Олеговна',         'Краснодар',       '230112345618'),
+    ('owner19@mail.ru', 'Кириллов Роман Евгеньевич',       'Ростов-на-Дону',  '610112345619'),
+    ('owner20@mail.ru', 'Лебедева Виктория Павловна',      'Волгоград',       '340112345620'),
+]
+
+CLIENT_DATA = [
+    ('client1@mail.ru',  'Иванов Иван Иванович'),
+    ('client2@mail.ru',  'Смирнова Елена Александровна'),
+    ('client3@mail.ru',  'Кузнецов Дмитрий Павлович'),
+    ('client4@mail.ru',  'Морозова Ольга Викторовна'),
+    ('client5@mail.ru',  'Федоров Андрей Михайлович'),
+    ('client6@mail.ru',  'Лазарева Татьяна Игоревна'),
+    ('client7@mail.ru',  'Новиков Сергей Аркадьевич'),
+    ('client8@mail.ru',  'Попова Дарья Константиновна'),
+    ('client9@mail.ru',  'Щербаков Антон Олегович'),
+    ('client10@mail.ru', 'Герасимова Ксения Леонидовна'),
+    ('client11@mail.ru', 'Тимофеев Алексей Иванович'),
+    ('client12@mail.ru', 'Гусева Наталья Сергеевна'),
+    ('client13@mail.ru', 'Ковалёв Михаил Дмитриевич'),
+    ('client14@mail.ru', 'Яковлева Анна Петровна'),
+    ('client15@mail.ru', 'Семёнов Виктор Борисович'),
+]
+
+# (name, address, lat, lon, phone) — индексированы по городу
+PICKUP_POINTS_BY_CITY = {
+    'Москва': [
+        ('SportRent Арбат',        'ул. Арбат, 22',               '55.752000', '37.592100', '+7(499)100-10-10'),
+        ('SportRent Сокольники',   'ул. Сокольнический вал, 1',   '55.789700', '37.677700', '+7(499)100-10-11'),
+        ('SportRent Коломенская',  'пр-т Андропова, 39',          '55.668000', '37.668600', '+7(499)100-10-12'),
+    ],
+    'Воронеж': [
+        ('SportRent Центр',        'пр-т Революции, 30',          '51.661500', '39.200300', '+7(473)200-20-20'),
+        ('SportRent Советский',    'Московский пр-т, 88',         '51.674400', '39.171200', '+7(473)200-20-21'),
+    ],
+    'Ярославль': [
+        ('SportRent Центр',        'ул. Советская, 5',            '57.626100', '39.884500', '+7(485)300-30-30'),
+        ('SportRent Заволжский',   'Тутаевское шоссе, 14',        '57.665100', '39.839800', '+7(485)300-30-31'),
+    ],
+    'Тула': [
+        ('SportRent Центр',        'пр-т Ленина, 14',             '54.193100', '37.617300', '+7(487)400-40-40'),
+        ('SportRent Пролетарский', 'ул. Мосина, 14',              '54.169300', '37.635500', '+7(487)400-40-41'),
+    ],
+    'Санкт-Петербург': [
+        ('SportRent Невский',      'Невский проспект, 50',        '59.930900', '30.346100', '+7(812)500-50-50'),
+        ('SportRent Петроградская','ул. Б. Пушкарская, 10',       '59.961700', '30.301400', '+7(812)500-50-51'),
+        ('SportRent Московский',   'Московский пр-т, 100',        '59.889500', '30.321800', '+7(812)500-50-52'),
+    ],
+    'Казань': [
+        ('SportRent Баумана',      'ул. Баумана, 44',             '55.794900', '49.113000', '+7(843)600-60-60'),
+        ('SportRent Кремль',       'ул. Кремлёвская, 18',         '55.799400', '49.106500', '+7(843)600-60-61'),
+        ('SportRent Дербышки',     'ул. Мира, 12',                '55.854100', '49.216800', '+7(843)600-60-62'),
+    ],
+    'Нижний Новгород': [
+        ('SportRent Покровка',     'ул. Б. Покровская, 25',       '56.328600', '44.003500', '+7(831)700-70-70'),
+        ('SportRent Сормово',      'ул. Коминтерна, 104',         '56.366100', '43.864700', '+7(831)700-70-71'),
+        ('SportRent Кузнечиха',    'ул. Родионова, 165',          '56.281300', '43.991200', '+7(831)700-70-72'),
+    ],
+    'Самара': [
+        ('SportRent Центр',        'ул. Куйбышева, 74',           '53.194600', '50.156400', '+7(846)800-80-80'),
+        ('SportRent Металлург',    'пр-т Металлургов, 49',        '53.209700', '50.237400', '+7(846)800-80-81'),
+        ('SportRent Советский',    'ул. Советской Армии, 101',    '53.225200', '50.198800', '+7(846)800-80-82'),
+    ],
+    'Уфа': [
+        ('SportRent Центр',        'пр-т Октября, 3',             '54.729800', '55.960000', '+7(347)900-90-90'),
+        ('SportRent Черниковка',   'ул. Первомайская, 47',        '54.805700', '55.943200', '+7(347)900-90-91'),
+    ],
+    'Пермь': [
+        ('SportRent Центр',        'ул. Ленина, 38',              '57.990400', '56.230100', '+7(342)910-10-10'),
+        ('SportRent Кировский',    'шоссе Космонавтов, 111',      '58.011800', '56.187700', '+7(342)910-10-11'),
+    ],
+    'Саратов': [
+        ('SportRent Центр',        'пр-т Кирова, 14',             '51.533500', '46.034200', '+7(845)920-20-20'),
+        ('SportRent Заводской',    'ул. Жуковского, 27',          '51.498000', '45.999300', '+7(845)920-20-21'),
+    ],
+    'Екатеринбург': [
+        ('SportRent Центр',        'ул. Ленина, 24/8',            '56.838900', '60.605700', '+7(343)930-30-30'),
+        ('SportRent Пионерский',   'ул. Первомайская, 77',        '56.846800', '60.661300', '+7(343)930-30-31'),
+        ('SportRent Уралмаш',      'пр-т Космонавтов, 18',        '56.903100', '60.610200', '+7(343)930-30-32'),
+    ],
+    'Челябинск': [
+        ('SportRent Центр',        'ул. Кирова, 100',             '55.154900', '61.401000', '+7(351)940-40-40'),
+        ('SportRent Северо-Запад', 'ул. Труда, 203',              '55.178100', '61.369000', '+7(351)940-40-41'),
+    ],
+    'Тюмень': [
+        ('SportRent Центр',        'ул. Республики, 52',          '57.153000', '65.534300', '+7(345)950-50-50'),
+        ('SportRent Восточный',    'ул. Мельникайте, 106',        '57.159700', '65.588000', '+7(345)950-50-51'),
+    ],
+    'Новосибирск': [
+        ('SportRent Красный пр-т', 'Красный проспект, 82',        '54.990600', '82.901700', '+7(383)960-60-60'),
+        ('SportRent Академгородок','пр-т Ак. Лаврентьева, 6',    '54.844000', '83.106900', '+7(383)960-60-61'),
+        ('SportRent Заельцовский', 'ул. Дуси Ковальчук, 179',    '55.028300', '82.928600', '+7(383)960-60-62'),
+    ],
+    'Омск': [
+        ('SportRent Центр',        'ул. Ленина, 8',               '54.989300', '73.368200', '+7(381)970-70-70'),
+        ('SportRent Кировский',    'пр-т Карла Маркса, 26',       '54.968500', '73.394000', '+7(381)970-70-71'),
+    ],
+    'Красноярск': [
+        ('SportRent Центр',        'пр-т Мира, 38',               '56.010600', '92.852600', '+7(391)980-80-80'),
+        ('SportRent Советский',    'ул. Маерчака, 10',            '56.028100', '92.881400', '+7(391)980-80-81'),
+    ],
+    'Краснодар': [
+        ('SportRent Красная',      'ул. Красная, 55',             '45.039600', '38.976900', '+7(861)990-90-90'),
+        ('SportRent Гидрострой',   'ул. Дзержинского, 100',       '45.058100', '38.964900', '+7(861)990-90-91'),
+        ('SportRent Прикубанский', 'ул. им. Тюляева, 13',         '45.019600', '39.031100', '+7(861)990-90-92'),
+    ],
+    'Ростов-на-Дону': [
+        ('SportRent Центр',        'ул. Большая Садовая, 54',     '47.222000', '39.720300', '+7(863)010-10-10'),
+        ('SportRent Ленинский',    'пр-т Кировский, 66',          '47.206400', '39.742600', '+7(863)010-10-11'),
+    ],
+    'Волгоград': [
+        ('SportRent Центр',        'пр-т Ленина, 32',             '48.707100', '44.516900', '+7(844)020-20-20'),
+        ('SportRent Красноармейский','пр-т Героев Сталинграда, 47','48.568000', '44.526800', '+7(844)020-20-21'),
+    ],
+}
+
+ITEMS_BY_CAT = {
+    'Велосипеды': [
+        ('Горный велосипед Trek Marlin 7',         'Хардтейл 29" для трейлов и кросс-кантри',         'Trek',        'Marlin 7',          Decimal('800'),  'excellent'),
+        ('Шоссейный велосипед Giant TCR Advanced', 'Лёгкий карбоновый шоссейник',                     'Giant',       'TCR Advanced',      Decimal('1200'), 'excellent'),
+        ('Городской велосипед Stels Navigator 350','Комфортный городской велосипед',                   'Stels',       'Navigator 350',     Decimal('500'),  'good'),
+        ('Горный велосипед Specialized Rockhopper','Надёжный хардтейл 27.5"',                          'Specialized', 'Rockhopper',        Decimal('750'),  'good'),
+        ('Гибридный велосипед Trek FX 2',          'Для города и парка',                              'Trek',        'FX 2',              Decimal('520'),  'good'),
+        ('Горный велосипед Merida Big.Nine 300',   'Найнер для быстрых трасс',                        'Merida',      'Big.Nine 300',      Decimal('900'),  'excellent'),
+        ('BMX Haro Downtown 20',                   'Трюковый велосипед для стрита',                   'Haro',        'Downtown 20',       Decimal('400'),  'good'),
+        ('Электровелосипед Cube Reaction Hybrid',  'Горный e-bike с мотором Bosch 625 Вт',            'Cube',        'Reaction Hybrid',   Decimal('1500'), 'excellent'),
+        ('Фэтбайк Stels Fat 26"',                  'Велосипед на широких шинах для бездорожья',       'Stels',       'Fat 26"',           Decimal('650'),  'good'),
+        ('Складной велосипед Dahon Qix D8',        'Компактный складник для города',                  'Dahon',       'Qix D8',            Decimal('480'),  'good'),
+    ],
+    'Лыжи': [
+        ('Горные лыжи Atomic Redster G9',          'Профессиональный GS-карвинг',                     'Atomic',      'Redster G9',        Decimal('1500'), 'excellent'),
+        ('Беговые лыжи Fischer Speedmax Classic',  'Коньковые лыжи для гонки',                       'Fischer',     'Speedmax Classic',  Decimal('900'),  'good'),
+        ('Горные лыжи Rossignol Hero Elite LT',    'Карвинг для опытных лыжников',                   'Rossignol',   'Hero Elite LT',     Decimal('1300'), 'excellent'),
+        ('Беговые лыжи Madshus Redline SC',        'Гоночные лыжи для конькового хода',               'Madshus',     'Redline SC',        Decimal('1100'), 'excellent'),
+        ('Горные лыжи Head Supershape E-Speed',    'Универсальный карвинг для склона',                'Head',        'Supershape E-Speed',Decimal('1200'), 'good'),
+        ('Горные лыжи Salomon QST 92',             'All-mountain для глубокого снега',                'Salomon',     'QST 92',            Decimal('1000'), 'good'),
+        ('Беговые лыжи Salomon RS8 Skate',         'Конёк среднего уровня',                           'Salomon',     'RS8 Skate',         Decimal('700'),  'good'),
+        ('Горные лыжи Elan Wingman 86 CTI',        'Универсал для новичков и среднего уровня',        'Elan',        'Wingman 86 CTI',    Decimal('1100'), 'excellent'),
+    ],
+    'Сноуборды': [
+        ('Сноуборд Burton Custom X',               'Жёсткий для парка и пайпа',                       'Burton',      'Custom X',          Decimal('1100'), 'excellent'),
+        ('Сноуборд Ride Agenda',                   'Всегорный для начинающих',                        'Ride',        'Agenda',            Decimal('700'),  'good'),
+        ('Сноуборд Salomon Assassin',              'Парковый трюковый борд',                           'Salomon',     'Assassin',          Decimal('1000'), 'excellent'),
+        ('Сноуборд K2 Raygun',                     'Универсал для склона и парка',                    'K2',          'Raygun',            Decimal('850'),  'good'),
+        ('Сноуборд Nidecker Megatron',             'Жёсткий для карвинга',                            'Nidecker',    'Megatron',          Decimal('950'),  'excellent'),
+        ('Сноуборд Lib Tech Travis Rice Orca',     'Борд для глубокого паудера',                      'Lib Tech',    'Travis Rice Orca',  Decimal('1300'), 'excellent'),
+    ],
+    'Ролики': [
+        ('Ролики Rollerblade Zetrablade',          'Фитнес-ролики для взрослых',                      'Rollerblade', 'Zetrablade',        Decimal('400'),  'good'),
+        ('Ролики K2 F.I.T. 84',                    'Мягкие фитнес-ролики',                            'K2',          'F.I.T. 84',         Decimal('450'),  'good'),
+        ('Ролики Powerslide Next Core',            'Скоростные для марафона',                         'Powerslide',  'Next Core',         Decimal('600'),  'excellent'),
+        ('Ролики Seba FR1 80',                     'Для агрессивного катания',                        'Seba',        'FR1 80',            Decimal('500'),  'good'),
+        ('Ролики Rollerblade Twister Edge',        'Городские urban-ролики',                          'Rollerblade', 'Twister Edge',      Decimal('550'),  'excellent'),
+        ('Детские ролики Micro Trixx',             'Регулируемые ролики для детей',                   'Micro',       'Trixx',             Decimal('300'),  'good'),
+    ],
+    'Самокаты': [
+        ('Электросамокат Xiaomi Mi Pro 2',         'Мощный до 25 км/ч, запас хода 45 км',            'Xiaomi',      'Mi Pro 2',          Decimal('600'),  'excellent'),
+        ('Самокат Razor A5 Lux',                   'Складной самокат для взрослых',                   'Razor',       'A5 Lux',            Decimal('300'),  'good'),
+        ('Электросамокат Ninebot Max G30',         'Максимальный запас хода 65 км',                   'Ninebot',     'Max G30',           Decimal('750'),  'excellent'),
+        ('Электросамокат Kugoo S3 Pro',            'Мощный внедорожный электросамокат',               'Kugoo',       'S3 Pro',            Decimal('650'),  'good'),
+        ('Трюковый самокат Tao Tao Zodiac',        'Для парковых трюков',                             'Tao Tao',     'Zodiac',            Decimal('250'),  'good'),
+        ('Электросамокат Dualtron Mini',           'Компактный городской двухмоторный',               'Minimotors',  'Dualtron Mini',     Decimal('800'),  'excellent'),
+    ],
+    'Туристическое снаряжение': [
+        ('Палатка Quechua Arpenaz 3',              'Трёхместная летняя лёгкая палатка',               'Quechua',     'Arpenaz 3',         Decimal('450'),  'good'),
+        ('Рюкзак Osprey Atmos AG 65',              'Туристический 65 л с вентиляцией спины',          'Osprey',      'Atmos AG 65',       Decimal('350'),  'excellent'),
+        ('Палатка Nordway Sphinx 2',               'Двухместная трёхсезонная палатка',                'Nordway',     'Sphinx 2',          Decimal('380'),  'good'),
+        ('Рюкзак Deuter Aircontact 55+10',         'С системой вентиляции спины',                     'Deuter',      'Aircontact 55+10',  Decimal('480'),  'excellent'),
+        ('Палатка MSR Hubba Hubba NX',             'Ультралёгкая двухместная палатка',                'MSR',         'Hubba Hubba NX',    Decimal('600'),  'excellent'),
+        ('Рюкзак Gregory Baltoro 75',              'Экспедиционный рюкзак 75 л',                      'Gregory',     'Baltoro 75',        Decimal('520'),  'excellent'),
+        ('Спальник Marmot Trestles 30',            'Синтетик, комфорт до -1°C',                       'Marmot',      'Trestles 30',       Decimal('280'),  'good'),
+        ('Треккинговые палки Black Diamond Distance','Карбоновые складные палки',                     'Black Diamond','Distance Z',        Decimal('200'),  'excellent'),
+        ('Коврик Therm-a-Rest NeoAir XLite',       'Надувной самонадувающийся',                       'Therm-a-Rest', 'NeoAir XLite',     Decimal('250'),  'excellent'),
+        ('Гермомешок Sea to Summit Dry Sack 20L',  'Водонепроницаемый мешок 20 л',                    'Sea to Summit','Dry Sack 20L',      Decimal('150'),  'good'),
+    ],
+    'Водный спорт': [
+        ('SUP-борд Starboard iGO Zen 10.8',        'Надувной SUP для прогулок',                       'Starboard',   'iGO Zen SC 10.8',   Decimal('800'),  'excellent'),
+        ('Каяк Intex Explorer K2',                 'Надувной двухместный каяк',                       'Intex',       'Explorer K2',       Decimal('500'),  'good'),
+        ('SUP-борд Red Paddle Co Ride 10.6',       'Жёсткий универсальный SUP',                       'Red Paddle Co','Ride 10.6',         Decimal('950'),  'excellent'),
+        ('Каяк Sevylor Colorado',                  'Двухместный надувной каяк',                       'Sevylor',     'Colorado',          Decimal('450'),  'good'),
+        ('SUP-борд F-One Sk8 Air',                 'Для волн и ветра',                                'F-One',       'Sk8 Air',           Decimal('1100'), 'excellent'),
+        ('Байдарка Tahe Marine Yakkair HP2',       'Двухместная надувная байдарка',                   'Tahe Marine', 'Yakkair HP2',       Decimal('600'),  'good'),
+        ('Виндсёрф JP Australia YoungBlood',       'Для обучения виндсёрфингу',                       'JP Australia','YoungBlood',        Decimal('900'),  'good'),
+    ],
+}
+
+# Количество единиц инвентаря на каждого владельца (по индексу в OWNER_DATA)
+# indices 0-10 (ЦФО+СЗФО+ПФО, 11 owners): 8 items = 88
+# indices 11-16 (УФО+СФО, 6 owners): 7 items = 42
+# indices 17-19 (ЮФО, 3 owners): 8+8+7 = 23
+# Итого: 153
+OWNER_ITEM_COUNTS = [8, 8, 8, 8, 8,  8, 8, 8, 8, 8, 8,  7, 7, 7, 7, 7, 7,  8, 8, 7]
+
+REVIEW_COMMENTS = [
+    'Отличное состояние, всё понравилось! Буду брать снова.',
+    'Хороший инвентарь, рекомендую. Работает как надо.',
+    'Всё прошло гладко, спасибо менеджеру за оперативность.',
+    'Качественное оборудование, сдали вовремя и без проблем.',
+    'Приятное обслуживание, инвентарь в хорошем состоянии.',
+    'Брал лыжи на выходные — отличный выбор, всё соответствует описанию.',
+    'SUP-борд в идеальном состоянии, буду рекомендовать друзьям.',
+    'Велосипед чистый, хорошо настроен. Очень доволен.',
+    'Ролики немного поношенные, но катаются хорошо. На 4.',
+    'Самокат заряжен, всё работает. Удобно для прогулок.',
+    'Палатка не пропускает воду, собирается легко. Отлично!',
+    'Менеджер быстро ответил на вопросы, инвентарь в хорошем состоянии.',
+    'Рюкзак немного потрёпан, но функционален. В целом нормально.',
+    'Сноуборд в отличном состоянии, давно так хорошо не катался!',
+    'Каяк надувался долго, но в целом всё хорошо.',
+    'Рекомендую! Всё как на фото, менеджер пошёл навстречу.',
+    'Электросамокат мощный, но немного шумит. На 4.',
+    'Горные лыжи — топ! Карвинг просто отличный.',
+    'Туристическое снаряжение в хорошем состоянии. Поход прошёл отлично.',
+    'Хорошо, но хотелось бы более новое оборудование.',
+    'Всё отлично, спасибо! Точно вернусь.',
+    'Инвентарь соответствует описанию. Аренда прошла без нареканий.',
+    'Прекрасный сервис и качественный инвентарь. Рекомендую!',
+]
 
 
 class Command(BaseCommand):
-    help = 'Заполняет базу данных тестовыми данными'
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--flush',
-            action='store_true',
-            help='Очистить аренды/отзывы перед созданием (для повторного запуска на чистом листе)',
-        )
+    help = 'Заполняет БД тестовыми данными (clean-and-seed, кроме пользователей — те upsert)'
 
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Начинаем заполнение БД...'))
-
         try:
             connection.ensure_connection()
         except OperationalError as exc:
             raise CommandError(
-                'Не удалось подключиться к PostgreSQL. Запустите службу PostgreSQL и '
-                'проверьте sportrent/.env: DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT.\n'
+                'Не удалось подключиться к PostgreSQL. Проверьте sportrent/.env.\n'
                 f'Детали: {exc}'
             ) from exc
 
-        if kwargs['flush']:
-            self.stdout.write('--flush: удаляем аренды, платежи и отзывы...')
-            from reviews.models import Review
-            from rentals.models import Payment
-            Review.objects.all().delete()
-            Payment.objects.all().delete()
-            Rental.objects.all().delete()
-            self.stdout.write(self.style.WARNING('Аренды, платежи и отзывы удалены.'))
-
-        # Создаем пользователей
+        self._clear_data()
         self.create_users()
-
-        # Создаем категории
         self.create_categories()
-
-        # Создаем города и точки выдачи
         self.create_cities()
-
-        # Создаем инвентарь
+        self.create_pickup_points()
         self.create_inventory()
-
-        # Создаем аренды (только если их ещё нет — для идемпотентности)
-        if Rental.objects.exists() and not kwargs['flush']:
-            self.stdout.write(self.style.WARNING(
-                f'Аренды уже существуют ({Rental.objects.count()} шт.) — пропуск. '
-                'Используй --flush для пересоздания.'
-            ))
-        else:
-            self.create_rentals()
-
-        # Создаем отзывы
+        self.create_rentals()
         self.create_reviews()
+        self.create_chats()
 
-        self.stdout.write(self.style.SUCCESS('База данных успешно заполнена!'))
-        self.stdout.write(self.style.SUCCESS('Открыть сайт: http://localhost/'))
+        self.stdout.write(self.style.SUCCESS('\nБаза данных успешно заполнена!'))
+        self.stdout.write('Открыть сайт: http://localhost/')
+        self.stdout.write('')
         self.stdout.write('Тестовые аккаунты:')
-        self.stdout.write('  admin@sportrent.ru   / admin123')
-        self.stdout.write('  manager1@sportrent.ru / manager123')
-        self.stdout.write('  owner1@mail.ru        / owner123')
-        self.stdout.write('  client1@mail.ru       / client123')
+        self.stdout.write('  admin@sportrent.ru        / admin123')
+        self.stdout.write('  manager1@sportrent.ru     / manager123  (ЦФО: Москва, Воронеж, Ярославль, Тула)')
+        self.stdout.write('  manager_szfo@sportrent.ru / manager123  (СЗФО: Санкт-Петербург)')
+        self.stdout.write('  manager_pfo@sportrent.ru  / manager123  (ПФО: Казань, НН, Самара, Уфа, Пермь, Саратов)')
+        self.stdout.write('  manager_ufo@sportrent.ru  / manager123  (УФО: Екатеринбург, Челябинск, Тюмень)')
+        self.stdout.write('  manager_sfo@sportrent.ru  / manager123  (СФО: Новосибирск, Омск, Красноярск)')
+        self.stdout.write('  manager_yufo@sportrent.ru / manager123  (ЮФО: Краснодар, Ростов-на-Дону, Волгоград)')
+        self.stdout.write('  owner1@mail.ru .. owner20@mail.ru  / owner123')
+        self.stdout.write('  client1@mail.ru .. client15@mail.ru / client123')
+
+    # ─── Очистка ────────────────────────────────────────────────────────────
+
+    def _clear_data(self):
+        """Удаляет все данные кроме пользователей и их профилей."""
+        self.stdout.write('Очищаем данные...')
+        # Строгий порядок по PROTECT-связям
+        ChatMessage.objects.all().delete()
+        Review.objects.all().delete()
+        Payment.objects.all().delete()
+        DamageReport.objects.all().delete()
+        Reservation.objects.all().delete()
+        Contract.objects.all().delete()
+        Rental.objects.all().delete()
+        Inventory.objects.all().delete()
+        PickupPoint.objects.all().delete()
+        City.objects.all().delete()
+        SportCategory.objects.all().delete()
+        self.stdout.write(self.style.WARNING('  Данные очищены.'))
+
+    # ─── Пользователи ───────────────────────────────────────────────────────
 
     def create_users(self):
-        """Создание тестовых пользователей."""
-        self.stdout.write('Создаем пользователей...')
+        self.stdout.write('Создаём пользователей...')
 
         # Администратор
         admin_user, created = User.objects.get_or_create(
             email='admin@sportrent.ru',
-            defaults={'role': 'administrator'}
+            defaults={'role': 'administrator', 'is_staff': True, 'is_superuser': True}
         )
         if created:
             admin_user.set_password('admin123')
-            admin_user.is_staff = True
             admin_user.save()
         Administrator.objects.get_or_create(
             user=admin_user,
-            defaults={
-                'full_name': 'Администратор Системы',
-                'email_work': 'admin@sportrent.ru'
-            }
+            defaults={'full_name': 'Администратор Системы', 'email_work': 'admin@sportrent.ru'}
         )
 
-        # Менеджеры
-        primary_manager_email = 'manager1@sportrent.ru'
-        primary_manager_name = 'Петров Петр Петрович'
-
-        primary_user, created = User.objects.get_or_create(
-            email=primary_manager_email,
-            defaults={'role': 'manager', 'is_staff': True}
-        )
-        if created:
-            primary_user.set_password('manager123')
-            primary_user.save()
-        primary_manager, _ = Manager.objects.get_or_create(
-            user=primary_user,
-            defaults={
-                'full_name': primary_manager_name,
-                'phone_work': '+7(999)222-33-41',
-                'email_work': primary_manager_email,
-            }
-        )
-
-        # Если в БД уже есть второй менеджер от прошлых запусков, делаем его неиспользуемым:
-        # 1) Переназначаем инвентарь/аренды первому менеджеру
-        # 2) Удаляем лишние профили менеджеров
-        other_managers = Manager.objects.exclude(user__email=primary_manager_email)
-        if other_managers.exists():
-            Inventory.objects.filter(status='available', manager__in=other_managers).update(manager=primary_manager)
-            Rental.objects.filter(manager__in=other_managers).update(manager=primary_manager)
-
-            # Удаляем пользователей (Manager удалится каскадно). Список id до любых дальнейших запросов.
-            other_managers_user_ids = list(other_managers.values_list('user_id', flat=True))
-            User.objects.filter(user_id__in=other_managers_user_ids).delete()
+        # Менеджеры — district → Manager
+        self.managers = {}
+        for email, password, full_name, district, phone in MANAGER_DATA:
+            user, created = User.objects.get_or_create(
+                email=email, defaults={'role': 'manager', 'is_staff': True}
+            )
+            if created:
+                user.set_password(password)
+                user.save()
+            if not user.phone:
+                user.phone = phone
+                user.save(update_fields=['phone'])
+            manager, _ = Manager.objects.get_or_create(
+                user=user,
+                defaults={'full_name': full_name, 'phone_work': phone, 'email_work': email}
+            )
+            self.managers[district] = manager
 
         # Владельцы
-        owner_data = [
-            ('owner1@mail.ru', 'Владимиров Владимир Владимирович'),
-            ('owner2@mail.ru', 'Александрова Мария Сергеевна'),
-            ('owner3@mail.ru', 'Николаев Николай Николаевич'),
-        ]
-
-        for index, (email, name) in enumerate(owner_data, start=1):
+        for idx, (email, full_name, city_name, tax_number) in enumerate(OWNER_DATA, start=1):
             user, created = User.objects.get_or_create(
-                email=email,
-                defaults={'role': 'owner'}
+                email=email, defaults={'role': 'owner'}
             )
             if created:
                 user.set_password('owner123')
                 user.save()
             if not user.phone:
-                user.phone = f'+7{9000000000 + index}'
+                user.phone = f'+79{200000000 + idx:09d}'
                 user.save(update_fields=['phone'])
             owner, _ = Owner.objects.get_or_create(
                 user=user,
-                defaults={'full_name': name, 'verified': random.choice([True, False])}
+                defaults={'full_name': full_name, 'tax_number': tax_number, 'verified': True}
             )
+            if not owner.tax_number:
+                try:
+                    owner.tax_number = tax_number
+                    owner.save(update_fields=['tax_number'])
+                except Exception:
+                    pass
             if not OwnerAgreement.objects.filter(owner=owner, is_accepted=True).exists():
                 OwnerAgreement.objects.create(
                     owner=owner,
                     owner_percentage=70,
                     store_percentage=30,
-                    agreement_text="Соглашение о выплатах: 70% владельцу, 30% магазину",
+                    agreement_text='Соглашение о выплатах: 70% владельцу, 30% платформе.',
                     is_accepted=True,
-                    accepted_date=timezone.now()
+                    accepted_date=timezone.now() - timedelta(days=random.randint(30, 365)),
                 )
             if not BankAccount.objects.filter(owner=owner).exists():
                 BankAccount.objects.create(
                     owner=owner,
                     bank_name='Сбербанк',
-                    account_number=f'2222-2222-2222-{str(1110 + index)}',
-                    recipient_name=owner.full_name,
-                    is_default=True
+                    account_number=f'4081-7810-{idx:04d}-{idx * 7:04d}',
+                    recipient_name=full_name,
+                    is_default=True,
                 )
 
         # Клиенты
-        client_data = [
-            ('client1@mail.ru', 'Иванов Иван Иванович'),
-            ('client2@mail.ru', 'Смирнова Елена Александровна'),
-            ('client3@mail.ru', 'Кузнецов Дмитрий Павлович'),
-            ('client4@mail.ru', 'Морозова Ольга Викторовна'),
-            ('client5@mail.ru', 'Федоров Андрей Михайлович'),
-        ]
-
-        for index, (email, name) in enumerate(client_data, start=1):
-            user, created_user = User.objects.get_or_create(
-                email=email,
-                defaults={'role': 'client'}
+        for idx, (email, full_name) in enumerate(CLIENT_DATA, start=1):
+            user, created = User.objects.get_or_create(
+                email=email, defaults={'role': 'client'}
             )
-            if created_user:
+            if created:
                 user.set_password('client123')
                 user.save()
             if not user.phone:
-                user.phone = f'+7{9100000000 + index}'
+                user.phone = f'+79{100000000 + idx:09d}'
                 user.save(update_fields=['phone'])
-
-            # Генерируем реалистичные паспортные данные
-            passport_series = f"{4500 + index:04d}"
-            passport_number = f"{120000 + index:06d}"
+            passport_series = f'{4500 + idx:04d}'
+            passport_number = f'{120000 + idx:06d}'
             passport_issue_date = (timezone.now() - timedelta(days=365 * random.randint(3, 15))).date()
-            passport_department_code = f"{random.randint(100, 899):03d}-{random.randint(100, 899):03d}"
-
-            client, created_client = Client.objects.get_or_create(
+            passport_dept = f'{random.randint(100, 899):03d}-{random.randint(100, 899):03d}'
+            client, created_c = Client.objects.get_or_create(
                 user=user,
                 defaults={
-                    'full_name': name,
-                    'verified': random.choice([True, False]),
+                    'full_name': full_name,
+                    'verified': idx <= 10,
                     'preferred_payment': random.choice(['card', 'cash', 'online']),
                     'passport_series': passport_series,
                     'passport_number': passport_number,
                     'passport_issue_date': passport_issue_date,
-                    'passport_department_code': passport_department_code,
+                    'passport_department_code': passport_dept,
                 }
             )
+            if not created_c and not client.passport_series:
+                client.passport_series = passport_series
+                client.passport_number = passport_number
+                client.passport_issue_date = passport_issue_date
+                client.passport_department_code = passport_dept
+                client.save()
 
-            # Если клиент уже существовал ранее без паспортных данных — дополним их
-            if not created_client:
-                updated = False
-                if not getattr(client, 'passport_series', None):
-                    client.passport_series = passport_series
-                    updated = True
-                if not getattr(client, 'passport_number', None):
-                    client.passport_number = passport_number
-                    updated = True
-                if not getattr(client, 'passport_issue_date', None):
-                    client.passport_issue_date = passport_issue_date
-                    updated = True
-                if not getattr(client, 'passport_department_code', None):
-                    client.passport_department_code = passport_department_code
-                    updated = True
-                if updated:
-                    client.save()
+        self.stdout.write(self.style.SUCCESS(f'  Пользователей: {User.objects.count()}'))
 
-        self.stdout.write(self.style.SUCCESS(f'Создано пользователей: {User.objects.count()}'))
-
-    def create_cities(self):
-        """Создание городов и точек выдачи для тестовых владельцев."""
-        self.stdout.write('Создаем города и точки выдачи...')
-
-        city_data = [
-            ('Казань',     'Республика Татарстан',    '55.796127', '49.106414'),
-            ('Москва',     'Москва',                  '55.755864', '37.617698'),
-            ('Санкт-Петербург', 'Ленинградская область', '59.938951', '30.315635'),
-            ('Екатеринбург', 'Свердловская область',  '56.838011', '60.597474'),
-            ('Новосибирск', 'Новосибирская область',  '54.989347', '82.904632'),
-        ]
-
-        cities = {}
-        for name, region, lat, lon in city_data:
-            from decimal import Decimal
-            city, _ = City.objects.get_or_create(
-                name=name,
-                defaults={'region': region, 'lat': Decimal(lat), 'lon': Decimal(lon)},
-            )
-            # Удаляем дубли с другим регистром (например 'казань' при наличии 'Казань')
-            City.objects.filter(name__iexact=name).exclude(pk=city.pk).delete()
-            cities[name] = city
-
-        owners = list(Owner.objects.all())
-        city_list = list(cities.values())
-
-        # Каждому владельцу назначаем точку выдачи в своём городе
-        owner_city_map = {
-            'owner1@mail.ru': cities['Казань'],
-            'owner2@mail.ru': cities['Москва'],
-            'owner3@mail.ru': cities['Санкт-Петербург'],
-        }
-        owner_address_map = {
-            'owner1@mail.ru': ('ул. Баумана, 44', '+7 (843) 100-10-01'),
-            'owner2@mail.ru': ('ул. Арбат, 12', '+7 (495) 200-20-02'),
-            'owner3@mail.ru': ('Невский проспект, 30', '+7 (812) 300-30-03'),
-        }
-
-        for owner in owners:
-            email = owner.user.email
-            city = owner_city_map.get(email, random.choice(city_list))
-            address, phone = owner_address_map.get(email, ('ул. Ленина, 1', ''))
-
-            PickupPoint.objects.get_or_create(
-                owner=owner,
-                city=city,
-                defaults={
-                    'name': f'{city.name} — {owner.full_name}',
-                    'address': address,
-                    'lat': city.lat,
-                    'lon': city.lon,
-                    'phone': phone,
-                    'is_active': True,
-                }
-            )
-
-        self.stdout.write(self.style.SUCCESS(
-            f'Городов: {City.objects.count()}, точек выдачи: {PickupPoint.objects.count()}'
-        ))
+    # ─── Категории ──────────────────────────────────────────────────────────
 
     def create_categories(self):
-        """Создание категорий спортивного инвентаря."""
-        self.stdout.write('Создаем категории...')
-
-        categories = [
-            {'name': 'Велосипеды', 'description': 'Горные, шоссейные, городские велосипеды', 'icon': 'bi-bicycle'},
-            {'name': 'Лыжи', 'description': 'Горные и беговые лыжи', 'icon': 'bi-snow'},
-            {'name': 'Сноуборды', 'description': 'Сноуборды для разных стилей катания', 'icon': 'bi-snow2'},
-            {'name': 'Ролики', 'description': 'Роликовые коньки', 'icon': 'bi-badge-vo'},
-            {'name': 'Самокаты', 'description': 'Электросамокаты и обычные самокаты', 'icon': 'bi-scooter'},
-            {'name': 'Туристическое снаряжение', 'description': 'Палатки, рюкзаки, спальники', 'icon': 'bi-backpack'},
-            {'name': 'Водный спорт', 'description': 'SUP-борды, каяки, серфы', 'icon': 'bi-water'},
+        self.stdout.write('Создаём категории...')
+        cats = [
+            {'name': 'Велосипеды',               'description': 'Горные, шоссейные, городские велосипеды',  'icon': 'bi-bicycle'},
+            {'name': 'Лыжи',                     'description': 'Горные и беговые лыжи',                    'icon': 'bi-snow'},
+            {'name': 'Сноуборды',                'description': 'Сноуборды для разных стилей катания',      'icon': 'bi-snow2'},
+            {'name': 'Ролики',                   'description': 'Роликовые коньки для фитнеса и агро',      'icon': 'bi-badge-vo'},
+            {'name': 'Самокаты',                 'description': 'Электросамокаты и обычные самокаты',       'icon': 'bi-scooter'},
+            {'name': 'Туристическое снаряжение', 'description': 'Палатки, рюкзаки, спальники',             'icon': 'bi-backpack'},
+            {'name': 'Водный спорт',             'description': 'SUP-борды, каяки, байдарки',              'icon': 'bi-water'},
         ]
+        for c in cats:
+            SportCategory.objects.get_or_create(name=c['name'], defaults=c)
+        self.stdout.write(self.style.SUCCESS(f'  Категорий: {SportCategory.objects.count()}'))
 
-        for cat_data in categories:
-            SportCategory.objects.get_or_create(
-                name=cat_data['name'],
-                defaults=cat_data
+    # ─── Города ─────────────────────────────────────────────────────────────
+
+    def create_cities(self):
+        self.stdout.write('Создаём города...')
+        self.cities = {}
+        for name, region, lat, lon, district, _ in CITY_DATA:
+            city = City.objects.create(
+                name=name, region=region,
+                lat=Decimal(lat), lon=Decimal(lon),
             )
+            self.cities[name] = city
 
-        self.stdout.write(self.style.SUCCESS(f'Создано категорий: {SportCategory.objects.count()}'))
+        for email, _, city_name, _ in OWNER_DATA:
+            city = self.cities.get(city_name)
+            if city:
+                Owner.objects.filter(user__email=email).update(home_city=city)
+
+        self.stdout.write(self.style.SUCCESS(f'  Городов: {City.objects.count()}'))
+
+    # ─── Точки выдачи ───────────────────────────────────────────────────────
+
+    def create_pickup_points(self):
+        self.stdout.write('Создаём точки выдачи...')
+        self.pickup_points_by_city = {}
+        for city_name, points in PICKUP_POINTS_BY_CITY.items():
+            city = self.cities[city_name]
+            manager = self.managers[CITY_DISTRICT[city_name]]
+            self.pickup_points_by_city[city_name] = []
+            for name, address, lat, lon, phone in points:
+                pp = PickupPoint.objects.create(
+                    city=city, manager=manager,
+                    name=name, address=address,
+                    lat=Decimal(lat), lon=Decimal(lon),
+                    phone=phone, is_active=True,
+                )
+                self.pickup_points_by_city[city_name].append(pp)
+        self.stdout.write(self.style.SUCCESS(f'  Точек выдачи: {PickupPoint.objects.count()}'))
+
+    # ─── Инвентарь ──────────────────────────────────────────────────────────
 
     def create_inventory(self):
-        """Создание инвентаря."""
-        self.stdout.write('Создаем инвентарь...')
+        self.stdout.write('Создаём инвентарь...')
+        categories = {cat.name: cat for cat in SportCategory.objects.all()}
 
-        owners = list(Owner.objects.all())
-        primary_manager = Manager.objects.filter(user__email='manager1@sportrent.ru').first()
-        if not primary_manager:
-            raise RuntimeError('Первый менеджер (manager1@sportrent.ru) не найден. Сначала запустите populate_db.')
-        categories = list(SportCategory.objects.all())
-        if not owners:
-            raise RuntimeError('Нет владельцев в БД. Сначала выполните create_users.')
-        if not categories:
-            raise RuntimeError('Нет категорий. Сначала выполните create_categories.')
+        for owner_idx, (email, _, city_name, _) in enumerate(OWNER_DATA):
+            owner = Owner.objects.get(user__email=email)
+            district = CITY_DISTRICT[city_name]
+            manager = self.managers[district]
+            bank_account = BankAccount.objects.filter(owner=owner, is_default=True).first()
+            points = self.pickup_points_by_city.get(city_name, [])
+            item_count = OWNER_ITEM_COUNTS[owner_idx]
+            allowed_cats = DISTRICT_CATS[district]
+            rng = random.Random(42 + owner_idx * 100 + 7)
 
-        inventory_data = [
-            # Велосипеды
-            ('Горный велосипед Trek Marlin 7', 'Отличный горный велосипед для трейлов', 'Trek', 'Marlin 7',
-             Decimal('800'), 'excellent'),
-            ('Шоссейный велосипед Giant TCR', 'Легкий шоссейный велосипед', 'Giant', 'TCR Advanced', Decimal('1200'),
-             'excellent'),
-            ('Городской велосипед Stels Navigator', 'Удобный городской велосипед', 'Stels', 'Navigator 300',
-             Decimal('500'), 'good'),
-            ('Горный велосипед Specialized Rockhopper', 'Надёжный хардтейл для трасс', 'Specialized', 'Rockhopper', Decimal('750'), 'good'),
-            ('Городской велосипед Trek FX', 'Гибрид для города и парка', 'Trek', 'FX 2', Decimal('520'), 'good'),
+            for cat_name, (name, desc, brand, model, price, condition) in self._select_items(owner_idx, allowed_cats, item_count):
+                status = rng.choices(['available', 'pending'], weights=[85, 15])[0]
+                pp = rng.choice(points) if points else None
+                Inventory.objects.create(
+                    owner=owner,
+                    manager=manager if status == 'available' else None,
+                    category=categories[cat_name],
+                    name=name, description=desc,
+                    brand=brand, model=model,
+                    price_per_day=price,
+                    condition=condition, status=status,
+                    pickup_point=pp,
+                    bank_account=bank_account,
+                    min_rental_days=rng.randint(1, 3),
+                    max_rental_days=rng.randint(7, 30),
+                    deposit_amount=(price * Decimal('0.3')).quantize(Decimal('0.01')),
+                )
 
-            # Лыжи
-            ('Горные лыжи Atomic Redster', 'Профессиональные горные лыжи', 'Atomic', 'Redster G9', Decimal('1500'),
-             'excellent'),
-            ('Беговые лыжи Fischer Speedmax', 'Быстрые беговые лыжи', 'Fischer', 'Speedmax', Decimal('900'), 'good'),
-            ('Горные лыжи Rossignol Hero', 'Карвинговые лыжи для склона', 'Rossignol', 'Hero Elite', Decimal('1300'), 'excellent'),
+        total = Inventory.objects.count()
+        avail = Inventory.objects.filter(status='available').count()
+        pend  = Inventory.objects.filter(status='pending').count()
+        self.stdout.write(self.style.SUCCESS(
+            f'  Инвентаря: {total} (доступно: {avail}, ожидает: {pend})'
+        ))
 
-            # Сноуборды
-            ('Сноуборд Burton Custom', 'Универсальный фристайл сноуборд', 'Burton', 'Custom', Decimal('1100'),
-             'excellent'),
-            ('Сноуборд Ride Agenda', 'Сноуборд для начинающих', 'Ride', 'Agenda', Decimal('700'), 'good'),
-            ('Сноуборд Salomon Assassin', 'Для парка и пайпа', 'Salomon', 'Assassin', Decimal('1000'), 'excellent'),
+    def _select_items(self, owner_idx, allowed_cats, count):
+        """Детерминированный round-robin выбор предметов для владельца."""
+        rng = random.Random(42 + owner_idx * 100)
+        cats = list(allowed_cats)
+        rng.shuffle(cats)
+        pools = {}
+        for cat in cats:
+            pool = list(ITEMS_BY_CAT[cat])
+            rng.shuffle(pool)
+            pools[cat] = pool
 
-            # Ролики
-            ('Роликовые коньки Rollerblade', 'Комфортные фитнес ролики', 'Rollerblade', 'Zetrablade', Decimal('400'),
-             'good'),
-            ('Ролики K2 F.I.T. 84', 'Фитнес для взрослых', 'K2', 'F.I.T. 84', Decimal('450'), 'good'),
+        selected = []
+        used_names = set()
+        repeats = (count // len(cats)) + 2
+        for _ in range(repeats):
+            if len(selected) >= count:
+                break
+            for cat in cats:
+                if len(selected) >= count:
+                    break
+                for i, item in enumerate(pools[cat]):
+                    if item[0] not in used_names:
+                        selected.append((cat, item))
+                        used_names.add(item[0])
+                        pools[cat].pop(i)
+                        break
+        return selected[:count]
 
-            # Самокаты
-            ('Электросамокат Xiaomi Pro 2', 'Мощный электросамокат', 'Xiaomi', 'Mi Pro 2', Decimal('600'), 'excellent'),
-            ('Самокат Razor A5 Lux', 'Складной самокат для взрослых', 'Razor', 'A5 Lux', Decimal('300'), 'good'),
-            ('Электросамокат Ninebot Max', 'Максимальная дальность', 'Ninebot', 'Max G30', Decimal('750'), 'excellent'),
-
-            # Туристическое снаряжение
-            ('Палатка Quechua Arpenaz 3', 'Трехместная палатка', 'Quechua', 'Arpenaz 3', Decimal('450'), 'good'),
-            ('Рюкзак Osprey Atmos 65', 'Походный рюкзак 65л', 'Osprey', 'Atmos 65', Decimal('350'), 'excellent'),
-            ('Палатка Nordway Sphinx', 'Двухместная трёхсезонная', 'Nordway', 'Sphinx 2', Decimal('380'), 'good'),
-            ('Рюкзак Deuter Aircontact', 'С системой вентиляции', 'Deuter', 'Aircontact 55', Decimal('480'), 'excellent'),
-
-            # Водный спорт
-            ('SUP-борд Starboard', 'Надувной SUP для прогулок', 'Starboard', 'iGO Zen', Decimal('800'), 'excellent'),
-            ('Каяк Intex Explorer', 'Надувной каяк', 'Intex', 'Explorer K2', Decimal('500'), 'good'),
-            ('SUP-борд Red Paddle Co', 'Жёсткий для волн', 'Red Paddle Co', 'Ride 10.6', Decimal('950'), 'excellent'),
-            ('Каяк надувной Sevylor Colorado', 'Двухместный', 'Sevylor', 'Colorado', Decimal('450'), 'good'),
-        ]
-
-        for i, (name, desc, brand, model, price, condition) in enumerate(inventory_data):
-            owner = random.choice(owners)
-            category = random.choice(categories)  # list, не QuerySet — для random.choice
-
-            # Находим точку выдачи владельца (создана в create_cities)
-            pickup_point = PickupPoint.objects.filter(owner=owner, is_active=True).first()
-
-            # Создаем с разными статусами
-            status = random.choices(
-                ['available', 'pending', 'rented'],
-                weights=[0.6, 0.2, 0.2]
-            )[0]
-
-            inventory, _ = Inventory.objects.get_or_create(
-                name=name,
-                defaults={
-                    'owner': owner,
-                    'manager': primary_manager if status == 'available' else None,
-                    'category': category,
-                    'description': desc,
-                    'brand': brand,
-                    'model': model,
-                    'price_per_day': price,
-                    'condition': condition,
-                    'status': status,
-                    'min_rental_days': random.randint(1, 3),
-                    'max_rental_days': random.randint(7, 30),
-                    'deposit_amount': price * Decimal('0.3'),
-                    'pickup_point': pickup_point,
-                }
-            )
-            # На повторном запуске populate_db обновляем менеджера и pickup_point.
-            update_fields = []
-            if inventory.status == 'available' and inventory.manager_id != primary_manager.manager_id:
-                inventory.manager = primary_manager
-                update_fields.append('manager')
-            elif inventory.status != 'available' and inventory.manager_id is not None:
-                inventory.manager = None
-                update_fields.append('manager')
-            if not inventory.pickup_point_id and pickup_point:
-                inventory.pickup_point = pickup_point
-                update_fields.append('pickup_point')
-            if update_fields:
-                inventory.save(update_fields=update_fields)
-
-            if not inventory.bank_account:
-                owner_account = BankAccount.objects.filter(owner=owner, is_default=True).first()
-                if not owner_account:
-                    owner_account = BankAccount.objects.filter(owner=owner).first()
-                if owner_account:
-                    inventory.bank_account = owner_account
-                    inventory.save(update_fields=['bank_account'])
-
-        self.stdout.write(self.style.SUCCESS(f'Создано инвентаря: {Inventory.objects.count()}'))
+    # ─── Аренды ─────────────────────────────────────────────────────────────
 
     def create_rentals(self):
-        """Создание тестовых аренд."""
-        self.stdout.write('Создаем аренды...')
+        self.stdout.write('Создаём аренды...')
+        rng = random.Random(99)
+        now = timezone.now()
 
         clients = list(Client.objects.all())
-        available_inventory = list(Inventory.objects.filter(status='available'))
-        primary_manager = Manager.objects.filter(user__email='manager1@sportrent.ru').first()
-        if not primary_manager:
-            raise RuntimeError('Первый менеджер (manager1@sportrent.ru) не найден. Сначала запустите populate_db.')
+        all_managers = list(Manager.objects.all())
+        available_items = list(
+            Inventory.objects.filter(status='available')
+            .select_related('owner', 'pickup_point__city', 'owner__home_city')
+        )
 
-        if not clients:
-            self.stdout.write(self.style.WARNING('Нет клиентов — пропуск создания аренд.'))
-            return
-        if not available_inventory:
-            self.stdout.write(
-                self.style.WARNING(
-                    'Нет инвентаря со статусом «доступен» — пропуск создания аренд. '
-                    'Запустите populate_db на чистой БД или добавьте доступные позиции.'
-                )
-            )
+        if not clients or not available_items:
+            self.stdout.write(self.style.WARNING('  Нет клиентов или инвентаря — пропуск.'))
+            self._completed_rentals = []
+            self._active_rentals = []
             return
 
-        for i in range(10):
-            client = random.choice(clients)
-            inventory = random.choice(available_inventory)
+        def get_manager(item):
+            city_obj = None
+            if item.pickup_point_id:
+                city_obj = item.pickup_point.city
+            elif item.owner.home_city_id:
+                city_obj = item.owner.home_city
+            if city_obj:
+                d = CITY_DISTRICT.get(city_obj.name)
+                if d and d in self.managers:
+                    return self.managers[d]
+            return all_managers[0]
 
-            start_date = timezone.now() - timedelta(days=random.randint(5, 30))
-            end_date = start_date + timedelta(days=random.randint(2, 10))
-
-            rental_days = (end_date - start_date).days
-            total_price = inventory.price_per_day * rental_days
-
-            status = random.choice(['completed', 'active', 'confirmed'])
-
+        # ── 35 завершённых
+        completed_rentals = []
+        for _ in range(35):
+            client = rng.choice(clients)
+            item = rng.choice(available_items)
+            days_ago = rng.randint(10, 90)
+            rent_days = rng.randint(2, 14)
+            start = now - timedelta(days=days_ago)
+            end = start + timedelta(days=rent_days)
+            total = item.price_per_day * rent_days
+            bank_acc = BankAccount.objects.filter(owner=item.owner, is_default=True).first()
             rental = Rental.objects.create(
-                inventory=inventory,
-                client=client,
-                manager=primary_manager,
-                start_date=start_date,
-                end_date=end_date,
-                total_price=total_price,
-                deposit_paid=inventory.deposit_amount,
-                status=status,
-                payment_status='paid' if status != 'pending' else 'pending',
-                actual_return_date=end_date if status == 'completed' else None,
+                inventory=item, client=client,
+                manager=get_manager(item),
+                start_date=start, end_date=end,
+                actual_return_date=end,
+                total_price=total,
+                deposit_paid=item.deposit_amount,
+                status='completed', payment_status='paid',
+                bank_account=bank_acc,
             )
-
-            # Для завершённых аренд обновляем заработок владельца, чтобы аналитика не ломалась
-            if status == 'completed':
-                agreement = OwnerAgreement.objects.filter(
-                    owner=inventory.owner,
-                    is_accepted=True
-                ).order_by('-created_date').first()
-                owner_pct = (agreement.owner_percentage if agreement else 70) / 100
-                owner_amount = total_price * Decimal(str(owner_pct))
-                owner = inventory.owner
-                owner.total_earnings += owner_amount
-                owner.save(update_fields=['total_earnings'])
-
-            # Создаем платеж
             Payment.objects.create(
-                rental=rental,
-                amount=total_price,
-                payment_method=random.choice(['card', 'online']),
-                status='completed' if status != 'pending' else 'pending',
-                payment_date=start_date if status != 'pending' else None
+                rental=rental, amount=total,
+                payment_method=rng.choice(['card', 'online', 'transfer']),
+                status='completed', payment_date=start,
+                transaction_id=f'TXN-{rental.rental_id.hex[:12].upper()}',
+            )
+            agreement = OwnerAgreement.objects.filter(owner=item.owner, is_accepted=True).first()
+            pct = Decimal(str((agreement.owner_percentage if agreement else 70) / 100))
+            item.owner.total_earnings += (total * pct).quantize(Decimal('0.01'))
+            item.owner.save(update_fields=['total_earnings'])
+            completed_rentals.append(rental)
+
+        # ── 12 активных (меняем статус инвентаря на 'rented')
+        rng.shuffle(available_items)
+        active_pool = available_items[:12]
+        active_rentals = []
+        for item in active_pool:
+            client = rng.choice(clients)
+            days_ago = rng.randint(1, 5)
+            rent_days = rng.randint(5, 12)
+            start = now - timedelta(days=days_ago)
+            end = now + timedelta(days=rent_days - days_ago)
+            total = item.price_per_day * rent_days
+            bank_acc = BankAccount.objects.filter(owner=item.owner, is_default=True).first()
+            rental = Rental.objects.create(
+                inventory=item, client=client,
+                manager=get_manager(item),
+                start_date=start, end_date=end,
+                total_price=total,
+                deposit_paid=item.deposit_amount,
+                status='active', payment_status='paid',
+                bank_account=bank_acc,
+            )
+            Payment.objects.create(
+                rental=rental, amount=total,
+                payment_method=rng.choice(['card', 'online']),
+                status='completed', payment_date=start,
+                transaction_id=f'TXN-{rental.rental_id.hex[:12].upper()}',
+            )
+            item.status = 'rented'
+            item.save(update_fields=['status'])
+            active_rentals.append(rental)
+
+        # ── 8 подтверждённых (будущие)
+        confirmed_pool = available_items[12:20]
+        for item in confirmed_pool:
+            client = rng.choice(clients)
+            days_ahead = rng.randint(3, 15)
+            rent_days = rng.randint(3, 10)
+            start = now + timedelta(days=days_ahead)
+            end = start + timedelta(days=rent_days)
+            total = item.price_per_day * rent_days
+            bank_acc = BankAccount.objects.filter(owner=item.owner, is_default=True).first()
+            rental = Rental.objects.create(
+                inventory=item, client=client,
+                manager=get_manager(item),
+                start_date=start, end_date=end,
+                total_price=total,
+                deposit_paid=item.deposit_amount,
+                status='confirmed', payment_status='paid',
+                bank_account=bank_acc,
+            )
+            Payment.objects.create(
+                rental=rental, amount=item.deposit_amount,
+                payment_method=rng.choice(['card', 'online']),
+                status='completed', payment_date=now,
+                transaction_id=f'TXN-{rental.rental_id.hex[:12].upper()}',
             )
 
-        self.stdout.write(self.style.SUCCESS(f'Создано аренд: {Rental.objects.count()}'))
+        self._completed_rentals = completed_rentals
+        self._active_rentals = active_rentals
+        self.stdout.write(self.style.SUCCESS(
+            f'  Аренд: {Rental.objects.count()} '
+            f'(завершено: 35, активно: 12, подтверждено: {len(confirmed_pool)})'
+        ))
+
+    # ─── Отзывы ─────────────────────────────────────────────────────────────
 
     def create_reviews(self):
-        """Создание тестовых отзывов."""
-        self.stdout.write('Создаем отзывы...')
+        self.stdout.write('Создаём отзывы...')
+        from reviews.utils import update_inventory_rating
+        rng = random.Random(77)
 
-        completed_rentals = Rental.objects.filter(status='completed')
+        completed = list(getattr(self, '_completed_rentals', []))
+        rng.shuffle(completed)
 
-        comments = [
-            'Отличное состояние, все понравилось!',
-            'Хороший инвентарь, рекомендую.',
-            'Все прошло гладко, спасибо!',
-            'Качественное оборудование.',
-            'Приятное обслуживание.',
-        ]
-
-        for rental in completed_rentals[:15]:
-            Review.objects.get_or_create(
+        for rental in completed[:23]:
+            rating = rng.choices([3, 4, 5], weights=[25, 40, 35])[0]
+            Review.objects.create(
                 rental=rental,
                 reviewer=rental.client.user,
                 target_type='inventory',
-                defaults={
-                    'reviewed_id': rental.inventory.inventory_id,
-                    'rating': random.randint(4, 5),
-                    'comment': random.choice(comments),
-                    'status': 'published',
-                    'punctuality_rating': random.randint(4, 5),
-                    'condition_rating': random.randint(4, 5),
-                    'communication_rating': random.randint(4, 5),
-                }
+                reviewed_id=rental.inventory.inventory_id,
+                rating=rating,
+                comment=rng.choice(REVIEW_COMMENTS),
+                status='published',
+                punctuality_rating=min(5, max(1, rating + rng.randint(-1, 1))),
+                condition_rating=min(5, max(1, rating + rng.randint(-1, 1))),
+                communication_rating=min(5, max(1, rating + rng.randint(-1, 1))),
             )
-
-        # Обновляем рейтинг по всем отзывам
-        from reviews.utils import update_inventory_rating
 
         for inventory in Inventory.objects.all():
             update_inventory_rating(inventory)
 
-        self.stdout.write(self.style.SUCCESS(f'Создано отзывов: {Review.objects.count()}'))
+        self.stdout.write(self.style.SUCCESS(f'  Отзывов: {Review.objects.count()}'))
+
+    # ─── Чаты ───────────────────────────────────────────────────────────────
+
+    def create_chats(self):
+        self.stdout.write('Создаём чаты...')
+        active = getattr(self, '_active_rentals', [])
+        if len(active) < 2:
+            self.stdout.write(self.style.WARNING('  Недостаточно активных аренд — пропуск.'))
+            return
+
+        dialogs = [
+            (active[0], [
+                (True,  'Добрый день! По какому адресу забрать инвентарь?'),
+                (False, 'Здравствуйте! Адрес точки: {address}. Режим работы 10:00–20:00.'),
+                (True,  'Спасибо! Нужен ли какой-то документ?'),
+                (False, 'Достаточно паспорта. Менеджер встретит вас.'),
+                (True,  'Отлично, буду в 15:00!'),
+            ]),
+            (active[1], [
+                (True,  'Здравствуйте, можно продлить аренду на 2 дня?'),
+                (False, 'Добрый день! Да, продление возможно. Стоимость — {price} ₽/день.'),
+                (True,  'Хорошо, давайте продлим.'),
+                (False, 'Продление оформлено. Спасибо, что предупредили заранее!'),
+            ]),
+        ]
+
+        for rental, messages in dialogs:
+            if not rental.manager:
+                continue
+            client_user = rental.client.user
+            manager_user = rental.manager.user
+            address = rental.inventory.pickup_point.address if rental.inventory.pickup_point else 'уточняется'
+            price = rental.inventory.price_per_day
+
+            for i, (from_client, text) in enumerate(messages):
+                sender = client_user if from_client else manager_user
+                receiver = manager_user if from_client else client_user
+                sent = rental.start_date - timedelta(hours=len(messages) - i)
+                ChatMessage.objects.create(
+                    rental=rental, sender=sender, receiver=receiver,
+                    message_text=text.format(address=address, price=price),
+                    sent_date=sent,
+                    is_read=True,
+                    read_date=sent + timedelta(minutes=5),
+                )
+
+        self.stdout.write(self.style.SUCCESS(f'  Сообщений в чате: {ChatMessage.objects.count()}'))
