@@ -257,11 +257,17 @@ def _track_tokens(count: int) -> None:
 
 def get_llm_provider() -> LLMProvider:
     """
-    Возвращает провайдер по настройкам settings.py.
+    Возвращает нужный провайдер по settings.py.
+
     Если DEBUG=True и USE_REGEX_FALLBACK_IN_DEBUG=True — всегда regex
-    (защита от слива токенов во время разработки).
+    (защита токенов при разработке).
+
+    Если LLM_PROVIDER='gigachat' и GIGACHAT_CREDENTIALS пустой/короткий —
+    поднимает ImproperlyConfigured (конфигурационная ошибка, не fallback).
+    Fallback на regex происходит только при runtime-ошибках GigaChat (в parser.py).
     """
     from django.conf import settings
+    from django.core.exceptions import ImproperlyConfigured
 
     if settings.DEBUG and getattr(settings, 'USE_REGEX_FALLBACK_IN_DEBUG', False):
         logger.debug('DEBUG + USE_REGEX_FALLBACK_IN_DEBUG=True → RegexFallbackProvider')
@@ -270,11 +276,14 @@ def get_llm_provider() -> LLMProvider:
     provider_name = getattr(settings, 'LLM_PROVIDER', 'gigachat')
 
     if provider_name == 'gigachat':
-        credentials = getattr(settings, 'GIGACHAT_CREDENTIALS', '')
-        if not credentials:
-            logger.warning('GIGACHAT_CREDENTIALS не задан → RegexFallbackProvider')
-            return RegexFallbackProvider()
+        credentials = (getattr(settings, 'GIGACHAT_CREDENTIALS', '') or '').strip()
+        if not credentials or len(credentials) < 50:
+            raise ImproperlyConfigured(
+                'GIGACHAT_CREDENTIALS не настроен в .env (пустой или короче 50 символов). '
+                'Проверьте файл .env в корне проекта и перезапустите docker-compose. '
+                'Получить ключ: https://developers.sber.ru/studio'
+            )
         return GigaChatProvider(credentials)
 
-    # provider_name == 'regex' или любое неизвестное значение
+    # LLM_PROVIDER='regex' или любое другое значение
     return RegexFallbackProvider()

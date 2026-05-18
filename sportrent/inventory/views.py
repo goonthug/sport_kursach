@@ -597,10 +597,19 @@ def ai_search_view(request):
         return JsonResponse({'error': 'Запрос не может быть пустым'}, status=400)
 
     try:
+        from django.core.exceptions import ImproperlyConfigured
         from ai_search.parser import parse_query
         from ai_search.search import search_inventory
 
-        parsed = parse_query(query)
+        try:
+            parsed = parse_query(query)
+        except ImproperlyConfigured as cfg_exc:
+            logger.error('AI-поиск: конфигурационная ошибка — %s', cfg_exc)
+            return JsonResponse(
+                {'error': 'AI-поиск не настроен. Проверьте GIGACHAT_CREDENTIALS в .env.'},
+                status=503,
+            )
+
         results_qs = search_inventory(parsed)
 
         items = []
