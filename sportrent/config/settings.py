@@ -265,9 +265,23 @@ CORS_ALLOWED_ORIGINS = config(
 CORS_ALLOW_CREDENTIALS = True
 
 # AI-поиск: GigaChat (основной LLM) + Yandex карты/геокодер
-GIGACHAT_CREDENTIALS = config('GIGACHAT_CREDENTIALS', default='')
-LLM_PROVIDER = config('LLM_PROVIDER', default='gigachat')
-# True → в DEBUG всегда regex, GigaChat не вызывается (защита токенов при разработке)
-USE_REGEX_FALLBACK_IN_DEBUG = config('USE_REGEX_FALLBACK_IN_DEBUG', default=False, cast=bool)
+#
+# os.environ.get() идёт первым: RepositoryEnv читает только из файла и игнорирует
+# OS-переменные, которые docker-compose прокидывает через секцию environment:.
+# Такая двойная проверка позволяет управлять ключами и через .env, и через docker-compose.
+GIGACHAT_CREDENTIALS = (
+    os.environ.get('GIGACHAT_CREDENTIALS')
+    or config('GIGACHAT_CREDENTIALS', default='')
+)
+LLM_PROVIDER = (
+    os.environ.get('LLM_PROVIDER')
+    or config('LLM_PROVIDER', default='gigachat')
+)
+_rfid_raw = os.environ.get('USE_REGEX_FALLBACK_IN_DEBUG', '')
+USE_REGEX_FALLBACK_IN_DEBUG = (
+    _rfid_raw.lower() in ('1', 'true', 'yes')
+    if _rfid_raw
+    else config('USE_REGEX_FALLBACK_IN_DEBUG', default=False, cast=bool)
+)
 YANDEX_GEOCODER_KEY = config('YANDEX_GEOCODER_KEY', default='')
 YANDEX_MAPS_KEY = config('YANDEX_MAPS_KEY', default='')
