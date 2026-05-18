@@ -46,6 +46,9 @@ services:
       DB_HOST: db
       REDIS_URL: redis://redis:6379/0
       MONGO_URL: mongodb://mongo:27017/
+      GIGACHAT_CREDENTIALS: ${GIGACHAT_CREDENTIALS}
+      LLM_PROVIDER: gigachat
+      USE_REGEX_FALLBACK_IN_DEBUG: "False"
     depends_on:
       db:
         condition: service_healthy
