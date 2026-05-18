@@ -221,12 +221,12 @@ class UserRegistrationForm(UserCreationForm):
             raise ValidationError('Пароль должен содержать минимум 8 символов')
 
         # Проверка наличия заглавной буквы
-        if not re.search(r'[A-ZА-Я]', password):
-            raise ValidationError('Пароль должен содержать хотя бы одну заглавную букву')
+        if not re.search(r'[A-Z]', password):
+            raise ValidationError('Пароль должен содержать хотя бы одну заглавную латинскую букву (A–Z)')
 
         # Проверка наличия строчной буквы
-        if not re.search(r'[a-zа-я]', password):
-            raise ValidationError('Пароль должен содержать хотя бы одну строчную букву')
+        if not re.search(r'[a-z]', password):
+            raise ValidationError('Пароль должен содержать хотя бы одну строчную латинскую букву (a–z)')
 
         # Проверка наличия цифры
         if not re.search(r'\d', password):
@@ -538,10 +538,10 @@ def _validate_password_strength(password: str) -> None:
     """Общая проверка сложности пароля — используется в нескольких формах."""
     if len(password) < 8:
         raise ValidationError('Пароль должен содержать минимум 8 символов')
-    if not re.search(r'[A-ZА-Я]', password):
-        raise ValidationError('Пароль должен содержать хотя бы одну заглавную букву')
-    if not re.search(r'[a-zа-я]', password):
-        raise ValidationError('Пароль должен содержать хотя бы одну строчную букву')
+    if not re.search(r'[A-Z]', password):
+        raise ValidationError('Пароль должен содержать хотя бы одну заглавную латинскую букву (A–Z)')
+    if not re.search(r'[a-z]', password):
+        raise ValidationError('Пароль должен содержать хотя бы одну строчную латинскую букву (a–z)')
     if not re.search(r'\d', password):
         raise ValidationError('Пароль должен содержать хотя бы одну цифру')
     if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]', password):

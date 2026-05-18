@@ -182,10 +182,10 @@ def _validate_new_password(password: str) -> list[str]:
     import re
     if len(password) < 8:
         return ['Пароль должен содержать минимум 8 символов']
-    if not re.search(r'[A-ZА-Я]', password):
-        return ['Пароль должен содержать хотя бы одну заглавную букву']
-    if not re.search(r'[a-zа-я]', password):
-        return ['Пароль должен содержать хотя бы одну строчную букву']
+    if not re.search(r'[A-Z]', password):
+        return ['Пароль должен содержать хотя бы одну заглавную латинскую букву (A–Z)']
+    if not re.search(r'[a-z]', password):
+        return ['Пароль должен содержать хотя бы одну строчную латинскую букву (a–z)']
     if not re.search(r'\d', password):
         return ['Пароль должен содержать хотя бы одну цифру']
     if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]', password):
