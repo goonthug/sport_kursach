@@ -9,7 +9,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
 
-from .forms import UserRegistrationForm, UserLoginForm, UserUpdateForm, ClientProfileForm, OwnerProfileForm, BankAccountForm
+from django.contrib.auth import update_session_auth_hash
+
+from .forms import (
+    UserRegistrationForm, UserLoginForm, UserUpdateForm,
+    ClientProfileForm, OwnerProfileForm, BankAccountForm,
+    ChangePasswordForm,
+)
 from .models import User, BankAccount, PassportNDA
 
 logger = logging.getLogger('users')
@@ -231,3 +237,21 @@ def bank_account_delete(request, pk):
             messages.error(request, 'Произошла ошибка при удалении.')
 
     return redirect('users:profile')
+
+
+@login_required
+def password_change_view(request):
+    """Смена пароля пользователя в профиле."""
+    if request.method == 'POST':
+        form = ChangePasswordForm(request.user, request.POST)
+        if form.is_valid():
+            request.user.set_password(form.cleaned_data['new_password1'])
+            request.user.save()
+            update_session_auth_hash(request, request.user)
+            logger.info('Пользователь %s сменил пароль', request.user.email)
+            messages.success(request, 'Пароль успешно изменён.')
+            return redirect('users:profile')
+    else:
+        form = ChangePasswordForm(request.user)
+
+    return render(request, 'users/change_password.html', {'form': form})

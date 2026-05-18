@@ -530,5 +530,72 @@ class BankAccountForm(forms.ModelForm):
         # Проверяем что только буквы, пробелы и дефисы
         if not re.match(r'^[а-яёА-ЯЁa-zA-Z\s\-]+$', recipient_name):
             raise ValidationError('Имя получателя должно содержать только буквы')
-        
+
         return recipient_name
+
+
+def _validate_password_strength(password: str) -> None:
+    """Общая проверка сложности пароля — используется в нескольких формах."""
+    if len(password) < 8:
+        raise ValidationError('Пароль должен содержать минимум 8 символов')
+    if not re.search(r'[A-ZА-Я]', password):
+        raise ValidationError('Пароль должен содержать хотя бы одну заглавную букву')
+    if not re.search(r'[a-zа-я]', password):
+        raise ValidationError('Пароль должен содержать хотя бы одну строчную букву')
+    if not re.search(r'\d', password):
+        raise ValidationError('Пароль должен содержать хотя бы одну цифру')
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]', password):
+        raise ValidationError('Пароль должен содержать хотя бы один спецсимвол (!@#$%^&* и т.д.)')
+
+
+class ChangePasswordForm(forms.Form):
+    """Форма смены пароля в профиле. Требует подтверждения текущего пароля."""
+
+    old_password = forms.CharField(
+        label='Текущий пароль',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Введите текущий пароль',
+            'autocomplete': 'current-password',
+        }),
+    )
+    new_password1 = forms.CharField(
+        label='Новый пароль',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Минимум 8 символов, заглавная, цифра, спецсимвол',
+            'autocomplete': 'new-password',
+        }),
+    )
+    new_password2 = forms.CharField(
+        label='Повторите новый пароль',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Повторите новый пароль',
+            'autocomplete': 'new-password',
+        }),
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_old_password(self):
+        old = self.cleaned_data.get('old_password')
+        if not self.user.check_password(old):
+            raise ValidationError('Текущий пароль введён неверно')
+        return old
+
+    def clean_new_password1(self):
+        password = self.cleaned_data.get('new_password1')
+        if password:
+            _validate_password_strength(password)
+        return password
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get('new_password1')
+        p2 = cleaned.get('new_password2')
+        if p1 and p2 and p1 != p2:
+            self.add_error('new_password2', 'Пароли не совпадают')
+        return cleaned

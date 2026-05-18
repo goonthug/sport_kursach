@@ -15,4 +15,5 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     path('bank-account/add/', views.bank_account_add, name='bank_account_add'),
     path('bank-account/<uuid:pk>/delete/', views.bank_account_delete, name='bank_account_delete'),
+    path('profile/change-password/', views.password_change_view, name='password_change'),
 ]

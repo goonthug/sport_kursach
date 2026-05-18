@@ -175,3 +175,44 @@ class TokenRefreshCookieView(APIView):
                 {'error': 'Недействительный refresh token'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+
+def _validate_new_password(password: str) -> list[str]:
+    """Возвращает список ошибок валидации пароля (пустой — пароль принят)."""
+    import re
+    if len(password) < 8:
+        return ['Пароль должен содержать минимум 8 символов']
+    if not re.search(r'[A-ZА-Я]', password):
+        return ['Пароль должен содержать хотя бы одну заглавную букву']
+    if not re.search(r'[a-zа-я]', password):
+        return ['Пароль должен содержать хотя бы одну строчную букву']
+    if not re.search(r'\d', password):
+        return ['Пароль должен содержать хотя бы одну цифру']
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'",.<>?/\\|`~]', password):
+        return ['Пароль должен содержать хотя бы один спецсимвол']
+    return []
+
+
+class ChangePasswordAPIView(APIView):
+    """POST /api/v1/auth/change-password/ — смена пароля через REST API."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        old_password = request.data.get('old_password', '')
+        new_password = request.data.get('new_password', '')
+
+        if not request.user.check_password(old_password):
+            return Response(
+                {'error': 'Текущий пароль введён неверно'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        errors = _validate_new_password(new_password)
+        if errors:
+            return Response({'error': errors[0]}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.set_password(new_password)
+        request.user.save()
+        logger.info('Пользователь %s сменил пароль через API', request.user.email)
+        return Response({'message': 'Пароль успешно изменён'})
