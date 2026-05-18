@@ -1,69 +1,47 @@
 """
-Парсинг естественно-языковых запросов через Groq LLM (langchain-groq).
-При отсутствии GROQ_API_KEY или ошибке API — возвращает исходный запрос как keywords (fallback).
+Парсинг поисковых запросов.
+
+Цепочка выполнения:
+  1. Redis-кэш (1 ч TTL) — если есть, возвращаем сразу
+  2. get_llm_provider() — GigaChat-2-Lite (основной) или regex (если DEBUG+флаг)
+  3. При любой ошибке провайдера — автоматический fallback на RegexFallbackProvider
+  4. Результат сохраняется в кэш
 """
 
 import logging
-from typing import Optional
-from datetime import date
 
-from django.conf import settings
-from pydantic import BaseModel, Field
+from ai_search.services.llm import ParsedSearchQuery, get_llm_provider, RegexFallbackProvider
+from ai_search.services.cache import get_cached, set_cached
 
 logger = logging.getLogger('ai_search')
 
 
-class ParsedSearchQuery(BaseModel):
-    """Структурированный результат разбора поискового запроса."""
-
-    category_query: Optional[str] = Field(None, description='Тип инвентаря (беговые лыжи, велосипед)')
-    city_name: Optional[str] = Field(None, description='Название города в России')
-    start_date: Optional[str] = Field(None, description='Дата начала аренды YYYY-MM-DD')
-    end_date: Optional[str] = Field(None, description='Дата окончания аренды YYYY-MM-DD')
-    max_price: Optional[float] = Field(None, description='Максимальная цена в руб/день')
-    keywords: Optional[str] = Field(None, description='Дополнительные ключевые слова')
-
-
 def parse_query(query: str) -> ParsedSearchQuery:
     """
-    Разбирает текстовый запрос пользователя через Groq LLM.
-    Возвращает ParsedSearchQuery. При любой ошибке — fallback с keywords=query.
+    Основная точка входа. Возвращает ParsedSearchQuery.
+    Никогда не поднимает исключение наружу.
     """
-    api_key = getattr(settings, 'GROQ_API_KEY', '')
+    if not query or not query.strip():
+        return ParsedSearchQuery()
 
-    if not api_key:
-        logger.debug('GROQ_API_KEY не задан, используется fallback-парсинг')
-        return ParsedSearchQuery(keywords=query)
+    # 1. Кэш
+    cached = get_cached(query)
+    if cached is not None:
+        logger.debug('Кэш-хит: "%s"', query)
+        return cached
 
+    # 2. Основной провайдер с автоматическим fallback
+    provider = get_llm_provider()
     try:
-        from langchain_groq import ChatGroq
-
-        llm = ChatGroq(
-            model='llama-3.3-70b-versatile',
-            api_key=api_key,
-            temperature=0,
-            max_retries=2,
-        )
-        structured_llm = llm.with_structured_output(ParsedSearchQuery)
-
-        prompt = (
-            f'Сегодня {date.today().isoformat()}. '
-            'Разбери поисковый запрос по аренде спортивного инвентаря на русском языке.\n'
-            f'Запрос: "{query}"\n\n'
-            'Извлеки поля:\n'
-            '- category_query: тип инвентаря (например "беговые лыжи", "велосипед", "ролики")\n'
-            '- city_name: название города в России\n'
-            '- start_date: дата начала аренды YYYY-MM-DD (учитывай "завтра", "на выходных" и т.д.)\n'
-            '- end_date: дата окончания аренды YYYY-MM-DD\n'
-            '- max_price: максимальная цена в рублях в день\n'
-            '- keywords: прочие ключевые слова\n\n'
-            'Если поле не упомянуто — верни null.'
-        )
-
-        result = structured_llm.invoke(prompt)
-        logger.info('AI-парсинг: "%s" → %s', query, result.model_dump())
-        return result
-
+        result = provider.parse_query(query)
     except Exception as exc:
-        logger.warning('Ошибка AI-парсинга, fallback: %s', exc)
-        return ParsedSearchQuery(keywords=query)
+        logger.warning(
+            '%s упал, fallback на RegexFallbackProvider: %s',
+            type(provider).__name__, exc,
+        )
+        result = RegexFallbackProvider().parse_query(query)
+
+    # 3. Кэшируем
+    set_cached(query, result)
+
+    return result
