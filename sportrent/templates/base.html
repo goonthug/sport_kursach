@@ -122,7 +122,7 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="geoDropdown"
                                 data-bs-theme="dark"
-                                style="min-width:240px; background:#0d1f14; border:1px solid #1e4028;">
+                                style="min-width:240px; background:#0d1f14; border:1px solid #1e4028; overflow:visible;">
                                 <li>
                                     <button class="dropdown-item text-white" onclick="GEO.refresh()"
                                             style="font-size:.85rem;">
@@ -131,7 +131,7 @@
                                 </li>
                                 <li><hr class="dropdown-divider" style="border-color:#1e4028;"></li>
                                 <li>
-                                    <div class="px-3 py-2" style="position:relative;">
+                                    <div class="px-3 py-2">
                                         <div class="text-secondary small mb-2">Сменить город вручную:</div>
                                         <div class="input-group input-group-sm">
                                             <input type="text" id="geo-manual-input"
@@ -142,11 +142,9 @@
                                             <button class="btn btn-primary btn-sm" id="geo-manual-btn">→</button>
                                         </div>
                                         <ul id="geo-city-list"
-                                            style="display:none; position:absolute; left:0; right:0; top:100%;
-                                                   z-index:9999; background:#0d1f14; border:1px solid #2d5038;
-                                                   border-top:none; border-radius:0 0 6px 6px;
-                                                   list-style:none; margin:0; padding:0;
-                                                   max-height:180px; overflow-y:auto;"></ul>
+                                            style="display:none; margin:4px 0 0 0; padding:0; list-style:none;
+                                                   border:1px solid #2d5038; border-radius:4px;
+                                                   background:#0d1f14; max-height:180px; overflow-y:auto;"></ul>
                                     </div>
                                 </li>
                             </ul>
@@ -358,35 +356,44 @@
             ];
             const cityList = document.getElementById('geo-city-list');
             if (cityList) {
-                const showSuggestions = () => {
+                const renderSuggestions = () => {
                     const q = manualInput.value.trim().toLowerCase();
-                    cityList.innerHTML = '';
                     const matches = q
-                        ? GEO_CITIES.filter(c => c.toLowerCase().startsWith(q)).slice(0, 6)
-                        : GEO_CITIES.slice(0, 6);
+                        ? GEO_CITIES.filter(c => c.toLowerCase().startsWith(q)).slice(0, 7)
+                        : GEO_CITIES.slice(0, 7);
                     if (!matches.length) { cityList.style.display = 'none'; return; }
-                    matches.forEach(city => {
-                        const li = document.createElement('li');
-                        li.textContent = city;
-                        li.style.cssText = 'padding:6px 12px; cursor:pointer; color:#d4edda; font-size:.85rem;';
-                        li.addEventListener('mouseenter', () => li.style.background = '#1a3a24');
-                        li.addEventListener('mouseleave', () => li.style.background = '');
-                        /* mousedown с preventDefault() — чтобы blur не скрыл список раньше клика */
-                        li.addEventListener('mousedown', e => {
-                            e.preventDefault();
-                            manualInput.value = city;
-                            cityList.style.display = 'none';
-                            applyManualCity();
-                        });
-                        cityList.appendChild(li);
-                    });
+                    cityList.innerHTML = matches.map(city =>
+                        `<li data-city="${city}" style="padding:6px 12px; cursor:pointer; color:#d4edda; font-size:.85rem;">${city}</li>`
+                    ).join('');
                     cityList.style.display = 'block';
                 };
-                manualInput.addEventListener('input', showSuggestions);
-                manualInput.addEventListener('focus', showSuggestions);
-                manualInput.addEventListener('blur', () => {
-                    setTimeout(() => { cityList.style.display = 'none'; }, 150);
+
+                /* Клик по пункту списка */
+                cityList.addEventListener('click', e => {
+                    const li = e.target.closest('li[data-city]');
+                    if (!li) return;
+                    manualInput.value = li.dataset.city;
+                    cityList.style.display = 'none';
+                    applyManualCity();
                 });
+                cityList.addEventListener('mouseover', e => {
+                    const li = e.target.closest('li[data-city]');
+                    if (li) li.style.background = '#1a3a24';
+                });
+                cityList.addEventListener('mouseout', e => {
+                    const li = e.target.closest('li[data-city]');
+                    if (li) li.style.background = '';
+                });
+
+                manualInput.addEventListener('click',  renderSuggestions);
+                manualInput.addEventListener('input',  renderSuggestions);
+
+                /* Скрываем список при клике вне области ввода */
+                document.addEventListener('click', e => {
+                    if (!cityList.contains(e.target) && e.target !== manualInput) {
+                        cityList.style.display = 'none';
+                    }
+                }, true);
             }
         }
     });
