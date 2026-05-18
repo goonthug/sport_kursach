@@ -336,11 +336,9 @@
                         const label = document.getElementById('geo-nav-label');
                         if (label) label.textContent = data.city || city;
                         document.getElementById('geo-nav-item')?.classList.remove('d-none');
-                        /* Закрываем dropdown */
                         bootstrap.Dropdown.getInstance(document.getElementById('geoDropdown'))?.hide();
-                        document.dispatchEvent(new CustomEvent('geo:detected', {
-                            detail: { city: data.city || city, address: '', source: 'manual' },
-                        }));
+                        /* Перезагружаем страницу — город изменился, нужно обновить карточки и вкладку «рядом» */
+                        window.location.reload();
                     }
                 } catch (_) {}
             }
