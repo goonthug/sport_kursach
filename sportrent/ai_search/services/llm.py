@@ -106,29 +106,35 @@ class LLMProvider(ABC):
 
 class GigaChatProvider(LLMProvider):
     """
-    Парсинг через GigaChat-2-Lite.
+    Парсинг через GigaChat (free tier).
     Поднимает исключение при любой ошибке — вызывающий код делает fallback.
     """
 
-    MODEL = 'GigaChat-2-Lite'
-    MAX_TOKENS = 250
+    MODEL = 'GigaChat'
+    MAX_TOKENS = 300
 
     def __init__(self, credentials: str) -> None:
         self._credentials = credentials
 
     def parse_query(self, query: str) -> ParsedSearchQuery:
+        import json
+        import re as _re
         from gigachat import GigaChat
+        from gigachat.models import Chat, Messages, MessagesRole
 
         today = date.today().isoformat()
-        # Краткий prompt: system-контекст вшит в пользовательское сообщение,
-        # чтобы не тратить лишние токены на отдельный system-turn.
+        # chat_parse (structured output) не поддерживается на free tier →
+        # используем обычный chat() с явным JSON-примером в промпте.
         prompt = (
             f'Сегодня {today}. Разбери запрос аренды спортивного инвентаря: "{query}". '
             'Извлеки поля: category_query (тип инвентаря или null), '
             'city_name (город России или null), '
             'start_date (YYYY-MM-DD или null), end_date (YYYY-MM-DD или null), '
             'max_price (число руб/день или null), keywords (прочие слова или null). '
-            'Поля, не упомянутые в запросе, — null.'
+            'Поля, не упомянутые в запросе, — null. '
+            'Верни ТОЛЬКО валидный JSON без markdown и пояснений. '
+            'Пример: {"category_query":"лыжи","city_name":"Казань","start_date":"2026-05-19",'
+            '"end_date":null,"max_price":500.0,"keywords":null}'
         )
 
         with GigaChat(
@@ -137,11 +143,17 @@ class GigaChatProvider(LLMProvider):
             max_tokens=self.MAX_TOKENS,
             verify_ssl_certs=False,
         ) as client:
-            completion, parsed = client.chat_parse(
-                prompt,
-                response_format=ParsedSearchQuery,
-                strict=True,
+            completion = client.chat(
+                Chat(messages=[Messages(role=MessagesRole.USER, content=prompt)])
             )
+
+        text = completion.choices[0].message.content.strip()
+        # Убираем markdown-обёртку, если модель всё-таки добавила ```json ... ```
+        md_match = _re.search(r'```(?:json)?\s*([\s\S]+?)\s*```', text)
+        if md_match:
+            text = md_match.group(1)
+
+        parsed = ParsedSearchQuery.model_validate(json.loads(text))
 
         tokens = getattr(getattr(completion, 'usage', None), 'total_tokens', 0)
         if tokens:
