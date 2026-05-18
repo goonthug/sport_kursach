@@ -116,6 +116,14 @@ class GigaChatProvider(LLMProvider):
     def __init__(self, credentials: str) -> None:
         self._credentials = credentials
 
+    # Слова, которые явно указывают на дату в запросе
+    _DATE_HINTS = re.compile(
+        r'завтра|сегодня|послезавтра|выходн|недел|'
+        r'январ|феврал|март|апрел|май|мая|июн|июл|август|сентябр|октябр|ноябр|декабр|'
+        r'\d{1,2}\s+\w+|\d{1,2}[./]\d{1,2}',
+        re.IGNORECASE,
+    )
+
     def parse_query(self, query: str) -> ParsedSearchQuery:
         import json
         import re as _re
@@ -131,10 +139,13 @@ class GigaChatProvider(LLMProvider):
             'city_name (город России или null), '
             'start_date (YYYY-MM-DD или null), end_date (YYYY-MM-DD или null), '
             'max_price (число руб/день или null), keywords (прочие слова или null). '
-            'Поля, не упомянутые в запросе, — null. '
+            'ВАЖНО: start_date и end_date заполняй ТОЛЬКО если пользователь явно назвал дату '
+            '(слова «завтра», «сегодня», конкретную дату или месяц). '
+            'Если дата не упомянута — СТРОГО null. '
+            'Все неупомянутые поля — null. '
             'Верни ТОЛЬКО валидный JSON без markdown и пояснений. '
-            'Пример: {"category_query":"лыжи","city_name":"Казань","start_date":"2026-05-19",'
-            '"end_date":null,"max_price":500.0,"keywords":null}'
+            'Пример без дат: {"category_query":"лыжи","city_name":"Казань",'
+            '"start_date":null,"end_date":null,"max_price":null,"keywords":null}'
         )
 
         with GigaChat(
@@ -154,6 +165,11 @@ class GigaChatProvider(LLMProvider):
             text = md_match.group(1)
 
         parsed = ParsedSearchQuery.model_validate(json.loads(text))
+
+        # Защита от галлюцинаций: если в запросе нет явных указаний на дату — сбрасываем
+        if (parsed.start_date or parsed.end_date) and not self._DATE_HINTS.search(query):
+            logger.debug('GigaChat добавил дату без явного упоминания — сбрасываем')
+            parsed = parsed.model_copy(update={'start_date': None, 'end_date': None})
 
         tokens = getattr(getattr(completion, 'usage', None), 'total_tokens', 0)
         if tokens:
