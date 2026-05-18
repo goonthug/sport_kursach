@@ -553,7 +553,7 @@ class ChangePasswordForm(forms.Form):
 
     old_password = forms.CharField(
         label='Текущий пароль',
-        widget=forms.PasswordInput(attrs={
+        widget=forms.PasswordInput(render_value=True, attrs={
             'class': 'form-control',
             'placeholder': 'Введите текущий пароль',
             'autocomplete': 'current-password',
@@ -561,7 +561,7 @@ class ChangePasswordForm(forms.Form):
     )
     new_password1 = forms.CharField(
         label='Новый пароль',
-        widget=forms.PasswordInput(attrs={
+        widget=forms.PasswordInput(render_value=True, attrs={
             'class': 'form-control',
             'placeholder': 'Минимум 8 символов, заглавная, цифра, спецсимвол',
             'autocomplete': 'new-password',
@@ -569,7 +569,7 @@ class ChangePasswordForm(forms.Form):
     )
     new_password2 = forms.CharField(
         label='Повторите новый пароль',
-        widget=forms.PasswordInput(attrs={
+        widget=forms.PasswordInput(render_value=False, attrs={
             'class': 'form-control',
             'placeholder': 'Повторите новый пароль',
             'autocomplete': 'new-password',
