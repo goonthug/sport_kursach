@@ -264,7 +264,10 @@ CORS_ALLOWED_ORIGINS = config(
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
 
-# AI-поиск и карты
-GROQ_API_KEY = config('GROQ_API_KEY', default='')
+# AI-поиск: GigaChat (основной LLM) + Yandex карты/геокодер
+GIGACHAT_CREDENTIALS = config('GIGACHAT_CREDENTIALS', default='')
+LLM_PROVIDER = config('LLM_PROVIDER', default='gigachat')
+# True → в DEBUG всегда regex, GigaChat не вызывается (защита токенов при разработке)
+USE_REGEX_FALLBACK_IN_DEBUG = config('USE_REGEX_FALLBACK_IN_DEBUG', default=False, cast=bool)
 YANDEX_GEOCODER_KEY = config('YANDEX_GEOCODER_KEY', default='')
 YANDEX_MAPS_KEY = config('YANDEX_MAPS_KEY', default='')
