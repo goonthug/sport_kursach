@@ -217,7 +217,7 @@ def export_inventory_to_pdf(inventory_qs):
     )
     normal_style = ParagraphStyle('PdfNormal', parent=styles['Normal'], fontName=font_name, fontSize=10)
 
-    title = Paragraph("Каталог инвентаря СпортРент", title_style)
+    title = Paragraph("Каталог инвентаря СпортРядом", title_style)
     elements.append(title)
     elements.append(Spacer(1, 0.2 * inch))
 
@@ -289,7 +289,7 @@ def export_stats_to_pdf(stats_data):
     )
     normal_style = ParagraphStyle('PdfNormal', parent=styles['Normal'], fontName=font_name, fontSize=10)
 
-    title = Paragraph("Отчет СпортРент", title_style)
+    title = Paragraph("Отчет СпортРядом", title_style)
     elements.append(title)
     elements.append(Spacer(1, 0.3 * inch))
 

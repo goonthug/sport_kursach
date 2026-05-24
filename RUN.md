@@ -1,4 +1,4 @@
-# Как запустить SportRent с нуля (Windows + PostgreSQL)
+# Как запустить СпортРядом с нуля (Windows + PostgreSQL)
 
 ---
 
