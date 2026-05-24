@@ -16,6 +16,9 @@ urlpatterns = [
     path('<uuid:pk>/reject/', views.rental_reject, name='reject'),
     path('<uuid:pk>/complete/', views.rental_complete, name='complete'),
     path('<uuid:pk>/extend/', views.rental_extend, name='extend'),
+    path('<uuid:pk>/pay-overdue/', views.rental_pay_overdue, name='pay_overdue'),
+    path('<uuid:pk>/pay-additional/', views.rental_pay_additional, name='pay_additional'),
+    path('<uuid:pk>/mark-paid-cash/', views.rental_mark_paid_cash, name='mark_paid_cash'),
     path('<uuid:pk>/cancel/', views.rental_cancel, name='cancel'),
     path('<uuid:pk>/contract/download/', views.contract_download, name='contract_download'),
     # Общий маршрут аренды — в конце, чтобы не пересекаться с create/reserve/...

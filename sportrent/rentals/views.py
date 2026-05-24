@@ -823,9 +823,17 @@ def rental_extend(request, pk):
                     messages.error(request, 'Продление невозможно: на новый период появилась активная бронь другого клиента')
                     return redirect('rentals:detail', pk=pk)
 
+                # Если была просрочка — фиксируем прощение штрафа в логе
+                forgiven_fee = rental.overdue_fee_unpaid
+                if forgiven_fee > 0:
+                    logger.info(
+                        f'Менеджер {request.user.email} простил штраф за просрочку '
+                        f'{forgiven_fee:.2f} ₽ при продлении аренды {rental.rental_id}'
+                    )
+
                 # Продлеваем дату окончания
                 rental.end_date = new_end
-                
+
                 # Рассчитываем стоимость доплаты
                 additional_price = rental.inventory.price_per_day * additional_days
                 rental.additional_payment += additional_price
@@ -838,6 +846,207 @@ def rental_extend(request, pk):
         except Exception as e:
             logger.error(f'Ошибка при продлении аренды: {str(e)}')
             messages.error(request, 'Ошибка при продлении')
+
+    return redirect('rentals:detail', pk=pk)
+
+
+@login_required
+def rental_pay_overdue(request, pk):
+    """
+    Клиент оплачивает накопленный штраф за просрочку (имитация оплаты).
+    Фиксирует snapshot и сбрасывает счётчик дней с момента оплаты.
+    """
+    if request.method != 'POST':
+        return redirect('rentals:detail', pk=pk)
+
+    rental = get_object_or_404(
+        Rental.objects.select_related('inventory', 'client', 'client__user'),
+        pk=pk
+    )
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Оплата доступна только клиенту')
+        return redirect('rentals:detail', pk=pk)
+
+    if rental.client != request.user.client_profile:
+        messages.error(request, 'У вас нет доступа к этой аренде')
+        return redirect('rentals:list')
+
+    fee = rental.overdue_fee_unpaid
+    if fee <= 0:
+        messages.info(request, 'Штраф за просрочку отсутствует')
+        return redirect('rentals:detail', pk=pk)
+
+    try:
+        with transaction.atomic():
+            total_fee = rental.overdue_fee
+            Payment.objects.create(
+                rental=rental,
+                amount=fee,
+                payment_method='online',
+                status='completed',
+                payment_date=timezone.now(),
+            )
+            rental.overdue_fee_snapshot = total_fee
+            rental.overdue_fee_paid_at = timezone.now()
+            rental.save()
+
+            logger.info(
+                f'Клиент {request.user.email} оплатил штраф {fee:.2f} ₽ '
+                f'по аренде {rental.rental_id}'
+            )
+            messages.success(request, f'Штраф {fee:.2f} ₽ успешно оплачен.')
+    except Exception as e:
+        logger.error(f'Ошибка при оплате штрафа аренды {pk}: {e}')
+        messages.error(request, 'Ошибка при проведении оплаты')
+
+    return redirect('rentals:detail', pk=pk)
+
+
+@login_required
+def rental_pay_additional(request, pk):
+    """
+    Клиент оплачивает доплату за продление аренды (имитация оплаты).
+    """
+    if request.method != 'POST':
+        return redirect('rentals:detail', pk=pk)
+
+    rental = get_object_or_404(
+        Rental.objects.select_related('inventory', 'client', 'client__user'),
+        pk=pk
+    )
+
+    if request.user.role != 'client' or not hasattr(request.user, 'client_profile'):
+        messages.error(request, 'Оплата доступна только клиенту')
+        return redirect('rentals:detail', pk=pk)
+
+    if rental.client != request.user.client_profile:
+        messages.error(request, 'У вас нет доступа к этой аренде')
+        return redirect('rentals:list')
+
+    if rental.additional_payment_paid:
+        messages.info(request, 'Доплата за продление уже оплачена')
+        return redirect('rentals:detail', pk=pk)
+
+    if rental.additional_payment <= 0:
+        messages.info(request, 'Доплата за продление отсутствует')
+        return redirect('rentals:detail', pk=pk)
+
+    try:
+        with transaction.atomic():
+            Payment.objects.create(
+                rental=rental,
+                amount=rental.additional_payment,
+                payment_method='online',
+                status='completed',
+                payment_date=timezone.now(),
+            )
+            rental.additional_payment_paid = True
+            # Если больше нет долгов — снимаем флаг задержки
+            if rental.overdue_fee_unpaid <= 0:
+                rental.payment_status = 'paid'
+            rental.save()
+
+            logger.info(
+                f'Клиент {request.user.email} оплатил продление {rental.additional_payment:.2f} ₽ '
+                f'по аренде {rental.rental_id}'
+            )
+            messages.success(request, f'Доплата {rental.additional_payment:.2f} ₽ успешно оплачена.')
+    except Exception as e:
+        logger.error(f'Ошибка при оплате продления аренды {pk}: {e}')
+        messages.error(request, 'Ошибка при проведении оплаты')
+
+    return redirect('rentals:detail', pk=pk)
+
+
+@login_required
+def rental_mark_paid_cash(request, pk):
+    """
+    Менеджер фиксирует оплату наличными (штраф или доплата за продление).
+    Параметр POST payment_type: 'overdue' | 'additional'.
+    """
+    if request.method != 'POST':
+        return redirect('rentals:detail', pk=pk)
+
+    if request.user.role != 'manager':
+        messages.error(request, 'Недостаточно прав')
+        return redirect('rentals:detail', pk=pk)
+
+    rental = get_object_or_404(
+        Rental.objects.select_related('inventory', 'client', 'client__user'),
+        pk=pk
+    )
+
+    payment_type = request.POST.get('payment_type', '')
+
+    if payment_type == 'overdue':
+        fee = rental.overdue_fee_unpaid
+        if fee <= 0:
+            messages.info(request, 'Штраф за просрочку отсутствует')
+            return redirect('rentals:detail', pk=pk)
+
+        try:
+            with transaction.atomic():
+                total_fee = rental.overdue_fee
+                Payment.objects.create(
+                    rental=rental,
+                    amount=fee,
+                    payment_method='cash',
+                    status='completed',
+                    payment_date=timezone.now(),
+                )
+                rental.overdue_fee_snapshot = total_fee
+                rental.overdue_fee_paid_at = timezone.now()
+                rental.marked_paid_by = request.user
+                rental.save()
+
+                logger.info(
+                    f'Менеджер {request.user.email} зафиксировал оплату штрафа '
+                    f'{fee:.2f} ₽ наличными по аренде {rental.rental_id} '
+                    f'(клиент: {rental.client.full_name})'
+                )
+                messages.success(request, f'Штраф {fee:.2f} ₽ отмечен оплаченным наличными.')
+        except Exception as e:
+            logger.error(f'Ошибка при фиксации оплаты штрафа аренды {pk}: {e}')
+            messages.error(request, 'Ошибка при фиксации оплаты')
+
+    elif payment_type == 'additional':
+        if rental.additional_payment_paid:
+            messages.info(request, 'Доплата за продление уже оплачена')
+            return redirect('rentals:detail', pk=pk)
+
+        if rental.additional_payment <= 0:
+            messages.info(request, 'Доплата за продление отсутствует')
+            return redirect('rentals:detail', pk=pk)
+
+        try:
+            with transaction.atomic():
+                amount = rental.additional_payment
+                Payment.objects.create(
+                    rental=rental,
+                    amount=amount,
+                    payment_method='cash',
+                    status='completed',
+                    payment_date=timezone.now(),
+                )
+                rental.additional_payment_paid = True
+                rental.marked_paid_by = request.user
+                if rental.overdue_fee_unpaid <= 0:
+                    rental.payment_status = 'paid'
+                rental.save()
+
+                logger.info(
+                    f'Менеджер {request.user.email} зафиксировал оплату продления '
+                    f'{amount:.2f} ₽ наличными по аренде {rental.rental_id} '
+                    f'(клиент: {rental.client.full_name})'
+                )
+                messages.success(request, f'Доплата {amount:.2f} ₽ отмечена оплаченной наличными.')
+        except Exception as e:
+            logger.error(f'Ошибка при фиксации оплаты продления аренды {pk}: {e}')
+            messages.error(request, 'Ошибка при фиксации оплаты')
+
+    else:
+        messages.error(request, 'Неизвестный тип платежа')
 
     return redirect('rentals:detail', pk=pk)
 

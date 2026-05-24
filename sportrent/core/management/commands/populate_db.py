@@ -738,11 +738,107 @@ class Command(BaseCommand):
                 transaction_id=f'TXN-{rental.rental_id.hex[:12].upper()}',
             )
 
+        # ── Демо-аренды для проверки штрафов за просрочку ──────────────────
+        overdue_pool = available_items[20:24]
+        if len(overdue_pool) >= 4:
+            # 1. Просроченная аренда без оплаты штрафа (3 дня назад должны были вернуть)
+            item1 = overdue_pool[0]
+            c1 = rng.choice(clients)
+            overdue_rental_1 = Rental.objects.create(
+                inventory=item1, client=c1,
+                manager=get_manager(item1),
+                start_date=now - timedelta(days=8),
+                end_date=now - timedelta(days=3),
+                total_price=item1.price_per_day * 5,
+                deposit_paid=item1.deposit_amount,
+                status='active', payment_status='paid',
+                bank_account=BankAccount.objects.filter(owner=item1.owner, is_default=True).first(),
+            )
+            Payment.objects.create(
+                rental=overdue_rental_1, amount=overdue_rental_1.total_price,
+                payment_method='online', status='completed', payment_date=now - timedelta(days=8),
+                transaction_id=f'TXN-OVD1-{overdue_rental_1.rental_id.hex[:8].upper()}',
+            )
+            item1.status = 'rented'
+            item1.save(update_fields=['status'])
+
+            # 2. Просроченная аренда с частично оплаченным штрафом (оплатили 5 дней назад, ещё 2 дня накапало)
+            item2 = overdue_pool[1]
+            c2 = rng.choice(clients)
+            paid_at = now - timedelta(days=2)
+            overdue_rental_2 = Rental.objects.create(
+                inventory=item2, client=c2,
+                manager=get_manager(item2),
+                start_date=now - timedelta(days=12),
+                end_date=now - timedelta(days=7),
+                total_price=item2.price_per_day * 5,
+                deposit_paid=item2.deposit_amount,
+                status='active', payment_status='paid',
+                overdue_fee_paid_at=paid_at,
+                overdue_fee_snapshot=item2.price_per_day * 5,
+                bank_account=BankAccount.objects.filter(owner=item2.owner, is_default=True).first(),
+            )
+            Payment.objects.create(
+                rental=overdue_rental_2, amount=overdue_rental_2.total_price,
+                payment_method='online', status='completed', payment_date=now - timedelta(days=12),
+                transaction_id=f'TXN-OVD2-{overdue_rental_2.rental_id.hex[:8].upper()}',
+            )
+            item2.status = 'rented'
+            item2.save(update_fields=['status'])
+
+            # 3. Аренда с неоплаченной доплатой за продление
+            item3 = overdue_pool[2]
+            c3 = rng.choice(clients)
+            overdue_rental_3 = Rental.objects.create(
+                inventory=item3, client=c3,
+                manager=get_manager(item3),
+                start_date=now - timedelta(days=6),
+                end_date=now + timedelta(days=4),
+                total_price=item3.price_per_day * 6,
+                deposit_paid=item3.deposit_amount,
+                status='active', payment_status='delayed',
+                additional_payment=item3.price_per_day * 4,
+                additional_payment_paid=False,
+                bank_account=BankAccount.objects.filter(owner=item3.owner, is_default=True).first(),
+            )
+            Payment.objects.create(
+                rental=overdue_rental_3, amount=overdue_rental_3.total_price,
+                payment_method='card', status='completed', payment_date=now - timedelta(days=6),
+                transaction_id=f'TXN-EXT3-{overdue_rental_3.rental_id.hex[:8].upper()}',
+            )
+            item3.status = 'rented'
+            item3.save(update_fields=['status'])
+
+            # 4. Аренда, где менеджер простил штраф через продление (end_date перенесли вперёд)
+            item4 = overdue_pool[3]
+            c4 = rng.choice(clients)
+            overdue_rental_4 = Rental.objects.create(
+                inventory=item4, client=c4,
+                manager=get_manager(item4),
+                start_date=now - timedelta(days=10),
+                end_date=now + timedelta(days=3),  # продлено — просрочки больше нет
+                total_price=item4.price_per_day * 10,
+                deposit_paid=item4.deposit_amount,
+                status='active', payment_status='paid',
+                additional_payment=item4.price_per_day * 3,
+                additional_payment_paid=True,
+                bank_account=BankAccount.objects.filter(owner=item4.owner, is_default=True).first(),
+            )
+            Payment.objects.create(
+                rental=overdue_rental_4, amount=overdue_rental_4.total_price,
+                payment_method='card', status='completed', payment_date=now - timedelta(days=10),
+                transaction_id=f'TXN-FRG4-{overdue_rental_4.rental_id.hex[:8].upper()}',
+            )
+            item4.status = 'rented'
+            item4.save(update_fields=['status'])
+            active_rentals += [overdue_rental_1, overdue_rental_2, overdue_rental_3, overdue_rental_4]
+
         self._completed_rentals = completed_rentals
         self._active_rentals = active_rentals
         self.stdout.write(self.style.SUCCESS(
             f'  Аренд: {Rental.objects.count()} '
-            f'(завершено: 35, активно: 12, подтверждено: {len(confirmed_pool)})'
+            f'(завершено: 35, активно: {len(active_rentals)}, подтверждено: {len(confirmed_pool)}, '
+            f'из них демо-просрочок: {min(4, len(overdue_pool))})'
         ))
 
     # ─── Отзывы ─────────────────────────────────────────────────────────────
