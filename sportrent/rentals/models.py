@@ -3,6 +3,7 @@
 """
 
 import uuid
+from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
@@ -45,6 +46,18 @@ class Rental(models.Model):
                                       verbose_name='Общая стоимость')
     deposit_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Внесенный залог')
     additional_payment = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Доплата за продление')
+    additional_payment_paid = models.BooleanField(default=False, verbose_name='Продление оплачено')
+
+    # Штраф за просрочку (автоматический, не связан с additional_payment)
+    overdue_fee_paid_at = models.DateTimeField(null=True, blank=True, verbose_name='Штраф оплачен')
+    overdue_fee_snapshot = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name='Зафиксированный штраф на момент оплаты'
+    )
+    marked_paid_by = models.ForeignKey(
+        'users.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='marked_extension_paid', verbose_name='Оплату наличными зафиксировал'
+    )
 
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending', verbose_name='Статус')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending',
@@ -82,6 +95,47 @@ class Rental(models.Model):
         if self.status == 'active' and not self.actual_return_date:
             return timezone.now() > self.end_date
         return False
+
+    @property
+    def overdue_fee(self):
+        """
+        Суммарный накопленный штраф за просрочку.
+        Работает как для активных просроченных аренд, так и для завершённых
+        с опозданием. После частичной оплаты — snapshot + дни с момента оплаты.
+        """
+        scheduled_end = self.end_date.date()
+
+        if self.actual_return_date:
+            actual_end = self.actual_return_date.date()
+        elif self.status == 'active':
+            actual_end = timezone.now().date()
+        else:
+            return Decimal('0')
+
+        if actual_end <= scheduled_end:
+            return Decimal('0')
+
+        price = self.inventory.price_per_day
+
+        if self.overdue_fee_paid_at:
+            paid_date = self.overdue_fee_paid_at.date()
+            days_since = max(0, (actual_end - paid_date).days)
+            snapshot = self.overdue_fee_snapshot or Decimal('0')
+            return snapshot + days_since * price
+
+        days = max(0, (actual_end - scheduled_end).days)
+        return days * price
+
+    @property
+    def overdue_fee_unpaid(self):
+        """Часть штрафа, которую ещё не оплатили."""
+        total = self.overdue_fee
+        if total <= 0:
+            return Decimal('0')
+        if not self.overdue_fee_paid_at:
+            return total
+        snapshot = self.overdue_fee_snapshot or Decimal('0')
+        return max(Decimal('0'), total - snapshot)
 
 
 class Reservation(models.Model):
