@@ -86,7 +86,8 @@ def chat_detail(request, rental_id):
             other_user = rental.manager.user if rental.manager else None
 
     elif user.role == 'manager' and hasattr(user, 'manager_profile'):
-        if rental.manager == user.manager_profile:
+        mp = user.manager_profile
+        if rental.manager == mp or mp.is_super_manager:
             has_access = True
             other_user = rental.client.user
 
@@ -183,7 +184,8 @@ def start_chat(request, rental_id):
     if user.role == 'client' and hasattr(user, 'client_profile'):
         has_access = rental.client == user.client_profile
     elif user.role == 'manager' and hasattr(user, 'manager_profile'):
-        has_access = rental.manager == user.manager_profile
+        mp = user.manager_profile
+        has_access = rental.manager == mp or mp.is_super_manager
 
     if not has_access:
         messages.error(request, 'У вас нет доступа к этому чату')

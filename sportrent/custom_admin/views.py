@@ -375,8 +375,8 @@ def admin_inventory_publish(request, pk):
         return redirect('custom_admin:inventory')
 
     if request.method == 'POST':
-        # Проверяем, что менеджер работает с этим инвентарем
-        if inventory.manager != request.user.manager_profile:
+        mp = request.user.manager_profile
+        if inventory.manager != mp and not mp.is_super_manager:
             messages.error(request, 'Вы не можете опубликовать этот инвентарь')
             return redirect('custom_admin:inventory')
 
@@ -409,9 +409,10 @@ def inventory_contract_download(request, pk):
 
     user = request.user
 
-    # Доступ только менеджеру, который ведёт этот инвентарь, или администратору
+    # Доступ только менеджеру, который ведёт этот инвентарь, супер-менеджеру или администратору
     if user.role == 'manager':
-        if not hasattr(user, 'manager_profile') or inventory.manager != user.manager_profile:
+        mp = getattr(user, 'manager_profile', None)
+        if not mp or (inventory.manager != mp and not mp.is_super_manager):
             messages.error(request, 'Недостаточно прав для скачивания договора')
             return redirect('custom_admin:inventory_pending_detail', pk=pk)
     elif user.role != 'administrator':

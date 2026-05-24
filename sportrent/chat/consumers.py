@@ -135,7 +135,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return False, None
 
         if user.role == 'manager' and hasattr(user, 'manager_profile'):
-            if rental.manager == user.manager_profile:
+            mp = user.manager_profile
+            if rental.manager == mp or mp.is_super_manager:
                 other_user_id = rental.client.user_id
                 return True, other_user_id
             return False, None
