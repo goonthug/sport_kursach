@@ -93,13 +93,6 @@
                             </li>
                         {% endif %}
 
-                        {% if user.role == 'manager' and user.manager_profile.is_super_manager %}
-                            <li class="nav-item ms-1">
-                                <span class="badge text-bg-warning" style="font-size:.7rem; vertical-align:middle;">
-                                    <i class="bi bi-shield-star"></i> Супер
-                                </span>
-                            </li>
-                        {% endif %}
                         <li class="nav-item ms-2">
                             <a href="{% url 'users:logout' %}" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-box-arrow-right"></i> Выход
