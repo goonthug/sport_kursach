@@ -1,5 +1,49 @@
 # Как запустить SportRent с нуля (Windows + PostgreSQL)
 
+---
+
+## Запуск для защиты (Docker, одна команда)
+
+```bash
+cd sport_kursach
+docker-compose up
+```
+
+Дождитесь сообщения в логах:
+
+```
+==========================================
+  Проект доступен на http://localhost
+  (откройте браузер через 5-10 секунд)
+==========================================
+```
+
+Откройте браузер: **http://localhost**
+
+### Демо-аккаунты
+
+| Роль       | Email                      | Пароль      |
+|------------|----------------------------|-------------|
+| Админ      | admin@sportrent.ru         | admin123    |
+| Менеджер   | manager1@sportrent.ru      | manager123  |
+| Владелец   | owner1@mail.ru             | owner123    |
+| Клиент     | client1@mail.ru            | client123   |
+
+### Принудительный пересев данных
+
+```bash
+docker-compose exec web python manage.py reset_db --confirm
+```
+
+### Полный сброс (с удалением томов)
+
+```bash
+docker-compose down -v
+docker-compose up
+```
+
+---
+
 Проект использует **PostgreSQL**, не SQLite. Ниже порядок действий от нуля.
 
 ### Автоматизация (venv, pip, migrate, сервер)
