@@ -955,89 +955,38 @@ def contract_download(request, pk):
             status='active',
         )
 
-    # Путь к шаблону договора:
-    # ожидаем, что файл "dogovor_arendy.docx" лежит в папке contracts внутри проекта (BASE_DIR/contracts).
-    # Так проект будет работать одинаково на любом компьютере.
-    from pathlib import Path
-
-    template_path = (Path(settings.BASE_DIR) / 'contracts' / 'dogovor_arendy.docx')
-    if not template_path.exists():
-        messages.error(
-            request,
-            f'Файл шаблона договора не найден по пути: {template_path}. '
-            f'Положите туда файл "договор аренды.docx" или обновите логику пути.'
-        )
-        return redirect('rentals:detail', pk=pk)
-
-    try:
-        from docx import Document
-    except ImportError:
-        messages.error(
-            request,
-            'Не установлен пакет python-docx. Установите его командой "pip install python-docx".'
-        )
-        return redirect('rentals:detail', pk=pk)
-
-    # Открываем шаблон и подставляем данные
-    document = Document(str(template_path))
-
-    def replace_in_paragraphs(find_text: str, replace_text: str):
-        for paragraph in document.paragraphs:
-            if find_text in paragraph.text:
-                inline = paragraph.runs
-                for i in range(len(inline)):
-                    if find_text in inline[i].text:
-                        inline[i].text = inline[i].text.replace(find_text, replace_text)
-
-    rental_days = rental.rental_days
-
-    # 1) Номер договора: ищем заголовок с текстом "ДОГОВОР АРЕНДЫ" и перезаписываем его полностью
-    for paragraph in document.paragraphs:
-        if 'ДОГОВОР АРЕНДЫ' in paragraph.text.upper():
-            paragraph.text = f'ДОГОВОР АРЕНДЫ № {contract.contract_number}'
-            break
-
-    # 2) Дата договора: город берём из точки выдачи инвентаря
     contract_city = (
         rental.inventory.pickup_point.city.name
         if rental.inventory.pickup_point_id and rental.inventory.pickup_point.city
         else 'Не указан'
     )
-    formatted_date = today.strftime('%d.%m.%Y')
-    for paragraph in document.paragraphs:
-        if 'г.' in paragraph.text:
-            paragraph.text = f'г. {contract_city}, {formatted_date} г.'
-            break
 
-    # 3) ФИО менеджера: в шаблоне стоит "Петров Петр Петрович"
-    replace_in_paragraphs('Петров Петр Петрович', manager_full_name)
+    try:
+        from contracts.generator import generate_rental_contract
+        from io import BytesIO
 
-    # 4) ФИО клиента: после слов "с одной стороны и" идут подчёркивания – просто заменим весь текст после них на ФИО
-    for paragraph in document.paragraphs:
-        if 'с одной стороны и' in paragraph.text:
-            # Оставляем фразу и добавляем ФИО клиента
-            paragraph.text = f'{paragraph.text.split("с одной стороны и")[0]}с одной стороны и {client_full_name}'
-            break
-
-    # 5) Паспортные данные клиента — абзац с "Паспорт"
-    for paragraph in document.paragraphs:
-        if 'Паспорт' in paragraph.text:
-            parts = [f'Паспорт: серия {passport_series} № {passport_number}']
-            if passport_issue_date:
-                parts.append(f'выдан {passport_issue_date.strftime("%d.%m.%Y")}')
-            if passport_department_code:
-                parts.append(f'код подразделения {passport_department_code}')
-            paragraph.text = ', '.join(parts)
-            break
-
-    # 6) Срок аренды — фраза "Настоящий договор заключен на срок"
-    for paragraph in document.paragraphs:
-        if 'Настоящий договор заключен на срок' in paragraph.text:
-            paragraph.text = f'Настоящий договор заключен на срок {rental_days} ( {rental_days} ) дней.'
-            break
-
-    # Сохраняем договор в память и отдаём как .docx
-    from io import BytesIO
+        document = generate_rental_contract(
+            contract_number=contract.contract_number,
+            contract_city=contract_city,
+            today=today,
+            manager_full_name=manager_full_name,
+            client_full_name=client_full_name,
+            passport_series=passport_series,
+            passport_number=passport_number,
+            passport_issue_date=passport_issue_date,
+            passport_department_code=passport_department_code,
+            inventory_name=rental.inventory.name,
+            rental_days=rental.rental_days,
+            start_date=rental.start_date.date(),
+            end_date=rental.end_date.date(),
+            price_per_day=rental.inventory.price_per_day,
+            total_price=rental.total_price,
+            deposit_amount=rental.inventory.deposit_amount,
+        )
+    except Exception as e:
+        logger.error(f'Ошибка при генерации договора аренды: {e}', exc_info=True)
+        messages.error(request, 'Не удалось сформировать договор. Обратитесь к администратору.')
+        return redirect('rentals:detail', pk=pk)
 
     buffer = BytesIO()
     document.save(buffer)
@@ -1046,9 +995,7 @@ def contract_download(request, pk):
     filename = f'dogovor_arendy_{contract.contract_number}.docx'
     response = HttpResponse(
         buffer.getvalue(),
-        content_type=(
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ),
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     )
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
