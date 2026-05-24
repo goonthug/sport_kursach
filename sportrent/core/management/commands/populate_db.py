@@ -4,9 +4,20 @@ Management команда для заполнения БД тестовыми д
 Использование: python manage.py populate_db
 """
 
+import re
 import random
 from datetime import timedelta
 from decimal import Decimal
+
+
+def _norm_phone(phone: str) -> str:
+    """Нормализует телефон к виду +7XXXXXXXXXX (E.164, 10 цифр после +7)."""
+    digits = re.sub(r'\D', '', phone)
+    if len(digits) == 11 and digits[0] in ('7', '8'):
+        return '+7' + digits[1:]
+    if len(digits) == 10:
+        return '+7' + digits
+    return phone
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
@@ -386,6 +397,7 @@ class Command(BaseCommand):
         # Менеджеры — district → Manager
         self.managers = {}
         for email, password, full_name, district, phone in MANAGER_DATA:
+            phone = _norm_phone(phone)
             user, created = User.objects.get_or_create(
                 email=email, defaults={'role': 'manager', 'is_staff': True}
             )
@@ -399,6 +411,10 @@ class Command(BaseCommand):
                 user=user,
                 defaults={'full_name': full_name, 'phone_work': phone, 'email_work': email}
             )
+            # manager1 видит все заявки и аренды
+            if email == 'manager1@sportrent.ru' and not manager.is_super_manager:
+                manager.is_super_manager = True
+                manager.save(update_fields=['is_super_manager'])
             self.managers[district] = manager
 
         # Владельцы
@@ -526,7 +542,7 @@ class Command(BaseCommand):
                     city=city, manager=manager,
                     name=name, address=address,
                     lat=Decimal(lat), lon=Decimal(lon),
-                    phone=phone, is_active=True,
+                    phone=_norm_phone(phone), is_active=True,
                 )
                 self.pickup_points_by_city[city_name].append(pp)
         self.stdout.write(self.style.SUCCESS(f'  Точек выдачи: {PickupPoint.objects.count()}'))

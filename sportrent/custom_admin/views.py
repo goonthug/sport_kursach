@@ -39,7 +39,7 @@ def admin_dashboard(request):
     pending_inventory = Inventory.objects.filter(status='pending').count()
 
     rentals_scope = Rental.objects.all()
-    if manager_profile:
+    if manager_profile and not manager_profile.is_super_manager:
         rentals_scope = rentals_scope.filter(manager=manager_profile)
 
     total_rentals = rentals_scope.count()
@@ -270,7 +270,8 @@ def admin_inventory_pending_detail(request, pk):
         return redirect('custom_admin:inventory')
 
     # Проверяем, что менеджер работает с этим инвентарем (для статуса awaiting_contract)
-    if inventory.status == 'awaiting_contract' and inventory.manager != request.user.manager_profile:
+    mp = request.user.manager_profile
+    if inventory.status == 'awaiting_contract' and inventory.manager != mp and not mp.is_super_manager:
         messages.error(request, 'Вы не можете просматривать эту заявку')
         return redirect('custom_admin:inventory')
 
@@ -308,13 +309,16 @@ def admin_inventory_approve(request, pk):
         inventory.save()
 
         # Менеджер заполняет адрес и телефон точки выдачи
+        import re as _re
         pickup_address = request.POST.get('pickup_address', '').strip()
         pickup_phone = request.POST.get('pickup_phone', '').strip()
-        # Нормализуем телефон: добавляем +7 если его нет
-        if pickup_phone and not pickup_phone.startswith('+7'):
-            digits = ''.join(c for c in pickup_phone if c.isdigit())
-            if len(digits) == 10:
-                pickup_phone = f'+7{digits}'
+        # Нормализуем телефон к E.164: снимаем скобки/дефисы, добавляем +7
+        if pickup_phone:
+            digits = _re.sub(r'\D', '', pickup_phone)
+            if len(digits) == 11 and digits[0] in ('7', '8'):
+                pickup_phone = '+7' + digits[1:]
+            elif len(digits) == 10:
+                pickup_phone = '+7' + digits
         if pickup_address and inventory.pickup_point_id:
             pp = inventory.pickup_point
             pp.address = pickup_address

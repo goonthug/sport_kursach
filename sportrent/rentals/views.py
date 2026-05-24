@@ -56,9 +56,9 @@ def rental_list(request):
             messages.error(request, 'Профиль менеджера не найден')
             return redirect('users:profile')
 
-        rentals = Rental.objects.filter(
-            manager=user.manager_profile
-        ).select_related('inventory', 'client', 'client__user').order_by('-created_date')
+        mp = user.manager_profile
+        base_qs = Rental.objects.select_related('inventory', 'client', 'client__user').order_by('-created_date')
+        rentals = base_qs if mp.is_super_manager else base_qs.filter(manager=mp)
         status_choices = Rental.STATUS_CHOICES
 
     elif user.role == 'owner':
@@ -126,7 +126,8 @@ def rental_detail(request, pk):
     if user.role == 'client' and hasattr(user, 'client_profile'):
         has_access = rental.client == user.client_profile
     elif user.role == 'manager' and hasattr(user, 'manager_profile'):
-        has_access = rental.manager == user.manager_profile
+        mp = user.manager_profile
+        has_access = mp.is_super_manager or rental.manager == mp
     elif user.role == 'owner' and hasattr(user, 'owner_profile'):
         has_access = rental.inventory.owner == user.owner_profile
     elif user.role == 'administrator':
@@ -903,9 +904,10 @@ def contract_download(request, pk):
 
     user = request.user
 
-    # Доступ только менеджеру, который ведёт эту аренду, или администратору
+    # Доступ только менеджеру, который ведёт эту аренду, или супер-менеджеру, или администратору
     if user.role == 'manager':
-        if not hasattr(user, 'manager_profile') or rental.manager != user.manager_profile:
+        mp = getattr(user, 'manager_profile', None)
+        if not mp or (rental.manager != mp and not mp.is_super_manager):
             messages.error(request, 'Недостаточно прав для скачивания договора')
             return redirect('rentals:detail', pk=pk)
     elif user.role != 'administrator':
