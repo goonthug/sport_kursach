@@ -27,7 +27,6 @@ _MONTHS_RU = {
 
 
 def _ru_date(d) -> str:
-    """Возвращает дату в формате «15 мая 2026»."""
     s = d.strftime('%d %B %Y')
     for en, ru in _MONTHS_RU.items():
         s = s.replace(en, ru)
@@ -43,7 +42,6 @@ def _apply_font(run, size=None, bold=False):
 
 def _fmt(paragraph, align=WD_ALIGN_PARAGRAPH.JUSTIFY,
          indent=_INDENT, before=0, after=0):
-    """Применяет базовое ГОСТ-форматирование к абзацу."""
     pf = paragraph.paragraph_format
     pf.alignment = align
     pf.first_line_indent = indent
@@ -64,13 +62,11 @@ def _para(doc, text='', align=WD_ALIGN_PARAGRAPH.JUSTIFY,
 
 
 def _section_header(doc, text, before=12):
-    """Заголовок раздела: прописные, полужирный, по центру, без отступа строки."""
     return _para(doc, text.upper(), align=WD_ALIGN_PARAGRAPH.CENTER,
                  bold=True, indent=Cm(0), before=before, after=6)
 
 
 def _sub(doc, number, text):
-    """Подпункт вида «1.1. Текст...»"""
     return _para(doc, f'{number}. {text}')
 
 
@@ -95,7 +91,6 @@ def _remove_table_borders(table):
 
 
 def _add_page_numbers(doc):
-    """Добавляет 'Стр. N из M' внизу по центру (12pt)."""
     section = doc.sections[0]
     footer = section.footer
     fp = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
@@ -127,7 +122,6 @@ def _add_page_numbers(doc):
 
 
 def _city_date_row(doc, city, date_str):
-    """Строка 'г. Город  [right]  дата г.' через безбордюрную таблицу."""
     table = doc.add_table(rows=1, cols=2)
     _remove_table_borders(table)
     left = table.cell(0, 0).paragraphs[0]
@@ -141,7 +135,6 @@ def _city_date_row(doc, city, date_str):
 
 
 def _setup_doc() -> Document:
-    """Создаёт документ с ГОСТ-полями и базовым стилем Normal."""
     doc = Document()
     section = doc.sections[0]
     section.top_margin = Mm(20)
@@ -161,16 +154,17 @@ def _setup_doc() -> Document:
     return doc
 
 
+# ПРАВКА 1: left_has_seal / right_has_seal — М.П. только у стороны с печатью
 def _signature_table(doc, left_title, left_name, left_extra,
-                     right_title, right_name, right_extra):
-    """Блок подписей: две колонки без рамки."""
+                     right_title, right_name, right_extra,
+                     left_has_seal=True, right_has_seal=True):
     _para(doc, '', before=6)
     _section_header(doc, 'РЕКВИЗИТЫ И ПОДПИСИ СТОРОН', before=12)
 
     table = doc.add_table(rows=1, cols=2)
     _remove_table_borders(table)
 
-    def _fill(cell, title, name, extras):
+    def _fill(cell, title, name, extras, has_seal):
         first = cell.paragraphs[0]
         _fmt(first, align=WD_ALIGN_PARAGRAPH.LEFT, indent=Cm(0))
         r = first.add_run(title)
@@ -188,12 +182,13 @@ def _signature_table(doc, left_title, left_name, left_extra,
         _fmt(sig, align=WD_ALIGN_PARAGRAPH.LEFT, indent=Cm(0))
         _apply_font(sig.add_run('Подпись: ___________________'))
 
-        mp = cell.add_paragraph()
-        _fmt(mp, align=WD_ALIGN_PARAGRAPH.LEFT, indent=Cm(0))
-        _apply_font(mp.add_run('М.П.'))
+        if has_seal:
+            mp = cell.add_paragraph()
+            _fmt(mp, align=WD_ALIGN_PARAGRAPH.LEFT, indent=Cm(0))
+            _apply_font(mp.add_run('М.П.'))
 
-    _fill(table.cell(0, 0), left_title, left_name, left_extra)
-    _fill(table.cell(0, 1), right_title, right_name, right_extra)
+    _fill(table.cell(0, 0), left_title, left_name, left_extra, left_has_seal)
+    _fill(table.cell(0, 1), right_title, right_name, right_extra, right_has_seal)
 
 
 # ---------------------------------------------------------------------------
@@ -220,22 +215,26 @@ def generate_rental_contract(
     deposit_amount,
 ) -> Document:
     """
-    Генерирует договор аренды спортивного инвентаря (клиент <-> менеджер).
-    Все параметры - скалярные значения, не Django-объекты.
-    Возвращает объект Document (python-docx).
+    Договор аренды спортивного инвентаря (клиент <-> менеджер).
+    Все параметры -- скалярные значения, не Django-объекты.
     """
+    import re
+    # ПРАВКА 3: убираем возможный префикс 'N ' или 'No ' если number пришёл из старой БД
+    contract_number = re.sub(r'^[Nn№o\.]+\s*', '', str(contract_number)).strip()
+
     doc = _setup_doc()
     date_str = _ru_date(today)
 
     # Заголовок
     _para(doc, 'ДОГОВОР АРЕНДЫ СПОРТИВНОГО ИНВЕНТАРЯ',
           align=WD_ALIGN_PARAGRAPH.CENTER, bold=True, indent=Cm(0), after=0)
-    _para(doc, f'N {contract_number}',
+    # ПРАВКА 3: символ № (U+2116), не буква N
+    _para(doc, f'№ {contract_number}',
           align=WD_ALIGN_PARAGRAPH.CENTER, indent=Cm(0), after=4)
     _city_date_row(doc, contract_city, date_str)
 
-    # Преамбула
-    passport_str = f'паспорт: серия {passport_series} N {passport_number}'
+    # Преамбула — ПРАВКА 4: ёлочки вместо прямых кавычек
+    passport_str = f'паспорт: серия {passport_series} № {passport_number}'
     if passport_issue_date:
         issued = (passport_issue_date.strftime('%d.%m.%Y')
                   if hasattr(passport_issue_date, 'strftime') else str(passport_issue_date))
@@ -244,9 +243,9 @@ def generate_rental_contract(
         passport_str += f', код подразделения {passport_department_code}'
 
     _para(doc,
-          f'{manager_full_name}, именуемый в дальнейшем "Арендодатель", с одной стороны, '
-          f'и {client_full_name}, {passport_str}, именуемый(ая) в дальнейшем "Арендатор", '
-          f'с другой стороны, совместно именуемые "Стороны", заключили настоящий договор '
+          f'{manager_full_name}, именуемый в дальнейшем «Арендодатель», с одной стороны, '
+          f'и {client_full_name}, {passport_str}, именуемый(ая) в дальнейшем «Арендатор», '
+          f'с другой стороны, совместно именуемые «Стороны», заключили настоящий договор '
           f'о нижеследующем:',
           before=6, after=6)
 
@@ -255,15 +254,15 @@ def generate_rental_contract(
 
     _sub(doc, '1.1',
          f'Арендодатель обязуется предоставить Арендатору во временное владение и пользование '
-         f'спортивный инвентарь: {inventory_name} (далее - Инвентарь), а Арендатор обязуется '
+         f'спортивный инвентарь: {inventory_name} (далее — Инвентарь), а Арендатор обязуется '
          f'принять Инвентарь, уплатить арендную плату и возвратить его по истечении срока аренды.')
 
     start_s = start_date.strftime('%d.%m.%Y') if hasattr(start_date, 'strftime') else str(start_date)
     end_s = end_date.strftime('%d.%m.%Y') if hasattr(end_date, 'strftime') else str(end_date)
     _sub(doc, '1.2',
          f'Срок аренды составляет {rental_days} дней, с {start_s} по {end_s} включительно.')
-
-    _sub(doc, '1.3', f'Место передачи Инвентаря: г. {contract_city}.')
+    _sub(doc, '1.3',
+         f'Место передачи Инвентаря: г. {contract_city}.')
 
     # 2. ПРАВА И ОБЯЗАННОСТИ СТОРОН
     _section_header(doc, '2. ПРАВА И ОБЯЗАННОСТИ СТОРОН')
@@ -282,16 +281,15 @@ def generate_rental_contract(
     _sub(doc, '2.2.2',
          'Обеспечить сохранность Инвентаря и нести ответственность за его повреждение или утрату.')
     _sub(doc, '2.2.3',
-         'Возвратить Инвентарь Арендодателю в установленный срок в надлежащем состоянии '
-         'с учётом нормального износа.')
+         'Возвратить Инвентарь в установленный срок в надлежащем состоянии с учётом нормального износа.')
     _sub(doc, '2.2.4',
          'Своевременно вносить арендную плату в установленном настоящим договором порядке.')
 
-    # 3. АРЕНДНАЯ ПЛАТА И ПОРЯДОК РАСЧЁТОВ
-    _section_header(doc, '3. АРЕНДНАЯ ПЛАТА И ПОРЯДОК РАСЧЁТОВ')
+    # 3. АРЕНДНАЯ ПЛАТА
+    _section_header(doc, '3. АРЕНДНАЯ ПЛАТА И ПОРЯДОК РАСЧЕТОВ')
 
     _sub(doc, '3.1',
-         f'Арендная плата за пользование Инвентарём составляет {price_per_day} рублей в сутки.')
+         f'Арендная плата за пользование Инвентарем составляет {price_per_day} рублей в сутки.')
     _sub(doc, '3.2',
          f'Общая сумма арендной платы за весь срок аренды составляет {total_price} рублей.')
     _sub(doc, '3.3',
@@ -299,7 +297,7 @@ def generate_rental_contract(
          f'при подписании настоящего договора. Залог возвращается при возврате Инвентаря '
          f'в надлежащем состоянии.')
     _sub(doc, '3.4',
-         'Оплата производится через электронную систему платформы "СпортРент".')
+         'Оплата производится через электронную систему платформы «СпортРент».')
 
     # 4. ОТВЕТСТВЕННОСТЬ СТОРОН
     _section_header(doc, '4. ОТВЕТСТВЕННОСТЬ СТОРОН')
@@ -307,9 +305,12 @@ def generate_rental_contract(
     _sub(doc, '4.1',
          'В случае повреждения или утраты Инвентаря Арендатор возмещает Арендодателю '
          'реальный ущерб в полном объёме.')
+    # ПРАВКА 2: плата за продление вместо двойной неустойки
     _sub(doc, '4.2',
-         'За просрочку возврата Инвентаря Арендатор уплачивает неустойку в размере '
-         'двойной суточной арендной платы за каждый день просрочки.')
+         'За каждый день просрочки возврата Инвентаря Арендатор '
+         'обязан уплатить плату за продление аренды в размере '
+         'суточной арендной платы, установленной п. 3.1 настоящего '
+         'договора.')
     _sub(doc, '4.3',
          'Стороны освобождаются от ответственности за неисполнение обязательств, '
          'если такое неисполнение вызвано обстоятельствами непреодолимой силы (форс-мажор).')
@@ -337,8 +338,8 @@ def generate_rental_contract(
          'Любые изменения и дополнения к настоящему договору действительны при условии, '
          'если они совершены в письменной форме и подписаны обеими Сторонами.')
 
-    # Подписи
-    passport_short = f'Паспорт: серия {passport_series} N {passport_number}'
+    # Подписи (ПРАВКИ 1 + 4)
+    passport_short = f'Паспорт: серия {passport_series} № {passport_number}'
     _signature_table(
         doc,
         left_title='Арендодатель:',
@@ -347,6 +348,8 @@ def generate_rental_contract(
         right_title='Арендатор:',
         right_name=client_full_name,
         right_extra=[passport_short],
+        left_has_seal=True,
+        right_has_seal=False,
     )
 
     return doc
@@ -364,9 +367,8 @@ def generate_owner_contract(
     recipient_name: str = '',
 ) -> Document:
     """
-    Генерирует агентский договор (владелец <-> платформа).
-    Платформа выступает агентом, действующим от имени и за счёт Владельца.
-    Возвращает объект Document (python-docx).
+    Агентский договор (владелец <-> платформа).
+    Платформа выступает агентом от имени и за счёт Владельца.
     """
     doc = _setup_doc()
     date_str = _ru_date(today)
@@ -376,12 +378,12 @@ def generate_owner_contract(
           align=WD_ALIGN_PARAGRAPH.CENTER, bold=True, indent=Cm(0), after=4)
     _city_date_row(doc, contract_city, date_str)
 
-    # Преамбула
+    # Преамбула — ПРАВКА 4: «ёлочки»
     _para(doc,
-          f'{owner_full_name}, именуемый в дальнейшем "Владелец", с одной стороны, '
-          f'и {manager_full_name}, действующий от имени платформы "СпортРент" (далее - Платформа), '
+          f'{owner_full_name}, именуемый в дальнейшем «Владелец», с одной стороны, '
+          f'и {manager_full_name}, действующий от имени платформы «СпортРент» (далее — Платформа), '
           f'выступающей в роли агента, действующего от имени и за счёт Владельца, '
-          f'именуемый в дальнейшем "Агент", с другой стороны, заключили настоящий договор '
+          f'именуемый в дальнейшем «Агент», с другой стороны, заключили настоящий договор '
           f'о нижеследующем:',
           before=6, after=6)
 
@@ -390,9 +392,8 @@ def generate_owner_contract(
 
     _sub(doc, '1.1',
          f'Владелец поручает Агенту, а Агент принимает на себя обязательство от имени '
-         f'и за счёт Владельца совершать юридические и фактические действия по сдаче в '
-         f'аренду спортивного инвентаря: {inventory_name} (далее - Инвентарь) на платформе '
-         f'"СпортРент" третьим лицам.')
+         f'и за счёт Владельца совершать действия по сдаче в аренду спортивного инвентаря: '
+         f'{inventory_name} (далее — Инвентарь) на платформе «СпортРент» третьим лицам.')
     _sub(doc, '1.2',
          'Агент осуществляет поиск арендаторов, приём платежей, организацию передачи '
          'и возврата Инвентаря от имени Владельца.')
@@ -417,15 +418,14 @@ def generate_owner_contract(
     _sub(doc, '2.2.3',
          'Информировать Владельца о состоянии его Инвентаря и результатах аренд.')
 
-    # 3. АГЕНТСКОЕ ВОЗНАГРАЖДЕНИЕ И ПОРЯДОК РАСЧЁТОВ
-    _section_header(doc, '3. АГЕНТСКОЕ ВОЗНАГРАЖДЕНИЕ И ПОРЯДОК РАСЧЁТОВ')
+    # 3. АГЕНТСКОЕ ВОЗНАГРАЖДЕНИЕ
+    _section_header(doc, '3. АГЕНТСКОЕ ВОЗНАГРАЖДЕНИЕ И ПОРЯДОК РАСЧЕТОВ')
 
     _sub(doc, '3.1',
-         'Агентское вознаграждение составляет 30 % от суммы каждой арендной сделки, '
+         'Агентское вознаграждение составляет 30 % от суммы каждой арендной сделки, '
          'совершённой Агентом от имени Владельца.')
     _sub(doc, '3.2',
-         'Оставшиеся 70 % от суммы арендной сделки перечисляются Владельцу на указанные '
-         'им банковские реквизиты в течение 3 (трёх) рабочих дней после завершения аренды.')
+         'Оставшиеся 70 % перечисляются Владельцу в течение 3 (трёх) рабочих дней после завершения аренды.')
 
     req_parts = []
     if recipient_name:
@@ -442,7 +442,7 @@ def generate_owner_contract(
     _section_header(doc, '4. ОТВЕТСТВЕННОСТЬ СТОРОН')
 
     _sub(doc, '4.1',
-         'Агент не несёт ответственности за действия арендаторов, повлёкшие повреждение '
+         'Агент не несёт ответственности за действия арендаторов, повлекшие повреждение '
          'или утрату Инвентаря, при условии соблюдения установленных процедур проверки.')
     _sub(doc, '4.2',
          'Владелец несёт ответственность за достоверность сведений об Инвентаре и его '
@@ -459,7 +459,7 @@ def generate_owner_contract(
          'действует до момента прекращения сотрудничества.')
     _sub(doc, '5.2',
          'Каждая из Сторон вправе в одностороннем порядке отказаться от исполнения '
-         'настоящего договора, уведомив другую Сторону за 30 (тридцать) дней.')
+         'настоящего договора, уведомив другую Сторону за 30 (тридцать) дней.')
 
     # 6. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ
     _section_header(doc, '6. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ')
@@ -471,7 +471,7 @@ def generate_owner_contract(
          'Во всём, что не предусмотрено настоящим договором, Стороны руководствуются '
          'действующим законодательством Российской Федерации.')
 
-    # Подписи
+    # Подписи (ПРАВКА 1)
     owner_extra = []
     if account_number:
         owner_extra.append(f'Счёт: {account_number}')
@@ -486,6 +486,8 @@ def generate_owner_contract(
         right_title='Агент (Платформа):',
         right_name=manager_full_name,
         right_extra=[],
+        left_has_seal=False,
+        right_has_seal=True,
     )
 
     return doc
