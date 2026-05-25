@@ -116,7 +116,11 @@
                                            style="width:18px;height:18px;margin-top:3px;cursor:pointer;accent-color:#0d6efd;"
                                            {% if request.POST.overdue_terms_accepted %}checked{% endif %}>
                                     <label for="id_overdue_terms_accepted" style="cursor:pointer;" class="small">
-                                        Я ознакомлен(а) с условиями штрафа за просрочку возврата инвентаря и принимаю их
+                                        Я ознакомлен(а) с
+                                        <a href="{% url 'core:rental_terms' %}" target="_blank">условиями аренды</a>
+                                        и согласен(на), что в случае невозврата инвентаря в указанный срок
+                                        мне будет начислена плата за каждый день просрочки в размере
+                                        суточной арендной платы (статья 622 ГК РФ).
                                         <span class="text-danger">*</span>
                                     </label>
                                 </div>

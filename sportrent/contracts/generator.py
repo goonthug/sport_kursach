@@ -158,8 +158,10 @@ def _setup_doc() -> Document:
 def _signature_table(doc, left_title, left_name, left_extra,
                      right_title, right_name, right_extra,
                      left_has_seal=True, right_has_seal=True):
-    _para(doc, '', before=6)
-    _section_header(doc, 'РЕКВИЗИТЫ И ПОДПИСИ СТОРОН', before=12)
+    # keep_with_next приклеивает заголовок к таблице — Word переносит их вместе,
+    # а не разрывает на разные страницы.
+    header_para = _section_header(doc, 'РЕКВИЗИТЫ И ПОДПИСИ СТОРОН', before=6)
+    header_para.paragraph_format.keep_with_next = True
 
     table = doc.add_table(rows=1, cols=2)
     _remove_table_borders(table)
