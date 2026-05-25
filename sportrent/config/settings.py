@@ -30,6 +30,19 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-produc
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
+# Автоматическое добавление туннельного хоста (Tuna/ngrok) для webhook'ов.
+# URL меняется при каждом перезапуске тоннеля — обновляй только TUNNEL_URL в .env.
+TUNNEL_URL = config('TUNNEL_URL', default='')
+if TUNNEL_URL:
+    _tunnel_host = TUNNEL_URL.replace('https://', '').replace('http://', '').rstrip('/')
+    if _tunnel_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_tunnel_host)
+
+    # CSRF_TRUSTED_ORIGINS обязателен в Django 4+ — без него POST через туннель отклоняется.
+    CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=lambda v: [x for x in v.split(',') if x])
+    if TUNNEL_URL not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(TUNNEL_URL)
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -56,6 +69,7 @@ INSTALLED_APPS = [
     'chat.apps.ChatConfig',
     'custom_admin.apps.CustomAdminConfig',
     'ai_search.apps.AiSearchConfig',
+    'payments.apps.PaymentsConfig',
 ]
 
 MIDDLEWARE = [
@@ -285,3 +299,18 @@ USE_REGEX_FALLBACK_IN_DEBUG = (
 )
 YANDEX_GEOCODER_KEY = config('YANDEX_GEOCODER_KEY', default='')
 YANDEX_MAPS_KEY = config('YANDEX_MAPS_KEY', default='')
+
+# ЮКасса — онлайн-оплата (тестовый режим до защиты диплома)
+# YOOKASSA_MODE=test — реальных списаний нет, тестовые карты из документации ЮКассы
+YOOKASSA_SHOP_ID = (
+    os.environ.get('YOOKASSA_SHOP_ID')
+    or config('YOOKASSA_SHOP_ID', default='')
+)
+YOOKASSA_SECRET_KEY = (
+    os.environ.get('YOOKASSA_SECRET_KEY')
+    or config('YOOKASSA_SECRET_KEY', default='')
+)
+YOOKASSA_MODE = (
+    os.environ.get('YOOKASSA_MODE')
+    or config('YOOKASSA_MODE', default='test')
+)

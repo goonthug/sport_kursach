@@ -21,3 +21,6 @@ django-cors-headers>=4.3
 # AI-поиск
 gigachat>=0.2
 requests>=2.31
+
+# Онлайн-оплата
+yookassa>=3.0
