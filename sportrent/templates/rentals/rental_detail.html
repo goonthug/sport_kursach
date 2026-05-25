@@ -84,22 +84,15 @@
                                 {% else %}
                                     <p class="h5 text-warning">{{ rental.additional_payment }} ₽ — не оплачено</p>
                                     {% if user.role == 'client' %}
-                                        <form method="post" action="{% url 'rentals:pay_additional' rental.rental_id %}" class="mt-1">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-warning">
-                                                <i class="bi bi-credit-card"></i> Оплатить доплату
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-sm btn-warning mt-1"
+                                                onclick="showPaymentModal({type:'additional', amount:'{{ rental.additional_payment }}', action:'{% url 'rentals:pay_additional' rental.rental_id %}'})">
+                                            <i class="bi bi-credit-card me-1"></i> Оплатить доплату
+                                        </button>
                                     {% elif user.role == 'manager' %}
-                                        <form method="post" action="{% url 'rentals:mark_paid_cash' rental.rental_id %}"
-                                              class="mt-1"
-                                              onsubmit="return confirm('Отметить доплату {{ rental.additional_payment }} ₽ оплаченной наличными?')">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="payment_type" value="additional">
-                                            <button type="submit" class="btn btn-sm btn-outline-success">
-                                                <i class="bi bi-cash"></i> Оплачено наличными
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-success mt-1"
+                                                onclick="showCashModal({paymentType:'additional', amount:'{{ rental.additional_payment }}', action:'{% url 'rentals:mark_paid_cash' rental.rental_id %}'})">
+                                            <i class="bi bi-cash me-1"></i> Оплачено наличными
+                                        </button>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -119,22 +112,15 @@
                                 {% if rental.overdue_fee_unpaid > 0 %}
                                     <p class="h5 text-danger">{{ rental.overdue_fee_unpaid }} ₽ — не оплачено</p>
                                     {% if user.role == 'client' %}
-                                        <form method="post" action="{% url 'rentals:pay_overdue' rental.rental_id %}" class="mt-1">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-danger">
-                                                <i class="bi bi-credit-card"></i> Оплатить штраф
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-sm btn-danger mt-1"
+                                                onclick="showPaymentModal({type:'overdue', amount:'{{ rental.overdue_fee_unpaid }}', action:'{% url 'rentals:pay_overdue' rental.rental_id %}'})">
+                                            <i class="bi bi-credit-card me-1"></i> Оплатить штраф
+                                        </button>
                                     {% elif user.role == 'manager' %}
-                                        <form method="post" action="{% url 'rentals:mark_paid_cash' rental.rental_id %}"
-                                              class="mt-1"
-                                              onsubmit="return confirm('Отметить штраф {{ rental.overdue_fee_unpaid }} ₽ оплаченным наличными?')">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="payment_type" value="overdue">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <i class="bi bi-cash"></i> Оплачено наличными
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1"
+                                                onclick="showCashModal({paymentType:'overdue', amount:'{{ rental.overdue_fee_unpaid }}', action:'{% url 'rentals:mark_paid_cash' rental.rental_id %}'})">
+                                            <i class="bi bi-cash me-1"></i> Оплачено наличными
+                                        </button>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -163,10 +149,12 @@
                     </div>
 
                     {% if user.role == 'client' and rental.status == 'pending' and rental.payment_status == 'pending' and rental.total_price > 0 %}
-                        <div class="alert alert-info mt-3 mb-0">
-                            <a href="{% url 'rentals:pay' rental.rental_id %}" class="btn btn-primary">
-                                Перейти к оплате
-                            </a>
+                        <div class="alert alert-info mt-3 mb-0 d-flex align-items-center justify-content-between">
+                            <span class="small">К оплате: <strong>{{ pay_total }} ₽</strong></span>
+                            <button type="button" class="btn btn-primary btn-sm"
+                                    onclick="showPaymentModal({type:'main', amount:'{{ pay_total }}', action:'{% url 'rentals:pay' rental.rental_id %}'})">
+                                <i class="bi bi-lock me-1"></i> Оплатить аренду
+                            </button>
                         </div>
                     {% endif %}
                     
@@ -379,6 +367,8 @@
         </div>
     </div>
 {% endif %}
+
+{% include 'components/payment_modal.html' %}
 
 {% if user.role == 'client' %}
     <div class="modal fade" id="cancelRentalModal" tabindex="-1">

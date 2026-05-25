@@ -166,6 +166,7 @@ def rental_detail(request, pk):
             ).exists()
             can_leave_review = not has_review
 
+    pay_total = rental.total_price + (rental.deposit_paid or Decimal('0'))
     context = {
         'rental': rental,
         'payments': payments,
@@ -173,6 +174,7 @@ def rental_detail(request, pk):
         'can_leave_review': can_leave_review,
         'can_complete_rental': can_complete_rental,
         'owner_bank_account': owner_bank_account,
+        'pay_total': pay_total,
     }
 
     return render(request, 'rentals/rental_detail.html', context)
@@ -1000,6 +1002,13 @@ def rental_mark_paid_cash(request, pk):
                 rental.marked_paid_by = request.user
                 rental.save()
 
+                note = request.POST.get('manager_note', '').strip()
+                if note:
+                    ts = timezone.now().strftime('%d.%m.%Y %H:%M')
+                    prefix = f'\n[{ts}] {request.user.email}: {note}'
+                    rental.notes = (rental.notes or '') + prefix
+                    rental.save(update_fields=['notes'])
+
                 logger.info(
                     f'Менеджер {request.user.email} зафиксировал оплату штрафа '
                     f'{fee:.2f} ₽ наличными по аренде {rental.rental_id} '
@@ -1034,6 +1043,13 @@ def rental_mark_paid_cash(request, pk):
                 if rental.overdue_fee_unpaid <= 0:
                     rental.payment_status = 'paid'
                 rental.save()
+
+                note = request.POST.get('manager_note', '').strip()
+                if note:
+                    ts = timezone.now().strftime('%d.%m.%Y %H:%M')
+                    prefix = f'\n[{ts}] {request.user.email}: {note}'
+                    rental.notes = (rental.notes or '') + prefix
+                    rental.save(update_fields=['notes'])
 
                 logger.info(
                     f'Менеджер {request.user.email} зафиксировал оплату продления '

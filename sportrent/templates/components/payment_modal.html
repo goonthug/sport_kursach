@@ -1,0 +1,218 @@
+{% load static %}
+{# Переиспользуемый компонент: модальные окна оплаты + toast + JS #}
+
+{# ─── Клиентская модалка: онлайн-оплата ─────────────────────────────────── #}
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="paymentModalLabel">Оплата</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="paymentModalForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="payment_method" id="pmHiddenField" value="card">
+                <div class="modal-body pt-2">
+                    <div class="text-center mb-4">
+                        <div id="pmIcon" class="fs-1 mb-1">💳</div>
+                        <p class="text-muted small mb-1" id="pmDesc">Сумма к оплате</p>
+                        <p class="display-6 fw-bold text-primary mb-0" id="pmAmount">0 ₽</p>
+                    </div>
+                    <div class="mb-3">
+                        <p class="fw-semibold small mb-2">Способ оплаты</p>
+                        <div class="d-flex gap-2">
+                            <div class="form-check flex-fill text-center border rounded-3 p-2 pm-option">
+                                <input class="form-check-input visually-hidden" type="radio"
+                                       name="payment_method_ui" id="pmCard" value="card" checked>
+                                <label class="form-check-label d-block" for="pmCard" style="cursor:pointer">
+                                    <i class="bi bi-credit-card fs-4 d-block mb-1"></i>
+                                    <span class="small">Карта</span>
+                                </label>
+                            </div>
+                            <div class="form-check flex-fill text-center border rounded-3 p-2 pm-option">
+                                <input class="form-check-input visually-hidden" type="radio"
+                                       name="payment_method_ui" id="pmSbp" value="online">
+                                <label class="form-check-label d-block" for="pmSbp" style="cursor:pointer">
+                                    <i class="bi bi-phone fs-4 d-block mb-1"></i>
+                                    <span class="small">СБП</span>
+                                </label>
+                            </div>
+                            <div class="form-check flex-fill text-center border rounded-3 p-2 pm-option">
+                                <input class="form-check-input visually-hidden" type="radio"
+                                       name="payment_method_ui" id="pmCash" value="cash">
+                                <label class="form-check-label d-block" for="pmCash" style="cursor:pointer">
+                                    <i class="bi bi-cash fs-4 d-block mb-1"></i>
+                                    <span class="small">Наличные</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-shield-check text-success me-1"></i>
+                        Демонстрационная оплата. В боевом проекте — подключён платёжный шлюз.
+                    </p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary px-4" id="pmSubmitBtn">
+                        <i class="bi bi-lock me-1"></i> Оплатить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ─── Менеджерская модалка: оплата наличными ─────────────────────────────── #}
+<div class="modal fade" id="cashModal" tabindex="-1" aria-labelledby="cashModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="cashModalLabel">
+                    <i class="bi bi-cash-coin text-success me-1"></i> Оплата наличными
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="cashModalForm" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="payment_type" id="cashPaymentType" value="">
+                <div class="modal-body pt-2">
+                    <div class="alert alert-success d-flex align-items-center mb-3">
+                        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                        <span id="cashConfirmText">Подтверждаю получение наличных в размере 0 ₽</span>
+                    </div>
+                    <div class="mb-0">
+                        <label for="managerNote" class="form-label small fw-semibold">Комментарий <span class="text-muted fw-normal">(необязательно)</span></label>
+                        <textarea class="form-control form-control-sm" id="managerNote" name="manager_note"
+                                  rows="2" placeholder="Например: оплатил при получении инвентаря"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-success px-4" id="cashSubmitBtn">
+                        <i class="bi bi-check-circle me-1"></i> Подтвердить получение
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ─── Toast уведомление ───────────────────────────────────────────────────── #}
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1200">
+    <div id="paymentToast" class="toast align-items-center text-bg-success border-0"
+         role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body fw-semibold">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <span id="toastText">Платёж проведён ✓</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ── Стилизация выбранного способа оплаты ── */
+    document.querySelectorAll('.pm-option input[type=radio]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            document.querySelectorAll('.pm-option').forEach(function (el) {
+                el.classList.remove('border-primary', 'bg-primary-subtle');
+            });
+            if (this.checked) {
+                this.closest('.pm-option').classList.add('border-primary', 'bg-primary-subtle');
+            }
+        });
+    });
+    /* Активируем карту по умолчанию */
+    const defaultRadio = document.getElementById('pmCard');
+    if (defaultRadio) {
+        defaultRadio.closest('.pm-option').classList.add('border-primary', 'bg-primary-subtle');
+    }
+
+    /* ── Toast ── */
+    function showToast(message, variant) {
+        const toastEl = document.getElementById('paymentToast');
+        toastEl.className = 'toast align-items-center border-0 text-bg-' + (variant || 'success');
+        document.getElementById('toastText').textContent = message || 'Готово ✓';
+        bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3000 }).show();
+    }
+
+    /* ── Открытие клиентской модалки ── */
+    window.showPaymentModal = function (opts) {
+        const titles = {
+            main:       'Оплата аренды',
+            additional: 'Оплата доплаты за продление',
+            overdue:    'Оплата штрафа за просрочку',
+        };
+        const icons = { main: '💳', additional: '📅', overdue: '⚠️' };
+
+        document.getElementById('paymentModalLabel').textContent = titles[opts.type] || 'Оплата';
+        document.getElementById('pmIcon').textContent = icons[opts.type] || '💳';
+        document.getElementById('pmAmount').textContent = opts.amount + ' ₽';
+        document.getElementById('paymentModalForm').action = opts.action;
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('paymentModal')).show();
+    };
+
+    /* ── Открытие менеджерской модалки ── */
+    window.showCashModal = function (opts) {
+        document.getElementById('cashConfirmText').textContent =
+            'Подтверждаю получение наличных в размере ' + opts.amount + ' ₽';
+        document.getElementById('cashPaymentType').value = opts.paymentType;
+        document.getElementById('managerNote').value = '';
+        document.getElementById('cashModalForm').action = opts.action;
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('cashModal')).show();
+    };
+
+    /* ── AJAX-сабмит клиентской формы ── */
+    document.getElementById('paymentModalForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const form = this;
+        const btn = document.getElementById('pmSubmitBtn');
+        const selected = form.querySelector('input[name="payment_method_ui"]:checked');
+        if (selected) document.getElementById('pmHiddenField').value = selected.value;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Обработка...';
+
+        fetch(form.action, { method: 'POST', body: new FormData(form), redirect: 'follow' })
+            .then(function () {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('paymentModal')).hide();
+                showToast('Платёж проведён ✓', 'success');
+                setTimeout(function () { location.reload(); }, 2200);
+            })
+            .catch(function () {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-lock me-1"></i> Оплатить';
+                showToast('Ошибка сети — попробуйте ещё раз', 'danger');
+            });
+    });
+
+    /* ── AJAX-сабмит менеджерской формы ── */
+    document.getElementById('cashModalForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const form = this;
+        const btn = document.getElementById('cashSubmitBtn');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Сохранение...';
+
+        fetch(form.action, { method: 'POST', body: new FormData(form), redirect: 'follow' })
+            .then(function () {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('cashModal')).hide();
+                showToast('Оплата наличными зафиксирована ✓', 'success');
+                setTimeout(function () { location.reload(); }, 2200);
+            })
+            .catch(function () {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Подтвердить получение';
+                showToast('Ошибка сети — попробуйте ещё раз', 'danger');
+            });
+    });
+}());
+</script>
