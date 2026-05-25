@@ -24,6 +24,9 @@ urlpatterns = [
     path('api/v1/', include('inventory.api_urls')),
     path('api/v1/auth/', include('users.api_urls')),
     path('api/v1/ai-search/', include('ai_search.urls')),
+
+    # Платежи ЮКасса (префикс совпадает с webhook URL в ЛК ЮКассы)
+    path('api/payments/', include('payments.urls')),
 ]
 
 # Медиа файлы в режиме разработки
