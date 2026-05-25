@@ -210,44 +210,49 @@ def rental_create(request, inventory_id):
 
     if request.method == 'POST':
         form = RentalCreateForm(request.POST, inventory=inventory, client=client)
+        overdue_terms_accepted = request.POST.get('overdue_terms_accepted')
 
         if form.is_valid():
-            try:
-                with transaction.atomic():
-                    rental = form.save(commit=False)
-                    rental.client = client
-                    rental.inventory = inventory
+            if not overdue_terms_accepted:
+                messages.error(request, 'Необходимо ознакомиться с условиями штрафа за просрочку возврата')
+            else:
+                try:
+                    with transaction.atomic():
+                        rental = form.save(commit=False)
+                        rental.client = client
+                        rental.inventory = inventory
 
-                    # Назначаем менеджера (если есть)
-                    primary_manager = get_primary_manager_profile()
-                    if primary_manager is None:
-                        raise RuntimeError('Профиль менеджера не найден')
-                    rental.manager = inventory.manager or primary_manager
+                        # Назначаем менеджера (если есть)
+                        primary_manager = get_primary_manager_profile()
+                        if primary_manager is None:
+                            raise RuntimeError('Профиль менеджера не найден')
+                        rental.manager = inventory.manager or primary_manager
 
-                    # Рассчитываем стоимость
-                    rental_days = (rental.end_date - rental.start_date).days
-                    rental.total_price = inventory.price_per_day * rental_days
-                    rental.deposit_paid = inventory.deposit_amount
+                        # Рассчитываем стоимость
+                        rental_days = (rental.end_date - rental.start_date).days
+                        rental.total_price = inventory.price_per_day * rental_days
+                        rental.deposit_paid = inventory.deposit_amount
 
-                    rental.status = 'pending'
-                    rental.payment_status = 'pending'
-                    rental.save()
+                        rental.status = 'pending'
+                        rental.payment_status = 'pending'
+                        rental.overdue_terms_accepted_at = timezone.now()
+                        rental.save()
 
-                    # Создаем платеж
-                    Payment.objects.create(
-                        rental=rental,
-                        amount=rental.total_price + rental.deposit_paid,
-                        payment_method='online',
-                        status='pending'
-                    )
+                        # Создаем платеж
+                        Payment.objects.create(
+                            rental=rental,
+                            amount=rental.total_price + rental.deposit_paid,
+                            payment_method='online',
+                            status='pending'
+                        )
 
-                    logger.info(f'Создана заявка на аренду: {rental.rental_id} для {client.full_name}')
-                    messages.success(request, 'Заявка создана. Перейдите к оплате.')
-                    return redirect('rentals:pay', pk=rental.rental_id)
+                        logger.info(f'Создана заявка на аренду: {rental.rental_id} для {client.full_name}')
+                        messages.success(request, 'Заявка создана. Перейдите к оплате.')
+                        return redirect('rentals:pay', pk=rental.rental_id)
 
-            except Exception as e:
-                logger.error(f'Ошибка при создании аренды: {str(e)}')
-                messages.error(request, 'Произошла ошибка при создании заявки')
+                except Exception as e:
+                    logger.error(f'Ошибка при создании аренды: {str(e)}')
+                    messages.error(request, 'Произошла ошибка при создании заявки')
     else:
         # Предзаполняем форму
         initial = {

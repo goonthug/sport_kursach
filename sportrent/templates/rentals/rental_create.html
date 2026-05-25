@@ -79,10 +79,50 @@
                         {% endif %}
                         
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> 
+                            <i class="bi bi-info-circle"></i>
                             После отправки заявки менеджер рассмотрит её и свяжется с вами для подтверждения деталей.
                         </div>
-                        
+
+                        <!-- Согласие с условиями штрафа за просрочку -->
+                        <div class="card border-warning mb-3">
+                            <div class="card-body py-3">
+                                <h6 class="card-title mb-2">
+                                    <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                                    Условия штрафа за просрочку (ст. 622 ГК РФ)
+                                </h6>
+                                <p class="small mb-2">
+                                    При несвоевременном возврате инвентаря с вас будет взиматься плата
+                                    <strong>{{ inventory.price_per_day }} ₽ за каждый день просрочки</strong>
+                                    (суточная ставка аренды согласно ст. 622 ГК РФ).
+                                </p>
+                                <a class="small text-decoration-none d-block mb-2"
+                                   data-bs-toggle="collapse" href="#overdueTermsText"
+                                   role="button" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Читать подробнее →
+                                </a>
+                                <div class="collapse" id="overdueTermsText">
+                                    <div class="border rounded p-3 mb-3 small" style="max-height:150px; overflow-y:auto;">
+                                        В соответствии со статьёй 622 Гражданского кодекса РФ при несвоевременном
+                                        возврате арендованного имущества арендатор обязан вносить арендную плату за
+                                        всё время просрочки. Если указанная плата не покрывает причинённых убытков,
+                                        арендодатель вправе потребовать их возмещения.<br><br>
+                                        Вы также можете ознакомиться с полными условиями на
+                                        <a href="/terms/" target="_blank">странице условий аренды</a>.
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-start gap-2 mt-1">
+                                    <input type="checkbox" class="form-check-input flex-shrink-0"
+                                           name="overdue_terms_accepted" id="id_overdue_terms_accepted"
+                                           style="width:18px;height:18px;margin-top:3px;cursor:pointer;accent-color:#0d6efd;"
+                                           {% if request.POST.overdue_terms_accepted %}checked{% endif %}>
+                                    <label for="id_overdue_terms_accepted" style="cursor:pointer;" class="small">
+                                        Я ознакомлен(а) с условиями штрафа за просрочку возврата инвентаря и принимаю их
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{% url 'inventory:detail' inventory.inventory_id %}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle"></i> Отмена

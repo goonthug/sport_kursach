@@ -63,6 +63,10 @@ class Rental(models.Model):
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending',
                                       verbose_name='Статус оплаты')
 
+    # Подтверждение ознакомления с условиями штрафа за просрочку (ст. 622 ГК РФ)
+    overdue_terms_accepted_at = models.DateTimeField(null=True, blank=True,
+                                                     verbose_name='Условия просрочки приняты')
+
     created_date = models.DateTimeField(default=timezone.now, verbose_name='Дата создания')
     notes = models.TextField(blank=True, verbose_name='Примечания')
     rejection_reason = models.TextField(blank=True, verbose_name='Причина отклонения')
