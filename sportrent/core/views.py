@@ -48,13 +48,6 @@ def home(request):
     return render(request, 'core/home.html', context)
 
 
-def about(request):
-    """
-    Страница О проекте.
-    """
-    return render(request, 'core/about.html')
-
-
 @require_POST
 def save_geo_session(request):
     """
