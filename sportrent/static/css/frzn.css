@@ -108,6 +108,21 @@ a:hover {
   font-size: 1.25rem;
   letter-spacing: 2px;
   color: var(--pure-white);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.navbar-logo {
+  height: 44px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+@media (max-width: 991.98px) {
+  .navbar-logo {
+    height: 32px;
+  }
 }
 
 .nav-link {
