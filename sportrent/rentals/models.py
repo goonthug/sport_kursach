@@ -138,6 +138,40 @@ class Rental(models.Model):
         return max(Decimal('0'), total - snapshot)
 
 
+class PaymentHistory(models.Model):
+    """Аудит-лог всех урегулированных платежей по аренде (продление + штрафы)."""
+
+    PAYMENT_TYPE_CHOICES = [
+        ('extension_card', 'Доплата за продление (онлайн)'),
+        ('extension_cash', 'Доплата за продление (наличными)'),
+        ('overdue_card',   'Штраф за просрочку (онлайн)'),
+        ('overdue_cash',   'Штраф за просрочку (наличными)'),
+    ]
+
+    history_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rental = models.ForeignKey(Rental, on_delete=models.CASCADE,
+                               related_name='payment_history', verbose_name='Аренда')
+    amount = models.DecimalField(max_digits=10, decimal_places=2,
+                                 validators=[MinValueValidator(0)], verbose_name='Сумма')
+    payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES,
+                                    verbose_name='Тип платежа')
+    paid_at = models.DateTimeField(verbose_name='Дата оплаты')
+    paid_to_manager = models.ForeignKey(
+        'users.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='received_cash_payments', verbose_name='Принял наличными'
+    )
+    comment = models.TextField(blank=True, verbose_name='Комментарий менеджера')
+
+    class Meta:
+        db_table = 'payment_history'
+        verbose_name = 'История платежа'
+        verbose_name_plural = 'История платежей'
+        ordering = ['-paid_at']
+
+    def __str__(self):
+        return f'{self.get_payment_type_display()} — {self.amount} ₽'
+
+
 class Reservation(models.Model):
     """
     Бронь товара на время (без оплаты).
