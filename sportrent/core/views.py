@@ -99,6 +99,11 @@ def save_geo_session(request):
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
 
 
+def rental_terms(request):
+    """Страница с условиями аренды и FAQ по штрафам (ст. 622 ГК РФ, 152-ФЗ)."""
+    return render(request, 'core/rental_terms.html')
+
+
 @require_POST
 def clear_geo_session(request):
     """
