@@ -121,6 +121,24 @@ def _add_page_numbers(doc):
             _field(r, fname)
 
 
+def _finalize_doc(doc):
+    """Добавляет 1pt абзац в конец документа.
+
+    Когда python-docx сохраняет <w:sectPr> как прямой дочерний элемент <w:body>,
+    Word при открытии переносит его в pPr последнего абзаца. Если этот абзац
+    имеет Normal-стиль (1.5 строки ≈ 21pt), он может переехать на новую страницу
+    и создать пустую страницу в конце. Явный 1pt-абзац «занимает» это место
+    и занимает всего 1pt высоты — пустой страницы не возникает.
+    """
+    tiny = doc.add_paragraph()
+    pf = tiny.paragraph_format
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
+    pf.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+    pf.line_spacing = Pt(1)
+    tiny.add_run().font.size = Pt(1)
+
+
 def _city_date_row(doc, city, date_str):
     table = doc.add_table(rows=1, cols=2)
     _remove_table_borders(table)
@@ -149,6 +167,11 @@ def _setup_doc() -> Document:
     normal.paragraph_format.line_spacing = _SPACING
     normal.paragraph_format.space_before = Pt(0)
     normal.paragraph_format.space_after = Pt(0)
+
+    # Document() всегда создаёт один пустой абзац в начале (~21pt при 1.5 интервале).
+    # На длинных договорах он выталкивает последний контент на лишнюю пустую страницу.
+    if doc.paragraphs:
+        doc.paragraphs[0]._element.getparent().remove(doc.paragraphs[0]._element)
 
     _add_page_numbers(doc)
     return doc
@@ -356,6 +379,7 @@ def generate_rental_contract(
         right_has_seal=False,
     )
 
+    _finalize_doc(doc)
     return doc
 
 
@@ -494,4 +518,5 @@ def generate_owner_contract(
         right_has_seal=True,
     )
 
+    _finalize_doc(doc)
     return doc
