@@ -579,3 +579,40 @@ def export_stats_pdf(request):
     }
 
     return export_stats_to_pdf(stats_data)
+
+
+@login_required
+def owner_passport_registry(request):
+    """
+    Реестр паспортных данных владельцев — только для администратора.
+    Принцип минимальных привилегий (152-ФЗ): super_manager не имеет доступа.
+    """
+    from django.core.exceptions import PermissionDenied
+
+    if not (request.user.is_superuser or request.user.role == 'administrator'):
+        raise PermissionDenied
+
+    search = request.GET.get('search', '').strip()
+    nda_filter = request.GET.get('nda', '')
+
+    owners = Owner.objects.select_related('user', 'home_city').order_by('full_name')
+
+    if search:
+        owners = owners.filter(
+            Q(full_name__icontains=search) | Q(user__email__icontains=search)
+        )
+
+    if nda_filter == 'yes':
+        owners = owners.exclude(passport_nda_accepted_at=None)
+    elif nda_filter == 'no':
+        owners = owners.filter(passport_nda_accepted_at=None)
+
+    paginator = Paginator(owners, 20)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    context = {
+        'page_obj': page_obj,
+        'search_query': search,
+        'nda_filter': nda_filter,
+    }
+    return render(request, 'custom_admin/owner_passport_registry.html', context)

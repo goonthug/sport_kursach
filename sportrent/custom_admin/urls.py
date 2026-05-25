@@ -15,6 +15,9 @@ urlpatterns = [
     path('inventory/<uuid:pk>/publish/', views.admin_inventory_publish, name='inventory_publish'),
     path('inventory/<uuid:pk>/contract/download/', views.inventory_contract_download, name='inventory_contract_download'),
 
+    # Реестр паспортных данных (только администратор, 152-ФЗ)
+    path('owners/passports/', views.owner_passport_registry, name='owner_passport_registry'),
+
     # Экспорт
     path('export/inventory/xlsx/', views.export_inventory_xlsx, name='export_inventory_xlsx'),
     path('export/inventory/pdf/', views.export_inventory_pdf, name='export_inventory_pdf'),
