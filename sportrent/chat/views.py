@@ -26,9 +26,14 @@ def chat_list(request):
     Список чатов пользователя (сгруппированных по арендам).
     """
     user = request.user
+    is_super = (
+        user.role == 'manager'
+        and hasattr(user, 'manager_profile')
+        and user.manager_profile.is_super_manager
+    )
 
-    # Получаем все чаты где пользователь участвует
-    if user.role == 'administrator':
+    # Super-менеджер и администратор видят все чаты без фильтра по участнику.
+    if user.role == 'administrator' or is_super:
         chats_qs = ChatMessage.objects.select_related(
             'rental', 'rental__inventory', 'rental__client', 'rental__manager', 'sender', 'receiver'
         ).order_by('rental', '-sent_date')
@@ -43,7 +48,7 @@ def chat_list(request):
         rental_id = str(message.rental.rental_id)
         if rental_id not in chat_groups:
             # Определяем собеседника
-            if user.role == 'administrator':
+            if user.role == 'administrator' or is_super:
                 other_user = message.sender
                 unread_count = 0
             else:
