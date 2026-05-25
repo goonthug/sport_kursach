@@ -1,14 +1,19 @@
+import json
 import logging
+from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponseBadRequest
+from django.db import transaction
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from rentals.models import Rental
+from rentals.models import PaymentHistory, Rental
 from .models import PaymentIntent
 from .services import YooKassaService
 
@@ -96,3 +101,149 @@ def create_payment(request, rental_id, purpose):
         intent.intent_id, rental_id, purpose, amount,
     )
     return redirect(confirmation_url)
+
+
+@csrf_exempt
+@require_POST
+def payment_webhook(request):
+    """
+    Обработчик входящих уведомлений от ЮКассы.
+
+    Проверяет IP отправителя, обновляет PaymentIntent и применяет
+    бизнес-эффект при payment.succeeded. Всегда возвращает 200 OK
+    если обработка прошла — иначе ЮКасса повторяет запрос до 24 ч.
+    """
+    # Реальный IP за nginx приходит в X-Real-IP или первым в X-Forwarded-For
+    client_ip = (
+        request.META.get('HTTP_X_REAL_IP')
+        or request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+        or request.META.get('REMOTE_ADDR', '')
+    )
+
+    if not YooKassaService.verify_webhook_ip(client_ip):
+        logger.warning('Webhook отклонён: IP %s не в whitelist ЮКассы', client_ip)
+        return HttpResponse(status=403)
+
+    logger.info('Webhook получен с IP %s', client_ip)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        logger.warning('Webhook: невалидный JSON в теле запроса')
+        return HttpResponse(status=400)
+
+    event_type = data.get('event', '')
+    payment_obj = data.get('object', {})
+    yookassa_payment_id = payment_obj.get('id', '')
+
+    if not yookassa_payment_id:
+        logger.warning('Webhook: отсутствует object.id в теле %s', data)
+        return HttpResponse(status=400)
+
+    # Найти PaymentIntent по ID платежа в ЮКассе
+    try:
+        intent = PaymentIntent.objects.select_related('rental__inventory').get(
+            yookassa_payment_id=yookassa_payment_id
+        )
+    except PaymentIntent.DoesNotExist:
+        logger.warning(
+            'Webhook: PaymentIntent не найден для yookassa_payment_id=%s (event=%s)',
+            yookassa_payment_id, event_type,
+        )
+        # Возвращаем 200 чтобы ЮКасса не повторяла — мы этот платёж не знаем
+        return HttpResponse(status=200)
+
+    # Idempotency: если webhook уже успешно обработан — пропустить
+    if intent.status == 'succeeded' and event_type == 'payment.succeeded':
+        logger.info('Webhook idempotent skip: intent %s уже succeeded', intent.intent_id)
+        return HttpResponse(status=200)
+
+    # Проверка суммы — расхождение может сигнализировать об атаке
+    webhook_amount = Decimal(payment_obj.get('amount', {}).get('value', '0'))
+    if event_type == 'payment.succeeded' and webhook_amount != intent.amount:
+        logger.warning(
+            'Webhook: расхождение суммы для intent %s: ожидали %s, получили %s',
+            intent.intent_id, intent.amount, webhook_amount,
+        )
+        # Не прерываем обработку, но факт расхождения зафиксирован
+
+    if event_type == 'payment.succeeded':
+        try:
+            with transaction.atomic():
+                _apply_payment_succeeded(intent, data)
+        except Exception as exc:
+            logger.error(
+                'Webhook: ошибка при обработке payment.succeeded для intent %s: %s',
+                intent.intent_id, exc,
+            )
+            # 500 заставит ЮКассу повторить запрос
+            return HttpResponse(status=500)
+
+    elif event_type == 'payment.canceled':
+        intent.status = 'canceled'
+        intent.raw_webhook_data = data
+        intent.save(update_fields=['status', 'raw_webhook_data', 'updated_at'])
+        logger.info('PaymentIntent %s отменён через webhook', intent.intent_id)
+
+    elif event_type == 'payment.waiting_for_capture':
+        intent.status = 'waiting_for_capture'
+        intent.raw_webhook_data = data
+        intent.save(update_fields=['status', 'raw_webhook_data', 'updated_at'])
+        logger.info('PaymentIntent %s ожидает подтверждения списания', intent.intent_id)
+
+    else:
+        logger.warning(
+            'Webhook: неизвестный тип события "%s" для intent %s',
+            event_type, intent.intent_id,
+        )
+
+    return HttpResponse(status=200)
+
+
+def _apply_payment_succeeded(intent: PaymentIntent, raw_data: dict) -> None:
+    """
+    Применяет бизнес-эффект успешной оплаты внутри уже открытой транзакции.
+    Вызывается только из payment_webhook.
+    """
+    now = timezone.now()
+    rental = intent.rental
+
+    intent.status = 'succeeded'
+    intent.raw_webhook_data = raw_data
+    intent.save(update_fields=['status', 'raw_webhook_data', 'updated_at'])
+
+    if intent.purpose == 'rental_main':
+        rental.payment_status = 'paid'
+        # Поля payment_date на Rental нет — статус оплаты отражается через payment_status
+        rental.save(update_fields=['payment_status'])
+        # PaymentHistory не имеет типа для rental_main — только extension/overdue
+        # TODO: добавить тип 'rental_main_card' в PaymentHistory.PAYMENT_TYPE_CHOICES если понадобится история
+
+    elif intent.purpose == 'extension':
+        rental.additional_payment_paid = True
+        # Если нет других долгов — итоговый статус тоже paid
+        if rental.overdue_fee_unpaid <= 0:
+            rental.payment_status = 'paid'
+        rental.save(update_fields=['additional_payment_paid', 'payment_status'])
+        PaymentHistory.objects.create(
+            rental=rental,
+            amount=intent.amount,
+            payment_type='extension_card',
+            paid_at=now,
+        )
+
+    elif intent.purpose == 'overdue':
+        rental.overdue_fee_paid_at = now
+        rental.overdue_fee_snapshot = intent.amount
+        rental.save(update_fields=['overdue_fee_paid_at', 'overdue_fee_snapshot'])
+        PaymentHistory.objects.create(
+            rental=rental,
+            amount=intent.amount,
+            payment_type='overdue_card',
+            paid_at=now,
+        )
+
+    logger.info(
+        'Webhook processed: intent=%s purpose=%s аренда=%s сумма=%s',
+        intent.intent_id, intent.purpose, rental.rental_id, intent.amount,
+    )

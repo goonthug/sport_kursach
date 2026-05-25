@@ -5,6 +5,9 @@ from . import views
 app_name = 'payments'
 
 urlpatterns = [
+    # Webhook от ЮКассы — URL совпадает с прописанным в ЛК ЮКассы
+    path('webhook/', views.payment_webhook, name='webhook'),
+
     path(
         'rental/<uuid:rental_id>/',
         views.create_payment,
