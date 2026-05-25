@@ -167,6 +167,11 @@ def rental_detail(request, pk):
             can_leave_review = not has_review
 
     pay_total = rental.total_price + (rental.deposit_paid or Decimal('0'))
+    payment_history = (
+        rental.payment_history.select_related('paid_to_manager').all()
+        if user.role in ('manager', 'administrator')
+        else None
+    )
     context = {
         'rental': rental,
         'payments': payments,
@@ -175,6 +180,7 @@ def rental_detail(request, pk):
         'can_complete_rental': can_complete_rental,
         'owner_bank_account': owner_bank_account,
         'pay_total': pay_total,
+        'payment_history': payment_history,
     }
 
     return render(request, 'rentals/rental_detail.html', context)
