@@ -190,6 +190,15 @@ class Owner(models.Model):
     active_items = models.IntegerField(default=0, verbose_name='Активных предметов')
     verified = models.BooleanField(default=False, verbose_name='Верифицирован')
 
+    # Паспортные данные — хранятся по требованию 152-ФЗ, доступ только администратору
+    passport_series = models.CharField(max_length=4, blank=True, verbose_name='Серия паспорта')
+    passport_number = models.CharField(max_length=6, blank=True, verbose_name='Номер паспорта')
+    passport_issue_date = models.DateField(null=True, blank=True, verbose_name='Дата выдачи')
+    passport_department_code = models.CharField(max_length=7, blank=True, verbose_name='Код подразделения')
+    passport_issued_by = models.CharField(max_length=255, blank=True, verbose_name='Кем выдан')
+    passport_nda_accepted_at = models.DateTimeField(null=True, blank=True, verbose_name='NDA принято')
+    passport_nda_version = models.CharField(max_length=20, blank=True, verbose_name='Версия NDA')
+
     class Meta:
         db_table = 'owners'
         verbose_name = 'Владелец'

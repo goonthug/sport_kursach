@@ -106,6 +106,30 @@ OWNER_DATA = [
     ('owner20@mail.ru', 'Лебедева Виктория Павловна',      'Волгоград',       '340112345620'),
 ]
 
+# Региональные серии паспортов и наименования органов выдачи для владельцев (демо)
+CITY_PASSPORT_INFO = {
+    'Москва':          ('4501', 'г. Москве'),
+    'Воронеж':         ('3601', 'Воронежской области'),
+    'Ярославль':       ('7601', 'Ярославской области'),
+    'Тула':            ('7101', 'Тульской области'),
+    'Санкт-Петербург': ('4001', 'г. Санкт-Петербургу'),
+    'Казань':          ('9201', 'Республике Татарстан'),
+    'Нижний Новгород': ('5201', 'Нижегородской области'),
+    'Самара':          ('6301', 'Самарской области'),
+    'Уфа':             ('0201', 'Республике Башкортостан'),
+    'Пермь':           ('5901', 'Пермскому краю'),
+    'Саратов':         ('6401', 'Саратовской области'),
+    'Екатеринбург':    ('6601', 'Свердловской области'),
+    'Челябинск':       ('7401', 'Челябинской области'),
+    'Тюмень':          ('7201', 'Тюменской области'),
+    'Новосибирск':     ('5401', 'Новосибирской области'),
+    'Омск':            ('5501', 'Омской области'),
+    'Красноярск':      ('2401', 'Красноярскому краю'),
+    'Краснодар':       ('2301', 'Краснодарскому краю'),
+    'Ростов-на-Дону':  ('6101', 'Ростовской области'),
+    'Волгоград':       ('3401', 'Волгоградской области'),
+}
+
 CLIENT_DATA = [
     ('client1@mail.ru',  'Иванов Иван Иванович'),
     ('client2@mail.ru',  'Смирнова Елена Александровна'),
@@ -455,6 +479,28 @@ class Command(BaseCommand):
                     recipient_name=full_name,
                     is_default=True,
                 )
+
+            # Паспортные данные (демо) — заполняем если ещё нет
+            if not owner.passport_series:
+                p_series, p_region = CITY_PASSPORT_INFO.get(city_name, (f'{5000 + idx:04d}', city_name))
+                p_number = f'{100000 + idx:06d}'
+                p_issue_date = (timezone.now() - timedelta(days=365 * random.randint(3, 15))).date()
+                p_dept_code = f'{100 + idx:03d}-{200 + idx:03d}'
+                p_issued_by = f'ОУФМС по {p_region} (ДЕМО)'
+                owner.passport_series = p_series
+                owner.passport_number = p_number
+                owner.passport_issue_date = p_issue_date
+                owner.passport_department_code = p_dept_code
+                owner.passport_issued_by = p_issued_by
+                owner.passport_nda_accepted_at = (
+                    timezone.now() - timedelta(days=random.randint(30, 365))
+                )
+                owner.passport_nda_version = '1.0'
+                owner.save(update_fields=[
+                    'passport_series', 'passport_number', 'passport_issue_date',
+                    'passport_department_code', 'passport_issued_by',
+                    'passport_nda_accepted_at', 'passport_nda_version',
+                ])
 
         # Клиенты
         for idx, (email, full_name) in enumerate(CLIENT_DATA, start=1):

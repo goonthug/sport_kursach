@@ -113,6 +113,17 @@ class UserRegistrationForm(UserCreationForm):
         })
     )
 
+    passport_issued_by = forms.CharField(
+        label='Кем выдан',
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'УФМС России по г. Москве',
+            'id': 'id_passport_issued_by',
+        })
+    )
+
     # Соглашение на обработку паспортных данных (152-ФЗ) — только для клиента
     passport_nda_accepted = forms.BooleanField(
         label='Согласен на обработку паспортных данных в соответствии с 152-ФЗ',
@@ -120,6 +131,16 @@ class UserRegistrationForm(UserCreationForm):
         widget=forms.CheckboxInput(attrs={
             'class': 'form-check-input',
             'id': 'id_passport_nda_accepted',
+        })
+    )
+
+    # Соглашение 152-ФЗ для владельца — отдельный чекбокс, отдельный момент принятия
+    owner_passport_nda_accepted = forms.BooleanField(
+        label='Согласен на обработку паспортных данных в соответствии с 152-ФЗ',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'id_owner_passport_nda_accepted',
         })
     )
 
@@ -353,11 +374,16 @@ class UserRegistrationForm(UserCreationForm):
                 )
 
         if role == 'owner':
-            # Проверка соглашения
+            # Проверка соглашения о выплатах
             agreement_accepted = cleaned_data.get('agreement_accepted')
-
             if not agreement_accepted:
                 raise ValidationError('Необходимо принять условия соглашения')
+
+            # Проверка согласия 152-ФЗ
+            if not cleaned_data.get('owner_passport_nda_accepted'):
+                raise ValidationError(
+                    'Необходимо принять соглашение на обработку паспортных данных (152-ФЗ)'
+                )
 
             # Проверка банковских реквизитов
             bank_name = cleaned_data.get('bank_name', '').strip()
@@ -394,7 +420,14 @@ class UserRegistrationForm(UserCreationForm):
             elif user.role == 'owner':
                 owner = Owner.objects.create(
                     user=user,
-                    full_name=full_name
+                    full_name=full_name,
+                    passport_series=self.cleaned_data.get('passport_series', ''),
+                    passport_number=self.cleaned_data.get('passport_number', ''),
+                    passport_issue_date=self.cleaned_data.get('passport_issue_date'),
+                    passport_department_code=self.cleaned_data.get('passport_department_code', ''),
+                    passport_issued_by=self.cleaned_data.get('passport_issued_by', ''),
+                    passport_nda_accepted_at=timezone.now(),
+                    passport_nda_version='1.0',
                 )
 
                 # Создаем соглашение с фиксированными процентами 70/30
