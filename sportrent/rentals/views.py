@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from .forms import RentalBankAccountForm, RentalCreateForm, RentalUpdateForm
 from .forms import ReservationCreateForm
-from .models import Contract, Payment, Rental, Reservation
+from .models import Contract, Payment, PaymentHistory, Rental, Reservation
 from inventory.models import Inventory
 from users.models import Client, Manager
 
@@ -833,10 +833,23 @@ def rental_extend(request, pk):
                         f'{forgiven_fee:.2f} ₽ при продлении аренды {rental.rental_id}'
                     )
 
+                # Если предыдущая доплата уже оплачена — сбрасываем её перед
+                # новым начислением, иначе получится двойной учёт.
+                # (PaymentHistory-запись уже создана в момент оплаты.)
+                if rental.additional_payment_paid:
+                    rental.additional_payment = Decimal('0')
+                    rental.additional_payment_paid = False
+
+                # Если штраф уже оплачен — сбрасываем snapshot/paid_at.
+                if rental.overdue_fee_paid_at:
+                    rental.overdue_fee_paid_at = None
+                    rental.overdue_fee_snapshot = None
+
                 # Продлеваем дату окончания
                 rental.end_date = new_end
 
-                # Рассчитываем стоимость доплаты
+                # Новая доплата: += корректно работает и когда обнулили выше,
+                # и когда предыдущая ещё не оплачена (накапливаем).
                 additional_price = rental.inventory.price_per_day * additional_days
                 rental.additional_payment += additional_price
                 rental.payment_status = 'delayed'
@@ -882,15 +895,22 @@ def rental_pay_overdue(request, pk):
     try:
         with transaction.atomic():
             total_fee = rental.overdue_fee
+            now = timezone.now()
             Payment.objects.create(
                 rental=rental,
                 amount=fee,
                 payment_method='online',
                 status='completed',
-                payment_date=timezone.now(),
+                payment_date=now,
+            )
+            PaymentHistory.objects.create(
+                rental=rental,
+                amount=fee,
+                payment_type='overdue_card',
+                paid_at=now,
             )
             rental.overdue_fee_snapshot = total_fee
-            rental.overdue_fee_paid_at = timezone.now()
+            rental.overdue_fee_paid_at = now
             rental.save()
 
             logger.info(
@@ -936,24 +956,31 @@ def rental_pay_additional(request, pk):
 
     try:
         with transaction.atomic():
+            amount = rental.additional_payment
+            now = timezone.now()
             Payment.objects.create(
                 rental=rental,
-                amount=rental.additional_payment,
+                amount=amount,
                 payment_method='online',
                 status='completed',
-                payment_date=timezone.now(),
+                payment_date=now,
+            )
+            PaymentHistory.objects.create(
+                rental=rental,
+                amount=amount,
+                payment_type='extension_card',
+                paid_at=now,
             )
             rental.additional_payment_paid = True
-            # Если больше нет долгов — снимаем флаг задержки
             if rental.overdue_fee_unpaid <= 0:
                 rental.payment_status = 'paid'
             rental.save()
 
             logger.info(
-                f'Клиент {request.user.email} оплатил продление {rental.additional_payment:.2f} ₽ '
+                f'Клиент {request.user.email} оплатил продление {amount:.2f} ₽ '
                 f'по аренде {rental.rental_id}'
             )
-            messages.success(request, f'Доплата {rental.additional_payment:.2f} ₽ успешно оплачена.')
+            messages.success(request, f'Доплата {amount:.2f} ₽ успешно оплачена.')
     except Exception as e:
         logger.error(f'Ошибка при оплате продления аренды {pk}: {e}')
         messages.error(request, 'Ошибка при проведении оплаты')
@@ -990,24 +1017,30 @@ def rental_mark_paid_cash(request, pk):
         try:
             with transaction.atomic():
                 total_fee = rental.overdue_fee
+                now = timezone.now()
+                note = request.POST.get('manager_note', '').strip()
                 Payment.objects.create(
                     rental=rental,
                     amount=fee,
                     payment_method='cash',
                     status='completed',
-                    payment_date=timezone.now(),
+                    payment_date=now,
+                )
+                PaymentHistory.objects.create(
+                    rental=rental,
+                    amount=fee,
+                    payment_type='overdue_cash',
+                    paid_at=now,
+                    paid_to_manager=request.user,
+                    comment=note,
                 )
                 rental.overdue_fee_snapshot = total_fee
-                rental.overdue_fee_paid_at = timezone.now()
+                rental.overdue_fee_paid_at = now
                 rental.marked_paid_by = request.user
-                rental.save()
-
-                note = request.POST.get('manager_note', '').strip()
                 if note:
-                    ts = timezone.now().strftime('%d.%m.%Y %H:%M')
-                    prefix = f'\n[{ts}] {request.user.email}: {note}'
-                    rental.notes = (rental.notes or '') + prefix
-                    rental.save(update_fields=['notes'])
+                    ts = now.strftime('%d.%m.%Y %H:%M')
+                    rental.notes = (rental.notes or '') + f'\n[{ts}] {request.user.email}: {note}'
+                rental.save()
 
                 logger.info(
                     f'Менеджер {request.user.email} зафиксировал оплату штрафа '
@@ -1031,25 +1064,31 @@ def rental_mark_paid_cash(request, pk):
         try:
             with transaction.atomic():
                 amount = rental.additional_payment
+                now = timezone.now()
+                note = request.POST.get('manager_note', '').strip()
                 Payment.objects.create(
                     rental=rental,
                     amount=amount,
                     payment_method='cash',
                     status='completed',
-                    payment_date=timezone.now(),
+                    payment_date=now,
+                )
+                PaymentHistory.objects.create(
+                    rental=rental,
+                    amount=amount,
+                    payment_type='extension_cash',
+                    paid_at=now,
+                    paid_to_manager=request.user,
+                    comment=note,
                 )
                 rental.additional_payment_paid = True
                 rental.marked_paid_by = request.user
                 if rental.overdue_fee_unpaid <= 0:
                     rental.payment_status = 'paid'
-                rental.save()
-
-                note = request.POST.get('manager_note', '').strip()
                 if note:
-                    ts = timezone.now().strftime('%d.%m.%Y %H:%M')
-                    prefix = f'\n[{ts}] {request.user.email}: {note}'
-                    rental.notes = (rental.notes or '') + prefix
-                    rental.save(update_fields=['notes'])
+                    ts = now.strftime('%d.%m.%Y %H:%M')
+                    rental.notes = (rental.notes or '') + f'\n[{ts}] {request.user.email}: {note}'
+                rental.save()
 
                 logger.info(
                     f'Менеджер {request.user.email} зафиксировал оплату продления '
