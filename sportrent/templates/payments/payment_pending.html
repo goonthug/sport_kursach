@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Платёж обрабатывается — СпортРядом{% endblock %}
+
+{% block extra_css %}
+<meta http-equiv="refresh" content="5">
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm text-center">
+                <div class="card-body py-5">
+                    <div class="mb-3">
+                        <i class="bi bi-hourglass-split text-warning" style="font-size: 4rem;"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1">Платёж обрабатывается</h2>
+                    <p class="text-muted mb-1">
+                        Сумма: <strong>{{ intent.amount }} ₽</strong>
+                    </p>
+                    <p class="text-muted small mb-4">
+                        Страница обновляется автоматически каждые 5 секунд.
+                        Не закрывайте вкладку.
+                    </p>
+                    <a href="?intent_id={{ intent.intent_id }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Обновить вручную
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -207,6 +207,47 @@ def payment_webhook(request):
         )
 
     return HttpResponse(status=200)
+
+
+@login_required
+def payment_return(request):
+    """
+    Страница возврата после оплаты на ЮКассе.
+    Если статус ещё pending — один раз опрашивает ЮКассу и обновляет БД.
+    """
+    intent_id = request.GET.get('intent_id')
+    if not intent_id:
+        return redirect('rentals:list')
+
+    intent = get_object_or_404(
+        PaymentIntent.objects.select_related('rental'),
+        intent_id=intent_id,
+        user=request.user,
+    )
+
+    if intent.status == 'pending' and intent.yookassa_payment_id:
+        try:
+            service = YooKassaService()
+            info = service.get_payment(intent.yookassa_payment_id)
+            new_status = info['status']
+            if new_status in ('succeeded', 'canceled', 'waiting_for_capture'):
+                if new_status == 'succeeded' and intent.status != 'succeeded':
+                    with transaction.atomic():
+                        _apply_payment_succeeded(intent, {'polled': True})
+                else:
+                    intent.status = new_status
+                    intent.save(update_fields=['status', 'updated_at'])
+        except Exception as exc:
+            logger.warning('payment_return: не удалось опросить ЮКассу: %s', exc)
+
+    intent.refresh_from_db()
+
+    template_map = {
+        'succeeded': 'payments/payment_success.html',
+        'canceled': 'payments/payment_canceled.html',
+    }
+    template = template_map.get(intent.status, 'payments/payment_pending.html')
+    return render(request, template, {'intent': intent, 'rental': intent.rental})
 
 
 def _apply_payment_succeeded(intent: PaymentIntent, raw_data: dict) -> None:
