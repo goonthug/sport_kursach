@@ -616,3 +616,46 @@ def owner_passport_registry(request):
         'nda_filter': nda_filter,
     }
     return render(request, 'custom_admin/owner_passport_registry.html', context)
+
+@login_required
+def admin_payments(request):
+    """Список PaymentIntent — только для administrator."""
+    from django.core.exceptions import PermissionDenied
+    if request.user.role != 'administrator':
+        raise PermissionDenied
+
+    from payments.models import PaymentIntent
+
+    qs = PaymentIntent.objects.select_related(
+        'rental__inventory', 'rental__client__user', 'user'
+    ).order_by('-created_at')
+
+    # Фильтры
+    purpose_filter = request.GET.get('purpose', '')
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if purpose_filter:
+        qs = qs.filter(purpose=purpose_filter)
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    context = {
+        'page_obj': page_obj,
+        'purpose_choices': PaymentIntent.PURPOSE_CHOICES,
+        'status_choices': PaymentIntent.STATUS_CHOICES,
+        'purpose_filter': purpose_filter,
+        'status_filter': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'total_count': qs.count(),
+    }
+    return render(request, 'custom_admin/payments.html', context)

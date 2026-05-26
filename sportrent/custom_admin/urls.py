@@ -23,4 +23,7 @@ urlpatterns = [
     path('export/inventory/pdf/', views.export_inventory_pdf, name='export_inventory_pdf'),
     path('export/rentals/xlsx/', views.export_rentals_xlsx, name='export_rentals_xlsx'),
     path('export/stats/pdf/', views.export_stats_pdf, name='export_stats_pdf'),
+
+    # Платежи через ЮКассу (только administrator)
+    path('payments/', views.admin_payments, name='payments'),
 ]

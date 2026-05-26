@@ -366,6 +366,7 @@ class Command(BaseCommand):
         self.create_rentals()
         self.create_reviews()
         self.create_chats()
+        self.create_payment_intents()
 
         self.stdout.write(self.style.SUCCESS('\nБаза данных успешно заполнена!'))
         self.stdout.write('Открыть сайт: http://localhost/')
@@ -387,6 +388,8 @@ class Command(BaseCommand):
         """Удаляет все данные кроме пользователей и их профилей."""
         self.stdout.write('Очищаем данные...')
         # Строгий порядок по PROTECT-связям
+        from payments.models import PaymentIntent
+        PaymentIntent.objects.all().delete()
         ChatMessage.objects.all().delete()
         Review.objects.all().delete()
         Payment.objects.all().delete()
@@ -963,3 +966,83 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write(self.style.SUCCESS(f'  Сообщений в чате: {ChatMessage.objects.count()}'))
+
+    # ─── Платежи ЮКасса (тестовые) ──────────────────────────────────────────
+
+    def create_payment_intents(self):
+        self.stdout.write('Создаём тестовые PaymentIntent...')
+        from payments.models import PaymentIntent
+        from rentals.models import PaymentHistory
+
+        rng = random.Random(99)
+
+        paid_rentals = list(Rental.objects.filter(payment_status='paid').select_related('client__user')[:5])
+        if not paid_rentals:
+            self.stdout.write(self.style.WARNING('  Нет оплаченных аренд — пропуск.'))
+            return
+
+        now = timezone.now()
+
+        # 3 успешно оплаченные аренды — основная оплата
+        for rental in paid_rentals[:3]:
+            fake_yookassa_id = f'2a{str(rng.randint(10**17, 10**18-1))[:9]}-000f-5000-8000-{str(rng.randint(10**11, 10**12-1))}'
+            PaymentIntent.objects.create(
+                rental=rental,
+                user=rental.client.user,
+                amount=rental.total_price,
+                purpose='rental_main',
+                yookassa_payment_id=fake_yookassa_id,
+                status='succeeded',
+                raw_webhook_data={'event': 'payment.succeeded', 'demo': True},
+                created_at=rental.created_date,
+            )
+
+        # 1 аренда с оплаченной доплатой за продление
+        ext_rental = Rental.objects.filter(additional_payment__gt=0).first()
+        if ext_rental:
+            fake_id = f'2a{str(rng.randint(10**17, 10**18-1))[:9]}-000f-5000-8001-{str(rng.randint(10**11, 10**12-1))}'
+            PaymentIntent.objects.create(
+                rental=ext_rental,
+                user=ext_rental.client.user,
+                amount=ext_rental.additional_payment,
+                purpose='extension',
+                yookassa_payment_id=fake_id,
+                status='succeeded',
+                raw_webhook_data={'event': 'payment.succeeded', 'demo': True},
+            )
+            if not PaymentHistory.objects.filter(rental=ext_rental, payment_type='extension_card').exists():
+                PaymentHistory.objects.create(
+                    rental=ext_rental,
+                    amount=ext_rental.additional_payment,
+                    payment_type='extension_card',
+                    paid_at=now,
+                )
+
+        # 1 аренда с оплаченным штрафом
+        ov_rental = Rental.objects.filter(overdue_fee_paid_at__isnull=False).first()
+        if ov_rental:
+            fake_id = f'2a{str(rng.randint(10**17, 10**18-1))[:9]}-000f-5000-8002-{str(rng.randint(10**11, 10**12-1))}'
+            PaymentIntent.objects.create(
+                rental=ov_rental,
+                user=ov_rental.client.user,
+                amount=ov_rental.overdue_fee_snapshot or Decimal('0'),
+                purpose='overdue',
+                yookassa_payment_id=fake_id,
+                status='succeeded',
+                raw_webhook_data={'event': 'payment.succeeded', 'demo': True},
+            )
+
+        # 1 отменённый платёж
+        any_rental = paid_rentals[-1]
+        fake_id_c = f'2a{str(rng.randint(10**17, 10**18-1))[:9]}-000f-5000-8003-{str(rng.randint(10**11, 10**12-1))}'
+        PaymentIntent.objects.create(
+            rental=any_rental,
+            user=any_rental.client.user,
+            amount=any_rental.total_price,
+            purpose='rental_main',
+            yookassa_payment_id=fake_id_c,
+            status='canceled',
+            raw_webhook_data={'event': 'payment.canceled', 'demo': True},
+        )
+
+        self.stdout.write(self.style.SUCCESS(f'  PaymentIntent: {PaymentIntent.objects.count()}'))
