@@ -30,6 +30,11 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-produc
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
+# Доверяем заголовкам от nginx-прокси (нужно для корректной работы request.is_secure()
+# и извлечения реального IP клиента через X-Forwarded-For)
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Автоматическое добавление туннельного хоста (Tuna/ngrok) для webhook'ов.
 # URL меняется при каждом перезапуске тоннеля — обновляй только TUNNEL_URL в .env.
 TUNNEL_URL = config('TUNNEL_URL', default='')

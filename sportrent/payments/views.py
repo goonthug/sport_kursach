@@ -22,6 +22,20 @@ logger = logging.getLogger(__name__)
 _VALID_PURPOSES = {'rental_main', 'extension', 'overdue'}
 
 
+def _get_client_ip(request) -> str:
+    """
+    Извлекает реальный IP клиента из заголовков, выставляемых nginx после real_ip_module.
+    Приоритет: X-Real-IP (ставит nginx) → X-Forwarded-For[0] → REMOTE_ADDR.
+    """
+    real_ip = request.META.get('HTTP_X_REAL_IP')
+    if real_ip:
+        return real_ip
+    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
 @login_required
 @require_POST
 def create_payment(request, rental_id, purpose):
@@ -113,12 +127,7 @@ def payment_webhook(request):
     бизнес-эффект при payment.succeeded. Всегда возвращает 200 OK
     если обработка прошла — иначе ЮКасса повторяет запрос до 24 ч.
     """
-    # Реальный IP за nginx приходит в X-Real-IP или первым в X-Forwarded-For
-    client_ip = (
-        request.META.get('HTTP_X_REAL_IP')
-        or request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
-        or request.META.get('REMOTE_ADDR', '')
-    )
+    client_ip = _get_client_ip(request)
 
     if not YooKassaService.verify_webhook_ip(client_ip):
         logger.warning('Webhook отклонён: IP %s не в whitelist ЮКассы', client_ip)
