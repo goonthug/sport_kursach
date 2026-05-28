@@ -633,8 +633,8 @@ def rental_confirm(request, pk):
 @login_required
 def rental_pay(request, pk):
     """
-    Условная оплата аренды (имитация онлайн-оплаты).
-    После подтверждения оплаты статус платежа и аренды обновляется.
+    Страница предоплаты: показывает итоговую сумму и кнопку перехода на ЮКассу.
+    Только GET — фактическое создание платежа выполняет payments:create_rental_payment.
     """
     rental = get_object_or_404(
         Rental.objects.select_related('inventory', 'client', 'client__user'),
@@ -656,24 +656,6 @@ def rental_pay(request, pk):
     if rental.status != 'pending':
         messages.warning(request, 'Оплата недоступна для этой аренды')
         return redirect('rentals:detail', pk=pk)
-
-    if request.method == 'POST':
-        try:
-            with transaction.atomic():
-                payment = rental.payments.filter(status='pending').first()
-                if payment:
-                    payment.status = 'completed'
-                    payment.payment_date = timezone.now()
-                    payment.save()
-                rental.payment_status = 'paid'
-                rental.save()
-
-                logger.info(f'Оплата произведена: аренда {rental.rental_id}, клиент {request.user.email}')
-                messages.success(request, 'Оплата прошла успешно. Ожидайте подтверждения менеджером.')
-                return redirect('rentals:detail', pk=pk)
-        except Exception as e:
-            logger.error(f'Ошибка при оплате: {str(e)}')
-            messages.error(request, 'Ошибка при проведении оплаты')
 
     total = rental.total_price + (rental.deposit_paid or 0)
     context = {
