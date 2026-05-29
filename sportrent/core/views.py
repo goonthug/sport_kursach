@@ -2,10 +2,14 @@
 Views для core приложения (главная страница, общие функции, geo-сессия).
 """
 
+import ipaddress
 import json
-import time
 import logging
+import time
 
+import requests as http_client
+
+from django.core.cache import cache
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -112,5 +116,60 @@ def clear_geo_session(request):
     for key in ('user_lat', 'user_lon', 'user_city', 'user_address', 'geo_source', 'geo_ts'):
         request.session.pop(key, None)
     return JsonResponse({'ok': True})
+
+
+def _extract_client_ip(request) -> str:
+    """Извлекает реальный IP клиента из заголовков прокси."""
+    real_ip = request.META.get('HTTP_X_REAL_IP')
+    if real_ip:
+        return real_ip.strip()
+    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
+def detect_city_view(request):
+    """
+    Серверная IP-геолокация: браузер обращается к нашему endpoint,
+    Django делает HTTP-запрос к ipapi.co на сервере — нет Mixed Content,
+    нет CORS. Результат кэшируется в Redis на 1 час.
+    """
+    _GEO_NULL = {'city': None, 'lat': None, 'lon': None}
+
+    ip = _extract_client_ip(request)
+
+    # Приватные IP (Docker internal, localhost) — геолокация бессмысленна
+    try:
+        if ipaddress.ip_address(ip).is_private:
+            return JsonResponse(_GEO_NULL)
+    except ValueError:
+        return JsonResponse(_GEO_NULL)
+
+    cache_key = f'geo:ip:{ip}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return JsonResponse(cached)
+
+    result = dict(_GEO_NULL)
+    try:
+        resp = http_client.get(
+            f'https://ipapi.co/{ip}/json/',
+            timeout=3,
+            headers={'User-Agent': 'SportRyadom/1.0'},
+        )
+        data = resp.json()
+        if not data.get('error') and data.get('city'):
+            result = {
+                'city': data['city'],
+                'lat': float(data['latitude']),
+                'lon': float(data['longitude']),
+            }
+    except Exception as exc:
+        logger.warning('detect_city_view: ipapi.co недоступен (%s)', exc)
+
+    # Кэшируем даже null — чтобы не долбить ipapi.co при каждом запросе
+    cache.set(cache_key, result, timeout=3600)
+    return JsonResponse(result)
 
 

@@ -154,6 +154,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Redis
 REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+    }
+}
+
 # MongoDB
 MONGO_URL = config('MONGO_URL', default='mongodb://127.0.0.1:27017/')
 MONGO_DB = config('MONGO_DB', default='sportrent_logs')

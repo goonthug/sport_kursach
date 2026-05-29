@@ -81,13 +81,13 @@
 
     async function detectByIP() {
         try {
-            const r = await fetch(
-                'https://ipwho.is/',
-                { signal: AbortSignal.timeout(3000) }
-            );
+            const r = await fetch('/api/geo/detect-city/', {
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(5000),
+            });
             const d = await r.json();
-            if (d.success && d.city) {
-                await saveToSession(d.latitude || 0, d.longitude || 0, d.city, 'ip', '');
+            if (d.city) {
+                await saveToSession(d.lat || 0, d.lon || 0, d.city, 'ip', '');
                 return true;
             }
         } catch (_) {}
