@@ -9,6 +9,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -82,9 +83,8 @@ def create_payment(request, rental_id, purpose):
         purpose=purpose,
     )
 
-    return_url = (
-        f'{settings.TUNNEL_URL}/api/payments/return/'
-        f'?intent_id={intent.intent_id}'
+    return_url = request.build_absolute_uri(
+        reverse('payments:return') + f'?intent_id={intent.intent_id}'
     )
     metadata = {
         'intent_id': str(intent.intent_id),
