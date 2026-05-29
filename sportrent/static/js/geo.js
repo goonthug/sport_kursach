@@ -82,12 +82,12 @@
     async function detectByIP() {
         try {
             const r = await fetch(
-                'http://ip-api.com/json/?lang=ru&fields=city,lat,lon,status',
-                { signal: AbortSignal.timeout(4000) }
+                'https://ipwho.is/',
+                { signal: AbortSignal.timeout(3000) }
             );
             const d = await r.json();
-            if (d.status === 'success' && d.city) {
-                await saveToSession(d.lat || 0, d.lon || 0, d.city, 'ip', '');
+            if (d.success && d.city) {
+                await saveToSession(d.latitude || 0, d.longitude || 0, d.city, 'ip', '');
                 return true;
             }
         } catch (_) {}
