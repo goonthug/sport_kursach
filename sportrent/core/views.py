@@ -1,5 +1,23 @@
 """
-Views для core приложения (главная страница, общие функции, geo-сессия).
+Views ядра приложения — главная страница, геолокация, условия аренды.
+
+Что здесь:
+- home(): главная/лендинг. Показывает доступный инвентарь и ближайшие точки выдачи
+  если геолокация пользователя известна (из Django-сессии).
+- save_geo_session(): AJAX — сохраняет координаты/город в сессию.
+  Для source='browser' делает reverse geocoding через Yandex.
+  Для source='manual' подставляет координаты из справочника City.
+- clear_geo_session(): AJAX — сброс гео-данных из сессии.
+- detect_city_view(): серверная IP-геолокация через ipapi.co (нет Mixed Content).
+  Результат кэшируется в Redis на 1 час. Приватные IP → null-ответ.
+- rental_terms(): страница FAQ «Правила аренды» (ст. 622 ГК РФ, 152-ФЗ).
+
+Связано с:
+- static/js/geo.js: вызывает /api/geo/detect-city/ и /geo/save/
+- inventory/services/proximity.py: get_nearest_points() — для блока «рядом с вами»
+- ai_search/geocoder.py: reverse_geocode() — из координат в адрес
+
+Ключевые слова: главная, лендинг, геолокация, ipapi, правила аренды, geo-сессия
 """
 
 import ipaddress

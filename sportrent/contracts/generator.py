@@ -1,8 +1,24 @@
 """
-Генератор договоров в формате ГОСТ Р 7.0.97-2016.
+Генератор договоров в формате ГОСТ Р 7.0.97-2016 (.docx через python-docx).
 
-Шрифт Times New Roman 14pt, межстрочный 1.5, поля 30/15/20/20 мм,
-абзацный отступ 1.25 см, текст по ширине. Нумерация страниц внизу по центру.
+Что здесь:
+- generate_rental_contract(): договор аренды между клиентом и владельцем инвентаря.
+  Содержит: стороны договора, предмет, срок, стоимость, ответственность, ст. 622 ГК РФ.
+- generate_owner_contract(): агентский договор между владельцем инвентаря и платформой.
+  Содержит: полномочия агента, вознаграждение, порядок расчётов.
+- Вспомогательные функции форматирования: _fmt, _para, _section_header, _sub,
+  _signature_table, _city_date_row, _add_page_numbers.
+
+Форматирование по ГОСТ:
+  Times New Roman 14pt, межстрочный 1.5, поля 30/15/20/20 мм,
+  абзацный отступ 1.25 см, текст по ширине. Нумерация страниц внизу по центру.
+
+Связано с:
+- rentals/views.py: rental_confirm() вызывает generate_rental_contract()
+- custom_admin/views.py: inventory_contract_download() вызывает generate_owner_contract()
+- rentals/models.py: Contract — хранит путь к сгенерированному файлу
+
+Ключевые слова: договор, ГОСТ, ст. 622, агентский договор, Times New Roman
 """
 from docx import Document
 from docx.shared import Pt, Mm, Cm, RGBColor

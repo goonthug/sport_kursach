@@ -1,3 +1,22 @@
+"""
+Views оплаты через ЮКассу — создание платежа, обработка webhook, страница возврата.
+
+Что здесь:
+- create_payment(): создаёт PaymentIntent и редиректит клиента на ЮКассу
+- payment_webhook(): принимает уведомление ЮКассы (POST), проверяет IP whitelist,
+  переводит Rental в статус paid/overdue/extended
+- payment_return(): страница после редиректа с ЮКассы — polling статуса
+- _apply_payment_succeeded(): применяет успешный платёж к объекту аренды
+
+Связано с:
+- payments/services.py: YooKassaService — создание и проверка платежей
+- payments/models.py: PaymentIntent — запись о каждом платеже
+- rentals/models.py: Rental — обновление статуса после оплаты
+- config/settings.py: TUNNEL_URL — нужен для build_absolute_uri за Tuna-прокси
+
+Ключевые слова: оплата, платёж, webhook, ЮКасса, return_url, polling
+"""
+
 import json
 import logging
 from decimal import Decimal

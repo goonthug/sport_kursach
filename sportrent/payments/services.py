@@ -1,3 +1,19 @@
+"""
+Сервисный слой для интеграции с ЮКассой (онлайн-оплата аренды).
+
+Что здесь:
+- YooKassaService.create_payment(): создаёт платёж в ЮКассе, возвращает confirmation_url
+- YooKassaService.get_payment(): запрашивает актуальный статус платежа по payment_id
+- YooKassaService.is_valid_webhook_ip(): проверяет IP webhook'а по whitelist ЮКассы
+
+Связано с:
+- payments/views.py: вызывает YooKassaService для create/webhook/return
+- payments/models.py: PaymentIntent хранит yookassa_payment_id и статус
+- config/settings.py: YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY, YOOKASSA_MODE (test/live)
+
+Ключевые слова: ЮКасса, YooKassa, оплата, webhook, IP whitelist
+"""
+
 import ipaddress
 import logging
 from decimal import Decimal

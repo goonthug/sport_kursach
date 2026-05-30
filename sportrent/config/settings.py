@@ -1,5 +1,24 @@
 """
-Django settings for SportRent project.
+Django settings для проекта СпортРядом.
+
+Что здесь:
+- Динамическая регистрация Tuna-туннеля: TUNNEL_URL из .env → автоматически
+  добавляется в ALLOWED_HOSTS и CSRF_TRUSTED_ORIGINS (без ручного обновления).
+- SECURE_PROXY_SSL_HEADER + USE_X_FORWARDED_HOST: корректный request.build_absolute_uri()
+  за nginx/Tuna-прокси (нужно для return_url ЮКассы).
+- CACHES: Redis-бэкенд (Django 4.0+ встроенный) — кэш IP-геолокации и AI-поиска.
+- CHANNEL_LAYERS: Redis для Django Channels (WebSocket-чат).
+- LOGGING: файл + консоль + MongoDB (WARNING+).
+- YOOKASSA_*: ЮКасса, режим test/live.
+- GIGACHAT_CREDENTIALS + LLM_PROVIDER: AI-поиск через GigaChat.
+
+Связано с:
+- core/views.py: detect_city_view использует CACHES/Redis
+- payments/services.py: YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY
+- ai_search/services/llm.py: GIGACHAT_CREDENTIALS, LLM_PROVIDER
+- chat/consumers.py: CHANNEL_LAYERS
+
+Ключевые слова: настройки, Django, Tuna туннель, ALLOWED_HOSTS, Redis, ЮКасса
 """
 
 from pathlib import Path

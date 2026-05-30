@@ -1,6 +1,25 @@
 """
-Views для кастомной административной панели.
-Включает статистику, управление пользователями, модерацию.
+Кастомная административная панель — дашборд, модерация, реестры, экспорт.
+
+Что здесь:
+- admin_dashboard(): дашборд со статистикой (выручка, аренды, рейтинги, активность)
+- admin_users(): список пользователей с фильтрами; admin_user_block/unblock()
+- admin_inventory(): список инвентаря; admin_inventory_pending_detail() — модерация
+- admin_inventory_approve / reject / publish(): цикл модерации инвентаря (pending → available)
+- inventory_contract_download(): скачивание агентского договора с владельцем (.docx)
+- export_inventory_xlsx / pdf(): экспорт каталога в XLSX/PDF
+- export_rentals_xlsx(): экспорт аренд в XLSX
+- export_stats_pdf(): сводная статистика в PDF (с кириллицей через DejaVuSans)
+- owner_passport_registry(): реестр паспортов владельцев — доступ ТОЛЬКО administrator (152-ФЗ)
+- admin_payments(): список платежей через ЮКассу
+
+Связано с:
+- users/models.py: User, Owner, PassportNDA — данные для реестра паспортов
+- inventory/models.py: Inventory — модерация и экспорт
+- payments/models.py: PaymentIntent — журнал платежей ЮКассы
+- core/utils.py: функции экспорта XLSX/PDF (DejaVuSans для кириллицы)
+
+Ключевые слова: админ-панель, статистика, модерация, реестр паспортов, 152-ФЗ, экспорт
 """
 
 import logging

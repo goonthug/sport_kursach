@@ -1,12 +1,20 @@
 """
-Абстракция LLMProvider для парсинга поисковых запросов.
+Сервисный слой AI-поиска: парсинг естественно-языкового запроса через GigaChat или regex.
 
-Провайдеры:
-  GigaChatProvider    — основной, GigaChat-2-Lite, max_tokens=250
-  RegexFallbackProvider — резервный, pure Python, без сети
+Что здесь:
+- ParsedSearchQuery: Pydantic-схема результата парсинга (город, категория, цена, даты)
+- GigaChatProvider: основной провайдер — GigaChat-2-Lite (Сбербанк), max_tokens=250
+- RegexFallbackProvider: резервный провайдер — pure Python regex, без сети и токенов
+- get_llm_provider(): фабрика, выбирает провайдер по settings.LLM_PROVIDER
+- _track_tokens(): счётчик потреблённых токенов в Redis (для мониторинга)
 
-Выбор провайдера: get_llm_provider() читает LLM_PROVIDER из settings.
-Счётчик токенов:  _track_tokens() пишет в Redis (не в БД).
+Связано с:
+- ai_search/services/cache.py: кэш результатов парсинга (Redis, TTL 1ч)
+- ai_search/search.py: принимает ParsedSearchQuery и делает SQL-запрос
+- inventory/views.py: вызывает get_llm_provider().parse() через parse_query()
+- config/settings.py: LLM_PROVIDER, GIGACHAT_CREDENTIALS, USE_REGEX_FALLBACK_IN_DEBUG
+
+Ключевые слова: AI-поиск, GigaChat, LLM, нейросеть, естественный язык, regex fallback
 """
 
 import re

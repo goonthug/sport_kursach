@@ -1,7 +1,24 @@
 """
-Management команда для заполнения БД тестовыми данными.
-Стратегия: upsert для пользователей, clean-and-seed для всего остального.
-Использование: python manage.py populate_db
+Management команда для заполнения БД тестовыми данными (seed для демонстрации).
+
+Что здесь:
+- Command.handle(): точка входа, оркестрирует весь seed
+- Данные для демонстрации на защите:
+  - 20 городов РФ по всем федеральным округам
+  - 6 менеджеров (по одному на округ) + super_manager (manager1@sportrent.ru)
+  - 20 владельцев инвентаря с паспортными данными и NDA-записями
+  - 150 единиц инвентаря (лыжи, велосипеды, байдарки, ролики и т.д.)
+  - 55-65 аренд в разных статусах (включая просроченные для демонстрации штрафов)
+  - PaymentIntent-записи со статусами succeeded/pending для ЮКассы
+- Стратегия: upsert для пользователей (get_or_create), clean-and-seed для остального
+
+Связано с:
+- users/models.py: User, Client, Owner, Manager, PassportNDA
+- inventory/models.py: Inventory, PickupPoint, City
+- rentals/models.py: Rental, Reservation
+- payments/models.py: PaymentIntent
+
+Ключевые слова: тестовые данные, seed, demo, populate, демонстрация
 """
 
 import re

@@ -1,3 +1,21 @@
+"""
+WebSocket consumers для real-time чата и уведомлений (Django Channels).
+
+Что здесь:
+- ChatConsumer: чат между клиентом и менеджером. Логика super_manager —
+  менеджер manager1@sportrent.ru видит все чаты независимо от city/region
+  (нужен для демонстрации на защите с одним браузером).
+  Сообщения записываются в MongoDB (коллекция chat_messages).
+- NotificationConsumer: push-уведомления в браузер об изменении статуса аренды.
+
+Связано с:
+- chat/models.py: ChatMessage — модель для SQL (fallback при недоступности Mongo)
+- config/asgi.py: роутинг WebSocket /ws/chat/<rental_id>/ и /ws/notifications/
+- config/settings.py: CHANNEL_LAYERS с Redis backend
+
+Ключевые слова: чат, WebSocket, Channels, super_manager, MongoDB, real-time
+"""
+
 import asyncio
 import json
 

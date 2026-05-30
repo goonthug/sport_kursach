@@ -1,5 +1,25 @@
 """
-Views для управления арендой - ПОЛНАЯ РЕАЛИЗАЦИЯ.
+Views управления арендой — создание, статус-машина, оплата, продление, возврат.
+
+Что здесь:
+- rental_list / rental_detail: список и детали аренд по ролям
+- rental_create: создание аренды клиентом с обязательным чекбоксом overdue_terms_accepted
+- reservation_create / reservation_quick_create: бронирование и быстрое бронирование
+- reservation_rent: перевод брони в аренду менеджером
+- rental_confirm: подтверждение аренды менеджером (создаёт Contract)
+- rental_pay: страница «Перейти к оплате» (редирект на payments:create_rental_payment)
+- rental_extend: продление аренды — менеджер устанавливает доплату
+- rental_pay_overdue: оплата штрафа за просрочку (ст. 622 ГК РФ)
+- rental_pay_additional: оплата доплаты за продление
+- rental_complete / rental_cancel: завершение / отмена аренды
+- contract_download: скачивание договора (.docx)
+
+Связано с:
+- payments/views.py: create_payment — фактическая оплата через ЮКассу
+- rentals/models.py: Rental, Reservation, Contract, PaymentHistory
+- contracts/generator.py: generate_rental_contract() при подтверждении
+
+Ключевые слова: аренда, бронирование, продление, статус, чекбокс, договор
 """
 
 import logging

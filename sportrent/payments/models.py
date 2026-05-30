@@ -1,3 +1,20 @@
+"""
+Модель PaymentIntent — аудит-запись о каждом платеже через ЮКассу.
+
+Что здесь:
+- PaymentIntent: создаётся до редиректа на ЮКассу, обновляется webhook'ом.
+  Три типа (purpose): rental_main (основная аренда), extension (продление),
+  overdue (штраф за просрочку по ст. 622 ГК РФ).
+  Хранит yookassa_payment_id (idempotency), amount, статус (pending/succeeded/failed).
+
+Связано с:
+- payments/views.py: создаёт и читает PaymentIntent
+- payments/services.py: yookassa_payment_id используется для запроса статуса
+- rentals/models.py: Rental.payment_intents (reverse FK) — все платежи по аренде
+
+Ключевые слова: PaymentIntent, платёж, ЮКасса, аудит, idempotency, статус
+"""
+
 import uuid
 
 from django.db import models

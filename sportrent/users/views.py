@@ -1,5 +1,20 @@
 """
-Views для управления пользователями.
+Views авторизации и управления профилем пользователей.
+
+Что здесь:
+- register(): регистрация клиента или владельца. Включает обязательный чекбокс
+  согласия на обработку паспортных данных (NDA, 152-ФЗ). Создаёт PassportNDA-запись.
+- user_login() / user_logout(): вход и выход.
+- profile(): просмотр и редактирование профиля (разные формы по роли).
+- bank_account_add() / bank_account_delete(): управление банковскими реквизитами владельца.
+- password_change_view(): смена пароля с валидацией (8+ символов, заглавная/строчная/цифра/спецсимвол).
+
+Связано с:
+- users/models.py: User, Client, Owner, PassportNDA — создаются при регистрации
+- users/forms.py: ClientRegistrationForm, OwnerRegistrationForm с NDA-полем
+- config/settings.py: LOGIN_URL, LOGIN_REDIRECT_URL, LOGOUT_REDIRECT_URL
+
+Ключевые слова: регистрация, авторизация, паспорт, NDA, согласие, 152-ФЗ
 """
 
 import logging

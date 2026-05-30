@@ -1,7 +1,17 @@
 """
-Redis-кэш для результатов парсинга поисковых запросов.
-TTL: 1 час. Ключ: md5 нормализованного запроса.
-Graceful degradation: при падении Redis работаем без кэша.
+Redis-кэш для результатов AI-парсинга поисковых запросов.
+
+Что здесь:
+- _make_key(): генерирует ключ кэша — md5 от нормализованного запроса
+- get_cached(): читает закэшированный ParsedSearchQuery из Redis
+- set_cached(): записывает результат в Redis (TTL 1 час)
+
+Связано с:
+- ai_search/services/llm.py: результаты парсинга которые кэшируются
+- ai_search/parser.py: вызывает get_cached / set_cached вокруг LLM-вызова
+- config/settings.py: REDIS_URL — адрес Redis-инстанса
+
+Ключевые слова: кэш, Redis, AI-поиск, оптимизация, TTL
 """
 
 import hashlib
