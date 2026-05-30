@@ -49,6 +49,7 @@ services:
       GIGACHAT_CREDENTIALS: ${GIGACHAT_CREDENTIALS}
       LLM_PROVIDER: gigachat
       USE_REGEX_FALLBACK_IN_DEBUG: "False"
+      TUNNEL_URL: https://sportryadom.ru.tuna.am
     depends_on:
       db:
         condition: service_healthy
@@ -56,20 +57,6 @@ services:
         condition: service_healthy
       mongo:
         condition: service_started
-
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
-      - ./frontend/index.html:/app/index.html
-    environment:
-      VITE_YANDEX_MAPS_KEY: ${YANDEX_MAPS_KEY:-}
-    depends_on:
-      - web
 
   nginx:
     image: nginx:alpine
@@ -81,7 +68,6 @@ services:
       - media_volume:/app/sportrent/media
     depends_on:
       - web
-      - frontend
 
 volumes:
   postgres_data:
