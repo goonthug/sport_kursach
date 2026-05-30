@@ -3,7 +3,6 @@ Django settings for SportRent project.
 """
 
 from pathlib import Path
-from datetime import timedelta
 import os
 
 from decouple import Config, RepositoryEnv
@@ -63,8 +62,6 @@ INSTALLED_APPS = [
     'django_filters',
     'channels',
     'rest_framework',
-    'corsheaders',
-
     # Local apps
     'core.apps.CoreConfig',
     'users.apps.UsersConfig',
@@ -79,7 +76,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -254,41 +250,6 @@ LOGGING = {
 SESSION_COOKIE_AGE = 1209600  # 2 недели
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
-
-# Django REST Framework
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'users.auth.CookieJWTAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    ],
-    'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
-        'rest_framework.filters.OrderingFilter',
-    ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 9,
-}
-
-# Simple JWT — токены в httpOnly cookie, не в localStorage
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'AUTH_COOKIE': 'access_token',
-    'AUTH_COOKIE_REFRESH': 'refresh_token',
-    'AUTH_COOKIE_SECURE': False,
-    'AUTH_COOKIE_HTTP_ONLY': True,
-    'AUTH_COOKIE_SAMESITE': 'Lax',
-}
-
-# CORS — разрешаем запросы с React dev-сервера
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://127.0.0.1:5173',
-).split(',')
-CORS_ALLOW_CREDENTIALS = True
 
 # AI-поиск: GigaChat (основной LLM) + Yandex карты/геокодер
 #
