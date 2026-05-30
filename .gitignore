@@ -33,6 +33,14 @@ Thumbs.db
 
 # Environment variables
 .env
+.env.backup
+.env.docker
+
+# Dev docs (local only — not for review)
+CLAUDE.md
+DIPLOMA_PLAN.md
+MCP_SETUP_GUIDE.md
+WINDOWS_SETUP.md
 
 # Logs
 logs/
