@@ -944,8 +944,9 @@ select {
   padding-left: 0;
 }
 
-/* "Доплата ... ₽ — не оплачено" → серый */
-.col-md-12 p.text-warning {
+/* "Доплата / Штраф ... ₽ — не оплачено" → серый */
+.col-md-12 p.text-warning,
+.col-md-12 p.text-danger {
   color: var(--text-muted) !important;
 }
 
