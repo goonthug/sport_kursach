@@ -211,13 +211,13 @@
                                             <td class="ps-3 text-muted small">{{ entry.paid_at|date:"d.m.Y H:i" }}</td>
                                             <td>
                                                 {% if entry.payment_type == 'extension_card' %}
-                                                    <span class="badge bg-primary-subtle text-primary">📅 Продление (онлайн)</span>
+                                                    <span class="badge bg-primary-subtle text-primary"><i class="bi bi-calendar"></i> Продление (онлайн)</span>
                                                 {% elif entry.payment_type == 'extension_cash' %}
-                                                    <span class="badge bg-success-subtle text-success">📅 Продление (наличные)</span>
+                                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-calendar"></i> Продление (наличные)</span>
                                                 {% elif entry.payment_type == 'overdue_card' %}
-                                                    <span class="badge bg-warning-subtle text-warning">⚠️ Штраф (онлайн)</span>
+                                                    <span class="badge bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle"></i> Штраф (онлайн)</span>
                                                 {% elif entry.payment_type == 'overdue_cash' %}
-                                                    <span class="badge bg-danger-subtle text-danger">⚠️ Штраф (наличные)</span>
+                                                    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-exclamation-triangle"></i> Штраф (наличные)</span>
                                                 {% endif %}
                                             </td>
                                             <td class="text-end fw-semibold">{{ entry.amount }} ₽</td>

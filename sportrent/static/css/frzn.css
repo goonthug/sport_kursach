@@ -838,3 +838,42 @@ a:focus, a:focus-visible {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ══ ФАЗА 2: ЭМОДЗИ → ИКОНКИ, БЕЙДЖИ, КНОПКИ ══ */
+
+/* Задача 2: статус-бейджи аренд — все чёрные */
+.bg-success  { background: var(--text) !important; color: var(--text-on-accent) !important; }
+.bg-warning  { background: var(--text) !important; color: var(--text-on-accent) !important; }
+.bg-info     { background: var(--text) !important; color: var(--text-on-accent) !important; }
+.bg-secondary{ background: var(--text) !important; color: var(--text-on-accent) !important; }
+.bg-danger   { background: var(--text) !important; color: var(--text-on-accent) !important; }
+
+/* Задача 4: бейджи на странице детали инвентаря — оранжевые */
+.col-lg-6 > .mb-3 .badge {
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+}
+
+/* Задача 3: кнопка "Отменить" в списке аренд — контурная как "Подробнее" */
+.col-md-2.text-end .btn-outline-danger {
+  background: transparent !important;
+  color: var(--text) !important;
+  border: 2px solid var(--text) !important;
+}
+.col-md-2.text-end .btn-outline-danger:hover {
+  background: var(--text) !important;
+  color: var(--bg) !important;
+}
+
+/* Задача 5: подписи под цифрами статистики — серые */
+.frzn-section--deep .text-muted {
+  color: var(--text-muted) !important;
+}
+
+/* Задача 6: аналитика владельца — зелёный акцент → оранжевый */
+.card.border-success {
+  border-color: var(--accent) !important;
+}
+.card.border-success .text-success {
+  color: var(--accent) !important;
+}

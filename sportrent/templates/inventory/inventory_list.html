@@ -69,7 +69,7 @@
             <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
                 <div>
                     <div class="text-white fw-semibold mb-1" style="font-size:.95rem;">
-                        🤖 ИИ-рекомендации для вашего города
+                        <i class="bi bi-cpu"></i> ИИ-рекомендации для вашего города
                     </div>
                     <div id="geo-status">Определяем ваше местоположение...</div>
                 </div>
@@ -80,7 +80,7 @@
                 <div class="d-flex gap-2 flex-wrap">
                     {% for city in cities %}
                         <button class="btn btn-sm btn-outline-primary geo-city-btn" data-city="{{ city.name }}">
-                            📍 {{ city.name }}
+                            <i class="bi bi-geo-alt"></i> {{ city.name }}
                         </button>
                     {% endfor %}
                 </div>
@@ -91,7 +91,7 @@
         {# ── Умный поиск ────────────────────────────────────────────── #}
         <div id="ai-search-section">
             <div class="d-flex align-items-center gap-2 mb-3">
-                <span style="font-size:1.4rem;">🤖</span>
+                <i class="bi bi-cpu" style="font-size:1.4rem;"></i>
                 <div>
                     <div class="text-white fw-semibold" style="font-size:1rem;">Умный поиск с ИИ</div>
                     <div class="text-secondary" style="font-size:.8rem;">
@@ -118,14 +118,14 @@
         {# ── Что понял ИИ + результаты поиска ──────────────────────── #}
         <div id="ai-results-section" class="mb-4">
             <div id="ai-understood-bar" class="ai-understood-bar d-none">
-                <span class="text-white opacity-75 me-2">🧠 ИИ понял запрос:</span>
+                <span class="text-white opacity-75 me-2"><i class="bi bi-cpu"></i> ИИ понял запрос:</span>
                 <span id="ai-parsed-badges"></span>
             </div>
             <div class="d-flex align-items-center justify-content-between mt-3 mb-2">
                 <h5 class="mb-0" style="color:#fff;">
                     Результаты поиска: <span id="ai-count" class="text-primary">0</span>
                 </h5>
-                <button class="btn btn-sm btn-outline-secondary" id="ai-clear-btn">✕ Сбросить</button>
+                <button class="btn btn-sm btn-outline-secondary" id="ai-clear-btn"><i class="bi bi-x"></i> Сбросить</button>
             </div>
             <div id="ai-map"></div>
             <div class="row g-4 mt-0" id="ai-results-grid"></div>
