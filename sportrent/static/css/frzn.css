@@ -209,11 +209,11 @@ a:focus, a:focus-visible {
 .btn-danger:hover { background: var(--accent-dark) !important; border-color: var(--accent-dark) !important; }
 
 .btn-warning {
-  background: var(--warning) !important;
-  color: #fff !important;
-  border: 2px solid var(--warning) !important;
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+  border: 2px solid var(--accent) !important;
 }
-.btn-warning:hover { background: #b8750e !important; border-color: #b8750e !important; }
+.btn-warning:hover { background: var(--accent-dark) !important; border-color: var(--accent-dark) !important; }
 
 .btn-info {
   background: #0891b2 !important;
