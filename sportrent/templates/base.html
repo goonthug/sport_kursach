@@ -115,33 +115,32 @@
                                     type="button" id="geoDropdown"
                                     data-bs-toggle="dropdown" aria-expanded="false"
                                     style="font-size:.78rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                📍 <span id="geo-nav-label">{% if user_city %}{{ user_city }}{% if user_address %}, {{ user_address }}{% endif %}{% endif %}</span>
+                                <span id="geo-nav-label">{% if user_city %}{{ user_city }}{% if user_address %}, {{ user_address }}{% endif %}{% endif %}</span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="geoDropdown"
-                                data-bs-theme="dark"
-                                style="min-width:240px; background:#0d1f14; border:1px solid #1e4028; overflow:visible;">
+                                style="min-width:240px; background:#ffffff; border:1px solid #e8d5b5; overflow:visible;">
                                 <li>
-                                    <button class="dropdown-item text-white" onclick="GEO.refresh()"
-                                            style="font-size:.85rem;">
+                                    <button class="dropdown-item" onclick="GEO.refresh()"
+                                            style="font-size:.85rem; color:#ef512c; font-weight:600;">
                                         <i class="bi bi-arrow-clockwise me-1"></i> Обновить местоположение
                                     </button>
                                 </li>
-                                <li><hr class="dropdown-divider" style="border-color:#1e4028;"></li>
+                                <li><hr class="dropdown-divider" style="border-color:#e8d5b5;"></li>
                                 <li>
                                     <div class="px-3 py-2">
                                         <div class="text-secondary small mb-2">Сменить город вручную:</div>
                                         <div class="input-group input-group-sm">
                                             <input type="text" id="geo-manual-input"
                                                    class="form-control form-control-sm"
-                                                   style="background:#1a2e20; border-color:#2d5038; color:#fff;"
+                                                   style="background:#f5dfc4; border-color:#e8d5b5; color:#1a1a1a;"
                                                    placeholder="Введите город..."
                                                    autocomplete="off">
                                             <button class="btn btn-primary btn-sm" id="geo-manual-btn">→</button>
                                         </div>
                                         <ul id="geo-city-list"
                                             style="display:none; margin:4px 0 0 0; padding:0; list-style:none;
-                                                   border:1px solid #2d5038; border-radius:4px;
-                                                   background:#0d1f14; max-height:180px; overflow-y:auto;"></ul>
+                                                   border:1px solid #e8d5b5; border-radius:4px;
+                                                   background:#ffffff; max-height:180px; overflow-y:auto;"></ul>
                                     </div>
                                 </li>
                             </ul>
@@ -157,7 +156,7 @@
          style="background:#0a2218; border-bottom:1px solid #1a4030; padding:10px 0;">
         <div class="container d-flex align-items-center justify-content-between gap-3 flex-wrap">
             <div class="text-white" style="font-size:.88rem;">
-                📍 Разрешить определение местоположения для подбора ближайших магазинов?
+                Разрешить определение местоположения для подбора ближайших магазинов?
             </div>
             <div class="d-flex gap-2">
                 <button id="geo-allow-btn" class="btn btn-sm btn-success">Разрешить</button>
@@ -191,7 +190,7 @@
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <h5><i class="bi bi-bicycle"></i> СпортРядом</h5>
-                    <p class="text-muted">Платформа для аренды и обмена спортивного инвентаря с системой репутации.</p>
+                    <p class="text-muted">Платформа для аренды спортивного инвентаря.</p>
                 </div>
                 <div class="col-md-4 mb-3">
                     <h5>Навигация</h5>

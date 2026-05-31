@@ -81,7 +81,7 @@ a:hover { color: var(--accent-dark); }
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 80px;
-  background: var(--bg-elevated);
+  background: var(--bg-alt);
   border-bottom: 1px solid var(--border);
   z-index: 1000;
 }
@@ -274,7 +274,7 @@ a:focus, a:focus-visible {
 
 /* ── КАРТОЧКИ ── */
 .card {
-  background: var(--bg-elevated);
+  background: var(--bg-alt);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -303,8 +303,8 @@ a:focus, a:focus-visible {
 .text-info     { color: #0891b2           !important; }
 .text-white    { color: #fff              !important; }
 
-.bg-light { background-color: var(--bg-alt)      !important; }
-.bg-white { background-color: var(--bg-elevated) !important; }
+.bg-light { background-color: var(--bg-alt) !important; }
+.bg-white { background-color: var(--bg-alt) !important; }
 
 /* ── ФОРМЫ ── */
 .form-control,
@@ -388,7 +388,7 @@ a:focus, a:focus-visible {
 /* ── ТАБЛИЦЫ ── */
 .table {
   color: var(--text);
-  --bs-table-bg: var(--bg-elevated);
+  --bs-table-bg: var(--bg-alt);
   --bs-table-striped-bg: var(--bg-alt);
   --bs-table-hover-bg: var(--accent-soft);
 }
@@ -606,7 +606,7 @@ a:focus, a:focus-visible {
 
 /* ── КАРТОЧКИ ТОВАРОВ ── */
 .product-card {
-  background: var(--bg-elevated);
+  background: var(--bg-alt);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -763,7 +763,7 @@ a:focus, a:focus-visible {
 
 @media (max-width: 991px) {
   .navbar-collapse {
-    background: var(--bg-elevated);
+    background: var(--bg-alt);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: 16px;
@@ -782,4 +782,58 @@ a:focus, a:focus-visible {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
+}
+
+/* ── ЧАТ: перебиваем inline-стили из extra_css ── */
+.chat-container {
+  background-color: var(--bg-alt) !important;
+  border-color: var(--border) !important;
+}
+
+.message.sent .message-bubble {
+  background-color: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.message.received .message-bubble {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+.message-time {
+  color: var(--text-muted) !important;
+}
+
+.message.sent .message-time {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* ── КНОПКА ИЗБРАННОГО — белая на любом фоне карточки ── */
+.product-favorite {
+  background: var(--bg-elevated) !important;
+}
+
+/* ── МОДАЛКИ — белые, не бежевые ── */
+.modal-content {
+  background: var(--bg-elevated) !important;
+}
+
+/* ── ГЕОДРОПДАУН: текст городов (цвет задаётся JS, перебиваем) ── */
+#geo-city-list li {
+  color: var(--text) !important;
+}
+#geo-city-list li:hover {
+  background: var(--bg-alt) !important;
+  color: var(--text) !important;
+}
+
+/* ── ГЕОДРОПДАУН: пункты меню ── */
+#geoDropdown ~ .dropdown-menu .dropdown-item,
+.dropdown-menu[aria-labelledby="geoDropdown"] .dropdown-item {
+  color: var(--text);
+}
+.dropdown-menu[aria-labelledby="geoDropdown"] .dropdown-item:first-child {
+  color: var(--accent);
+  font-weight: 600;
 }
