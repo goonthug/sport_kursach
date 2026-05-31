@@ -162,21 +162,22 @@ a:focus, a:focus-visible {
 
 /* OUTLINE-PRIMARY — тёмный контур */
 .btn-outline-primary {
-  border: 2px solid var(--text) !important;
+  border: 2px solid var(--border-dark) !important;
   color: var(--text) !important;
   background: transparent !important;
 }
 .btn-outline-primary:hover {
-  background: var(--text) !important;
-  color: var(--bg) !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--text-on-accent) !important;
 }
 .btn-outline-primary:active,
 .btn-outline-primary:focus,
 .btn-outline-primary.active,
 .show > .btn-outline-primary.dropdown-toggle {
-  background: var(--text) !important;
-  color: var(--bg) !important;
-  border-color: var(--text) !important;
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+  border-color: var(--accent) !important;
 }
 
 /* SECONDARY */
@@ -233,43 +234,47 @@ a:focus, a:focus-visible {
 }
 
 .btn-outline-success {
-  border: 2px solid var(--accent) !important;
-  color: var(--accent) !important;
+  border: 2px solid var(--border-dark) !important;
+  color: var(--text) !important;
   background: transparent !important;
 }
 .btn-outline-success:hover {
   background: var(--accent) !important;
+  border-color: var(--accent) !important;
   color: var(--text-on-accent) !important;
 }
 
 .btn-outline-danger {
-  border: 2px solid var(--danger) !important;
-  color: var(--danger) !important;
+  border: 2px solid var(--border-dark) !important;
+  color: var(--text) !important;
   background: transparent !important;
 }
 .btn-outline-danger:hover {
-  background: var(--danger) !important;
-  color: #fff !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--text-on-accent) !important;
 }
 
 .btn-outline-warning {
-  border: 2px solid var(--warning) !important;
-  color: var(--warning) !important;
+  border: 2px solid var(--border-dark) !important;
+  color: var(--text) !important;
   background: transparent !important;
 }
 .btn-outline-warning:hover {
-  background: var(--warning) !important;
-  color: #fff !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--text-on-accent) !important;
 }
 
 .btn-outline-info {
-  border: 2px solid #0891b2 !important;
-  color: #0891b2 !important;
+  border: 2px solid var(--border-dark) !important;
+  color: var(--text) !important;
   background: transparent !important;
 }
 .btn-outline-info:hover {
-  background: #0891b2 !important;
-  color: #fff !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--text-on-accent) !important;
 }
 
 /* ── КАРТОЧКИ ── */
@@ -745,10 +750,15 @@ a:focus, a:focus-visible {
   color: var(--text);
 }
 
-/* ── FORM CHECK ── */
+/* ── FORM CHECK + ACCENT-COLOR ── */
 .form-check-input:checked {
   background-color: var(--accent);
   border-color: var(--accent);
+}
+input[type="checkbox"],
+input[type="radio"],
+select {
+  accent-color: var(--accent);
 }
 
 /* ── RESPONSIVE ── */
@@ -885,6 +895,43 @@ a:focus, a:focus-visible {
 
 /* text-success глобально → оранжевый (цена заработка, акценты владельца) */
 .text-success { color: var(--accent) !important; }
+
+/* ══ ФАЗА 3: ФОРМЫ И НЕЙТРАЛИЗАЦИЯ ЦВЕТОВ ══ */
+
+/* Задача 1: чекбоксы и select hover — уже добавлено выше */
+
+/* Задача 4.2: border-warning (Требуют внимания) → оранжевый */
+.border-warning { border-color: var(--accent) !important; }
+
+/* alert-warning → бежевый, оранжевая граница */
+.alert-warning {
+  background: var(--bg-alt) !important;
+  border-color: var(--accent) !important;
+  color: var(--text) !important;
+}
+
+/* Ссылки в таблицах → чёрные (топ инвентаря, аналитика) */
+.table a { color: var(--text) !important; }
+.table a:hover { color: var(--accent) !important; }
+
+/* Ссылки в list-group → чёрные (аналитика "Больше всего зарабатывает") */
+.list-group-item a { color: var(--text) !important; }
+.list-group-item a:hover { color: var(--accent) !important; }
+
+/* list-group фон → бежевый (Последняя активность) */
+.list-group-item { background: var(--bg-alt) !important; }
+.list-group-item-action:hover,
+.list-group-item-action:focus {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* Задача 4.1: иконки и метки в stat-card → muted */
+.stat-card .text-primary,
+.stat-card .text-success,
+.stat-card .text-info,
+.stat-card .text-warning { color: var(--text-muted) !important; }
+.stat-card small { color: var(--text-muted) !important; }
 
 /* История платежей: убрать цветной фон у subtle-бейджей, оставить оранжевый текст */
 .badge.bg-primary-subtle,
