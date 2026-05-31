@@ -489,6 +489,12 @@ a:focus, a:focus-visible {
   color: #fff !important;
 }
 
+/* Toast "Оплата наличными зафиксирована" — оранжевый вместо зелёного */
+.text-bg-success {
+  background-color: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+}
+
 /* ── ФУТЕР ── */
 .footer {
   background: var(--bg-alt);
@@ -752,8 +758,8 @@ a:focus, a:focus-visible {
 
 /* ── FORM CHECK + ACCENT-COLOR ── */
 .form-check-input:checked {
-  background-color: var(--accent);
-  border-color: var(--accent);
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
 }
 input[type="checkbox"],
 input[type="radio"],
@@ -900,8 +906,8 @@ select {
 
 /* Задача 1: чекбоксы и select hover — уже добавлено выше */
 
-/* Задача 4.2: border-warning (Требуют внимания) → оранжевый */
-.border-warning { border-color: var(--accent) !important; }
+/* "Требуют внимания" — убираем цветную обводку, нейтральная граница */
+.border-warning { border-color: var(--border) !important; }
 
 /* alert-warning → бежевый, оранжевая граница */
 .alert-warning {
