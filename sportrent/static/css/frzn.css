@@ -641,6 +641,7 @@ a:focus, a:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  background: var(--bg-elevated);
 }
 
 .product-name {
