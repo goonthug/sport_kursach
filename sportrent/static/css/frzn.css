@@ -897,9 +897,9 @@ a:focus, a:focus-visible {
   padding-left: 0;
 }
 
-/* "Доплата ... ₽ — не оплачено" → оранжевый */
+/* "Доплата ... ₽ — не оплачено" → серый */
 .col-md-12 p.text-warning {
-  color: var(--accent) !important;
+  color: var(--text-muted) !important;
 }
 
 /* Менеджерские кнопки "Продлить аренду" и "Скачать договор" → оранжевые */
