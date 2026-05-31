@@ -195,18 +195,18 @@ a:focus, a:focus-visible {
 
 /* SUCCESS / DANGER / WARNING / INFO — настоящие цвета */
 .btn-success {
-  background: var(--success) !important;
-  color: #fff !important;
-  border: 2px solid var(--success) !important;
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+  border: 2px solid var(--accent) !important;
 }
-.btn-success:hover { background: #236130 !important; border-color: #236130 !important; }
+.btn-success:hover { background: var(--accent-dark) !important; border-color: var(--accent-dark) !important; }
 
 .btn-danger {
-  background: var(--danger) !important;
-  color: #fff !important;
-  border: 2px solid var(--danger) !important;
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+  border: 2px solid var(--accent) !important;
 }
-.btn-danger:hover { background: #a93226 !important; border-color: #a93226 !important; }
+.btn-danger:hover { background: var(--accent-dark) !important; border-color: var(--accent-dark) !important; }
 
 .btn-warning {
   background: var(--warning) !important;
@@ -379,7 +379,7 @@ a:focus, a:focus-visible {
   border-radius: var(--radius-md);
 }
 
-.alert-success  { background: #f0faf3 !important; border-color: var(--success) !important; color: #1a4726 !important; }
+.alert-success  { background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--text-muted) !important; }
 .alert-danger   { background: #fef2f2 !important; border-color: var(--danger)  !important; color: #7b1d1d !important; }
 .alert-warning  { background: #fffbeb !important; border-color: var(--warning) !important; color: #7c4a00 !important; }
 .alert-info     { background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--text) !important; }
@@ -885,6 +885,35 @@ a:focus, a:focus-visible {
 
 /* text-success глобально → оранжевый (цена заработка, акценты владельца) */
 .text-success { color: var(--accent) !important; }
+
+/* История платежей: убрать цветной фон у subtle-бейджей, оставить оранжевый текст */
+.badge.bg-primary-subtle,
+.badge.bg-success-subtle,
+.badge.bg-warning-subtle,
+.badge.bg-danger-subtle {
+  background: transparent !important;
+  color: var(--accent) !important;
+  border: none !important;
+  padding-left: 0;
+}
+
+/* "Доплата ... ₽ — не оплачено" → оранжевый */
+.col-md-12 p.text-warning {
+  color: var(--accent) !important;
+}
+
+/* Менеджерские кнопки "Продлить аренду" и "Скачать договор" → оранжевые */
+.col-lg-8 .d-grid.gap-2 .btn-outline-warning,
+.col-lg-8 .d-grid.gap-2 .btn-outline-secondary {
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+  border-color: var(--accent) !important;
+}
+.col-lg-8 .d-grid.gap-2 .btn-outline-warning:hover,
+.col-lg-8 .d-grid.gap-2 .btn-outline-secondary:hover {
+  background: var(--accent-dark) !important;
+  border-color: var(--accent-dark) !important;
+}
 
 /* Кнопки "Редактировать" и "Удалить" на карточке непроверенного инвентаря */
 .d-grid.gap-2.d-md-flex .btn-warning,
