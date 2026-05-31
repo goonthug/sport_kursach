@@ -233,13 +233,13 @@ a:focus, a:focus-visible {
 }
 
 .btn-outline-success {
-  border: 2px solid var(--success) !important;
-  color: var(--success) !important;
+  border: 2px solid var(--accent) !important;
+  color: var(--accent) !important;
   background: transparent !important;
 }
 .btn-outline-success:hover {
-  background: var(--success) !important;
-  color: #fff !important;
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
 }
 
 .btn-outline-danger {
@@ -382,7 +382,7 @@ a:focus, a:focus-visible {
 .alert-success  { background: #f0faf3 !important; border-color: var(--success) !important; color: #1a4726 !important; }
 .alert-danger   { background: #fef2f2 !important; border-color: var(--danger)  !important; color: #7b1d1d !important; }
 .alert-warning  { background: #fffbeb !important; border-color: var(--warning) !important; color: #7c4a00 !important; }
-.alert-info     { background: #f0f9ff !important; border-color: #0891b2        !important; color: #0c4a6e !important; }
+.alert-info     { background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--text) !important; }
 .alert-secondary{ background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--text-muted) !important; }
 
 /* ── ТАБЛИЦЫ ── */
@@ -885,3 +885,26 @@ a:focus, a:focus-visible {
 
 /* text-success глобально → оранжевый (цена заработка, акценты владельца) */
 .text-success { color: var(--accent) !important; }
+
+/* Кнопки "Редактировать" и "Удалить" на карточке непроверенного инвентаря */
+.d-grid.gap-2.d-md-flex .btn-warning,
+.d-grid.gap-2.d-md-flex .btn-danger {
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+  border-color: var(--accent) !important;
+}
+.d-grid.gap-2.d-md-flex .btn-warning:hover,
+.d-grid.gap-2.d-md-flex .btn-danger:hover {
+  background: var(--accent-dark) !important;
+  border-color: var(--accent-dark) !important;
+}
+/* "Редактировать" в списке моего инвентаря (my_inventory) */
+.mt-auto.d-grid.gap-2 .btn-outline-warning {
+  background: var(--accent) !important;
+  color: var(--text-on-accent) !important;
+  border-color: var(--accent) !important;
+}
+.mt-auto.d-grid.gap-2 .btn-outline-warning:hover {
+  background: var(--accent-dark) !important;
+  border-color: var(--accent-dark) !important;
+}
