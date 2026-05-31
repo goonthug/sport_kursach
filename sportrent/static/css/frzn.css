@@ -465,7 +465,7 @@ a:focus, a:focus-visible {
 
 /* ── МОДАЛКИ ── */
 .modal-content {
-  background: var(--bg-elevated);
+  background: var(--bg-alt);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -815,9 +815,9 @@ a:focus, a:focus-visible {
   background: var(--bg-elevated) !important;
 }
 
-/* ── МОДАЛКИ — белые, не бежевые ── */
+/* ── МОДАЛКИ — бежевый фон ── */
 .modal-content {
-  background: var(--bg-elevated) !important;
+  background: var(--bg-alt) !important;
 }
 
 /* ── ГЕОДРОПДАУН: текст городов (цвет задаётся JS, перебиваем) ── */
@@ -841,12 +841,12 @@ a:focus, a:focus-visible {
 
 /* ══ ФАЗА 2: ЭМОДЗИ → ИКОНКИ, БЕЙДЖИ, КНОПКИ ══ */
 
-/* Задача 2: статус-бейджи аренд — все чёрные */
-.bg-success  { background: var(--text) !important; color: var(--text-on-accent) !important; }
-.bg-warning  { background: var(--text) !important; color: var(--text-on-accent) !important; }
-.bg-info     { background: var(--text) !important; color: var(--text-on-accent) !important; }
-.bg-secondary{ background: var(--text) !important; color: var(--text-on-accent) !important; }
-.bg-danger   { background: var(--text) !important; color: var(--text-on-accent) !important; }
+/* Задача 2: статус-бейджи аренд — все оранжевые как "Активна" */
+.bg-success  { background: var(--accent) !important; color: var(--text-on-accent) !important; }
+.bg-warning  { background: var(--accent) !important; color: var(--text-on-accent) !important; }
+.bg-info     { background: var(--accent) !important; color: var(--text-on-accent) !important; }
+.bg-secondary{ background: var(--accent) !important; color: var(--text-on-accent) !important; }
+.bg-danger   { background: var(--accent) !important; color: var(--text-on-accent) !important; }
 
 /* Задача 4: бейджи на странице детали инвентаря — оранжевые */
 .col-lg-6 > .mb-3 .badge {
@@ -877,3 +877,11 @@ a:focus, a:focus-visible {
 .card.border-success .text-success {
   color: var(--accent) !important;
 }
+
+/* "+300 ₽ доплата" в списке аренд → оранжевый */
+.col-md-2.text-center small.text-warning {
+  color: var(--accent) !important;
+}
+
+/* text-success глобально → оранжевый (цена заработка, акценты владельца) */
+.text-success { color: var(--accent) !important; }
