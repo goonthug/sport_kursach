@@ -341,9 +341,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    Chart.defaults.color = '#F5F5F5';
-    Chart.defaults.font.family = 'Inter, sans-serif';
-    Chart.defaults.borderColor = 'rgba(255,255,255,0.12)';
+    Chart.defaults.color = '#1a1a1a';
+    Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+    Chart.defaults.borderColor = 'rgba(26,26,26,0.08)';
+
+    const CHART_COLORS = ['#ef512c', '#1a1a1a', '#16a34a', '#d68910', '#3498db', '#9b59b6', '#e74c3c'];
 
     // График популярных категорий
     const categoriesCtx = document.getElementById('categoriesChart').getContext('2d');
@@ -358,8 +360,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 data: [
                     {% for cat in popular_categories %}{{ cat.total_rentals }},{% endfor %}
                 ],
-                backgroundColor: 'rgba(176, 190, 197, 0.7)',
-                borderColor: 'rgba(245, 245, 245, 0.6)',
+                backgroundColor: CHART_COLORS,
+                borderColor: 'rgba(26,26,26,0.1)',
                 borderWidth: 1
             }]
         },
@@ -369,14 +371,12 @@ document.addEventListener('DOMContentLoaded', function() {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: {
-                        color: 'rgba(255,255,255,0.08)'
-                    }
+                    grid: { color: 'rgba(26,26,26,0.06)' },
+                    ticks: { color: '#1a1a1a' }
                 },
                 x: {
-                    grid: {
-                        color: 'rgba(255,255,255,0.08)'
-                    }
+                    grid: { color: 'rgba(26,26,26,0.06)' },
+                    ticks: { color: '#1a1a1a' }
                 }
             }
         }
@@ -390,17 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
             labels: ['Активные', 'Ожидают', 'Завершенные'],
             datasets: [{
                 data: [{{ active_rentals }}, {{ pending_rentals }}, {{ completed_rentals }}],
-                backgroundColor: [
-                    'rgba(176, 190, 197, 0.7)',
-                    'rgba(144, 164, 174, 0.7)',
-                    'rgba(245, 245, 245, 0.6)'
-                ],
-                borderColor: [
-                    'rgba(245, 245, 245, 0.6)',
-                    'rgba(245, 245, 245, 0.6)',
-                    'rgba(245, 245, 245, 0.6)'
-                ],
-                borderWidth: 1
+                backgroundColor: ['#ef512c', '#d68910', '#16a34a'],
+                borderColor: ['#ffffff', '#ffffff', '#ffffff'],
+                borderWidth: 2
             }]
         },
         options: {
@@ -409,9 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        color: '#F5F5F5'
-                    }
+                    labels: { color: '#1a1a1a', padding: 16 }
                 }
             }
         }
