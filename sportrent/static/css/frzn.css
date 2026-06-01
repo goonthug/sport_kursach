@@ -624,6 +624,8 @@ a:focus, a:focus-visible {
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s ease;
   color: var(--text);
+  display: flex;
+  flex-direction: column;
 }
 
 .product-card:hover {
@@ -668,6 +670,7 @@ a:focus, a:focus-visible {
   flex-direction: column;
   gap: 4px;
   background: var(--bg-elevated);
+  flex: 1;
 }
 
 .product-name {
