@@ -103,6 +103,13 @@ class Inventory(models.Model):
     description = models.TextField(verbose_name='Описание')
     brand = models.CharField(max_length=100, blank=True, verbose_name='Бренд')
     model = models.CharField(max_length=100, blank=True, verbose_name='Модель')
+    image = models.ImageField(
+        upload_to='inventory/',
+        blank=True,
+        null=True,
+        verbose_name='Фото инвентаря',
+        help_text='Загрузите фотографию инвентаря. Рекомендуемый размер 800x600.',
+    )
 
     price_per_day = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='Цена за день')
     condition = models.CharField(max_length=50, choices=CONDITION_CHOICES, default='good', verbose_name='Состояние')
