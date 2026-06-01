@@ -203,11 +203,12 @@
                         <div class="product-card h-100">
                             <a href="{% url 'inventory:detail' item.inventory_id %}">
                                 <div class="product-image">
-                                    {% if item.photos.all %}
-                                        <img src="{{ item.photos.first.photo_url.url }}" alt="{{ item.name }}" style="object-fit: contain;">
+                                    {% if item.image %}
+                                        <img src="{{ item.image.url }}" alt="{{ item.name }}">
                                     {% else %}
-                                        <div class="h-100 d-flex align-items-center justify-content-center text-muted">
-                                            <i class="bi bi-image" style="font-size: 2rem;"></i>
+                                        <div class="inventory-no-photo">
+                                            <i class="bi bi-camera"></i>
+                                            <span>Фото отсутствует</span>
                                         </div>
                                     {% endif %}
                                     {% if user.is_authenticated and user.role == 'client' %}

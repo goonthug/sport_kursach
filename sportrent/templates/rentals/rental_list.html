@@ -57,14 +57,17 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-2">
-                                    {% if rental.inventory.photos.all %}
-                                        <img src="{{ rental.inventory.photos.first.photo_url.url }}"
+                                    {% if rental.inventory.image %}
+                                        <img src="{{ rental.inventory.image.url }}"
                                              class="img-fluid rounded"
                                              alt="{{ rental.inventory.name }}"
                                              style="height: 100px; width: 100%; object-fit: cover;">
                                     {% else %}
-                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 100px;">
-                                            <i class="bi bi-image text-muted"></i>
+                                        <div class="rounded d-flex align-items-center justify-content-center" style="height: 100px; background: var(--bg-alt);">
+                                            <div class="inventory-no-photo">
+                                                <i class="bi bi-camera"></i>
+                                                <span>Фото отсутствует</span>
+                                            </div>
                                         </div>
                                     {% endif %}
                                 </div>

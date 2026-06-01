@@ -647,6 +647,21 @@ a:focus, a:focus-visible {
   background-color: var(--bg-alt);
 }
 
+/* Плейсхолдер когда у инвентаря нет фото */
+.inventory-no-photo {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  background: var(--bg-alt);
+}
+.inventory-no-photo i { font-size: 32px; }
+.inventory-no-photo span { font-size: 0.82rem; }
+
 .product-info {
   padding: 16px 18px;
   display: flex;

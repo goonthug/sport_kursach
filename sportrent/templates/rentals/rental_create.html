@@ -13,11 +13,14 @@
                 <div class="card-body">
                     <div class="row mb-4">
                         <div class="col-md-3">
-                            {% if inventory.photos.all %}
-                                <img src="{{ inventory.photos.first.photo_url.url }}" class="img-fluid rounded" alt="{{ inventory.name }}">
+                            {% if inventory.image %}
+                                <img src="{{ inventory.image.url }}" class="img-fluid rounded" alt="{{ inventory.name }}" style="height: 150px; width: 100%; object-fit: cover;">
                             {% else %}
-                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
-                                    <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                <div class="rounded d-flex align-items-center justify-content-center" style="height: 150px; background: var(--bg-alt);">
+                                    <div class="inventory-no-photo">
+                                        <i class="bi bi-camera"></i>
+                                        <span>Фото отсутствует</span>
+                                    </div>
                                 </div>
                             {% endif %}
                         </div>

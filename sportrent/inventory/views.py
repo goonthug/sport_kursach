@@ -616,6 +616,12 @@ def ai_search_view(request):
         for item in results_qs:
             photo = item.photos.first()
             pp = item.pickup_point
+            if photo and photo.photo_url:
+                photo_url = photo.photo_url.url
+            elif item.image:
+                photo_url = item.image.url
+            else:
+                photo_url = ''
             items.append({
                 'id': str(item.inventory_id),
                 'name': item.name,
@@ -624,7 +630,7 @@ def ai_search_view(request):
                 'category': item.category.name if item.category else '',
                 'condition': item.condition,
                 'avg_rating': float(item.avg_rating) if item.avg_rating else None,
-                'photo_url': photo.photo_url.url if photo and photo.photo_url else '',
+                'photo_url': photo_url,
                 'url': f'/inventory/{item.inventory_id}/',
                 'pickup_point': {
                     'name': pp.name,
