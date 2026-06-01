@@ -44,20 +44,21 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(255,255,255,.12);
+        background: var(--accent-soft);
         border-radius: 20px;
         padding: 4px 12px;
         font-size: .75rem;
-        color: #a5c8ff;
+        color: var(--text);
         margin: 4px 4px 0 0;
     }
     .ai-understood-bar {
-        background: rgba(255,255,255,.07);
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
         border-radius: 8px;
         padding: 8px 14px;
         margin-top: 10px;
         font-size: .8rem;
-        color: #7dd3b0;
+        color: var(--text);
     }
     #ai-results-section { display: none; }
     #geo-status { font-size: .8rem; color: #7dd3b0; margin-top: 6px; }
@@ -107,7 +108,6 @@
         {# ── Умный поиск ────────────────────────────────────────────── #}
         <div id="ai-search-section">
             <div class="d-flex align-items-center gap-2 mb-3">
-                <i class="bi bi-cpu" style="font-size:1.4rem;"></i>
                 <div>
                     <div class="text-white fw-semibold" style="font-size:1rem;">Умный поиск с ИИ</div>
                     <div class="text-secondary" style="font-size:.8rem;">
@@ -134,12 +134,12 @@
         {# ── Что понял ИИ + результаты поиска ──────────────────────── #}
         <div id="ai-results-section" class="mb-4">
             <div id="ai-understood-bar" class="ai-understood-bar d-none">
-                <span class="text-white opacity-75 me-2"><i class="bi bi-cpu"></i> ИИ понял запрос:</span>
+                <span class="fw-semibold me-2" style="color:var(--text);">ИИ понял запрос:</span>
                 <span id="ai-parsed-badges"></span>
             </div>
             <div class="d-flex align-items-center justify-content-between mt-3 mb-2">
-                <h5 class="mb-0" style="color:#fff;">
-                    Результаты поиска: <span id="ai-count" class="text-primary">0</span>
+                <h5 class="mb-0" style="color:var(--text);">
+                    Результаты поиска: <span id="ai-count" style="color:var(--accent);">0</span>
                 </h5>
                 <button class="btn btn-sm btn-outline-secondary" id="ai-clear-btn"><i class="bi bi-x"></i> Сбросить</button>
             </div>
@@ -458,13 +458,13 @@
 
     function renderBadges(parsed) {
         const map = [
-            parsed.category_query && ['🎿', parsed.category_query],
-            parsed.city_name      && ['📍', parsed.city_name],
-            parsed.max_price      && ['💰', 'до ' + parsed.max_price + ' ₽/день'],
-            parsed.start_date     && ['📅', parsed.start_date + (parsed.end_date ? ' — ' + parsed.end_date : '')],
+            parsed.category_query && parsed.category_query,
+            parsed.city_name      && parsed.city_name,
+            parsed.max_price      && ('до ' + parsed.max_price + ' ₽/день'),
+            parsed.start_date     && (parsed.start_date + (parsed.end_date ? ' — ' + parsed.end_date : '')),
         ].filter(Boolean);
-        badgesEl.innerHTML = map.map(([ic, t]) =>
-            `<span class="ai-parsed-badge">${ic} ${escHtml(t)}</span>`
+        badgesEl.innerHTML = map.map(t =>
+            `<span class="ai-parsed-badge">${escHtml(t)}</span>`
         ).join('');
         understoodBar.classList.toggle('d-none', !map.length);
     }
