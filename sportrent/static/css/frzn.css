@@ -99,14 +99,14 @@ a:hover { color: var(--accent-dark); }
 .navbar-brand:hover { color: var(--text); }
 
 .navbar-logo {
-  height: 48px;
+  height: 64px;
   width: auto;
   display: block;
   object-fit: contain;
 }
 
 @media (max-width: 991.98px) {
-  .navbar-logo { height: 36px; }
+  .navbar-logo { height: 48px; }
 }
 
 .nav-link {
