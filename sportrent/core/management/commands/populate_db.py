@@ -23,10 +23,8 @@ Management команда для заполнения БД тестовыми д
 
 import re
 import random
-import shutil
 from datetime import timedelta
 from decimal import Decimal
-from pathlib import Path
 
 
 def _norm_phone(phone: str) -> str:
@@ -619,17 +617,6 @@ class Command(BaseCommand):
 
     def create_inventory(self):
         self.stdout.write('Создаём инвентарь...')
-        from django.conf import settings
-
-        default_img_src = Path(settings.BASE_DIR) / 'static' / 'img' / 'inventory_default.jpg'
-        media_inv_dir = Path(settings.MEDIA_ROOT) / 'inventory'
-        media_inv_dir.mkdir(parents=True, exist_ok=True)
-        use_default_img = default_img_src.exists()
-        if not use_default_img:
-            self.stdout.write(self.style.WARNING(
-                f'  Картинка-заглушка не найдена: {default_img_src} — image будет пустым.'
-            ))
-
         categories = {cat.name: cat for cat in SportCategory.objects.all()}
 
         for owner_idx, (email, _, city_name, _) in enumerate(OWNER_DATA):
@@ -645,7 +632,7 @@ class Command(BaseCommand):
             for cat_name, (name, desc, brand, model, price, condition) in self._select_items(owner_idx, allowed_cats, item_count):
                 status = rng.choices(['available', 'pending'], weights=[85, 15])[0]
                 pp = rng.choice(points) if points else None
-                item = Inventory.objects.create(
+                Inventory.objects.create(
                     owner=owner,
                     manager=manager if status == 'available' else None,
                     category=categories[cat_name],
@@ -659,12 +646,6 @@ class Command(BaseCommand):
                     max_rental_days=rng.randint(7, 30),
                     deposit_amount=(price * Decimal('0.3')).quantize(Decimal('0.01')),
                 )
-                if use_default_img:
-                    dst = media_inv_dir / f'default_{item.pk}.jpg'
-                    if not dst.exists():
-                        shutil.copy(str(default_img_src), str(dst))
-                    item.image = f'inventory/default_{item.pk}.jpg'
-                    item.save(update_fields=['image'])
 
         total = Inventory.objects.count()
         avail = Inventory.objects.filter(status='available').count()
