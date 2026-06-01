@@ -108,11 +108,13 @@
                                             <span class="badge bg-danger">{{ rental.get_status_display }}</span>
                                         {% endif %}
                                     </div>
-                                    <p class="h5 text-primary mb-0">{{ rental.total_price }} ₽</p>
-                                    {% if rental.additional_payment > 0 %}
-                                        <small class="text-warning">+{{ rental.additional_payment }} ₽ доплата</small><br>
+                                    {% if rental.status != 'inquiry' %}
+                                        <p class="h5 text-primary mb-0">{{ rental.total_price }} ₽</p>
+                                        {% if rental.additional_payment > 0 %}
+                                            <small class="text-warning">+{{ rental.additional_payment }} ₽ доплата</small><br>
+                                        {% endif %}
+                                        <small class="text-muted">{{ rental.get_payment_status_display }}</small>
                                     {% endif %}
-                                    <small class="text-muted">{{ rental.get_payment_status_display }}</small>
                                 </div>
 
                                 <div class="col-md-2 text-end">
