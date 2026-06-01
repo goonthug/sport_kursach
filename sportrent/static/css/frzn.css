@@ -906,8 +906,9 @@ select {
 
 /* Задача 1: чекбоксы и select hover — уже добавлено выше */
 
-/* "Требуют внимания" — убираем цветную обводку, нейтральная граница */
+/* Убираем акцентную обводку с border-warning карточек (Требуют внимания, NDA) */
 .border-warning { border-color: var(--border) !important; }
+.card.border-warning { border: 1px solid var(--border) !important; }
 
 /* alert-warning → бежевый, оранжевая граница */
 .alert-warning {
