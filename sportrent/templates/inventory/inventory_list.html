@@ -5,10 +5,26 @@
 {% block extra_css %}
 <style>
     #ai-search-section {
-        background: linear-gradient(135deg, #0d1b2a 0%, #1a2e44 100%);
+        background: var(--accent);
         border-radius: 16px;
         padding: 28px 32px;
         margin-bottom: 16px;
+    }
+    #ai-search-section .text-secondary {
+        color: rgba(255,255,255,.82) !important;
+    }
+    #ai-search-section #ai-search-btn {
+        background: var(--text) !important;
+        color: var(--text-on-accent) !important;
+        border-color: var(--text) !important;
+    }
+    #ai-search-section #ai-search-btn:hover,
+    #ai-search-section #ai-search-btn:focus {
+        background: #333 !important;
+        border-color: #333 !important;
+    }
+    #ai-search-section #ai-error {
+        color: rgba(255,255,255,.9) !important;
     }
     #auto-geo-section {
         background: linear-gradient(135deg, #0a2218 0%, #0f3020 100%);
