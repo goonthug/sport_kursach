@@ -388,7 +388,7 @@ a:focus, a:focus-visible {
 .alert-danger   { background: #fef2f2 !important; border-color: var(--danger)  !important; color: #7b1d1d !important; }
 .alert-warning  { background: #fffbeb !important; border-color: var(--warning) !important; color: #7c4a00 !important; }
 .alert-info     { background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--text) !important; }
-.alert-secondary{ background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--text-muted) !important; }
+.alert-secondary{ background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--text) !important; }
 
 /* ── ТАБЛИЦЫ ── */
 .table {
@@ -913,7 +913,7 @@ select {
 /* alert-warning → бежевый, оранжевая граница */
 .alert-warning {
   background: var(--bg-alt) !important;
-  border-color: var(--accent) !important;
+  border-color: var(--border) !important;
   color: var(--text) !important;
 }
 
